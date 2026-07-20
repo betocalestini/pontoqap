@@ -78,7 +78,14 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, l
 	})
 
 	r.Route("/api/v1", func(api chi.Router) {
-		api.Route("/auth", idHandler.Routes)
+		api.Route("/auth", func(ar chi.Router) {
+			idHandler.Routes(ar)
+			ar.Group(func(authed chi.Router) {
+				authed.Use(identityhttp.AuthMiddleware(idSvc, cfg.Session))
+				authed.Use(identityhttp.RequireAuth)
+				idHandler.AuthenticatedRoutes(authed)
+			})
+		})
 		api.Route("/catalog", catalogHandler.PublicRoutes)
 		api.Route("/customers", customersHandler.StoreRoutes)
 		api.Route("/webhooks", payHandler.WebhookRoutes)
@@ -97,6 +104,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, l
 			admin.Use(adminAuth)
 			admin.Group(func(priv chi.Router) {
 				priv.Use(identityhttp.RequireAuth)
+				priv.Use(identityhttp.RequireAdminMFA(cfg.Security.AdminMFARequired))
 				priv.With(identityhttp.RequirePermission("products.read")).Get("/categories", catalogHandler.ListCategoriesAdmin)
 				priv.With(identityhttp.RequirePermission("products.write")).Post("/categories", catalogHandler.CreateCategory)
 				priv.With(identityhttp.RequirePermission("products.read")).Get("/products", catalogHandler.ListProductsAdmin)

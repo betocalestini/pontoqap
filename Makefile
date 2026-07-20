@@ -42,3 +42,7 @@ restore:
 	@chmod +x infra/backup/restore.sh
 	@test -n "$(BACKUP)" || (echo "Use: make restore BACKUP=backups/arquivo.sql.gz" && exit 1)
 	DATABASE_URL=$${DATABASE_URL:-postgres://store:store@localhost:5432/store?sslmode=disable} ./infra/backup/restore.sh "$(BACKUP)"
+
+test-backup-restore:
+	@chmod +x infra/backup/verify_restore.sh
+	DATABASE_URL=$${DATABASE_URL:-postgres://store:store@localhost:5432/store?sslmode=disable} ./infra/backup/verify_restore.sh

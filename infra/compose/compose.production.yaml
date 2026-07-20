@@ -46,10 +46,11 @@ services:
       CSRF_SECRET: ${CSRF_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET}
+      ADMIN_MFA_REQUIRED: "true"
     depends_on:
       migrate:
         condition: service_completed_successfully
-    networks: [internal, edge]
+    networks: [internal]
 
   worker:
     build:
@@ -72,14 +73,33 @@ services:
       context: ../..
       dockerfile: apps/store-web/Dockerfile
     restart: unless-stopped
-    networks: [edge]
+    networks: [internal]
 
   admin-web:
     build:
       context: ../..
       dockerfile: apps/admin-web/Dockerfile
     restart: unless-stopped
-    networks: [edge]
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - store-web
+      - admin-web
+    networks: [edge, internal]
 
 networks:
   internal:
@@ -88,3 +108,5 @@ networks:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

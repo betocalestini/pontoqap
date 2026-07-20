@@ -1,0 +1,14 @@
+name: Deploy Staging
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy placeholder
+        run: |
+          echo "Configure SSH/host secrets e docker compose pull/up no servidor de staging."
+          echo "Ver docs/deployment.md"

@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { LoginPage } from './pages/Login';
+import { MfaSetupPage } from './pages/MfaSetup';
 import { DashboardPage } from './pages/Dashboard';
 import { CustomersPage } from './pages/Customers';
 import { BillingPage } from './pages/Billing';
@@ -26,6 +27,7 @@ export default function App() {
       )}
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/mfa" element={authed ? <MfaSetupPage /> : <Navigate to="/login" replace />} />
         <Route path="/" element={authed ? <DashboardPage /> : <Navigate to="/login" replace />} />
         <Route path="/clientes" element={authed ? <CustomersPage /> : <Navigate to="/login" replace />} />
         <Route path="/faturamento" element={authed ? <BillingPage /> : <Navigate to="/login" replace />} />

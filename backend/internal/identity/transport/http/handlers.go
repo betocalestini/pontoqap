@@ -24,6 +24,9 @@ func NewHandler(svc *identity.Service, sessionCfg config.SessionConfig, sec conf
 
 func (h *Handler) Routes(r chi.Router) {
 	r.Post("/login", h.login)
+}
+
+func (h *Handler) AuthenticatedRoutes(r chi.Router) {
 	r.Post("/logout", h.logout)
 	r.Get("/me", h.me)
 	r.Post("/mfa/setup", h.mfaSetup)
@@ -63,7 +66,11 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setSessionCookie(w, h.cookieName(req.Audience), res.SessionToken, h.cookieTTL(req.Audience), h.secure.CookieSecure)
-	httpx.WriteJSON(w, http.StatusOK, mapUser(res.User))
+	payload := mapUser(res.User)
+	if req.Audience == "admin" && h.secure.AdminMFARequired && !res.User.User.MFAEnabled {
+		payload["mfa_setup_required"] = true
+	}
+	httpx.WriteJSON(w, http.StatusOK, payload)
 }
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
@@ -221,6 +228,28 @@ func RequireAuth(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// RequireAdminMFA bloqueia rotas administrativas até o TOTP estar ativo.
+func RequireAdminMFA(required bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !required {
+				next.ServeHTTP(w, r)
+				return
+			}
+			user := UserFromContext(r.Context())
+			if user == nil {
+				httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+				return
+			}
+			if !user.User.MFAEnabled {
+				httpx.WriteError(w, http.StatusForbidden, "MFA_REQUIRED", "Configure MFA antes de acessar o painel")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func RequirePermission(code string) func(http.Handler) http.Handler {

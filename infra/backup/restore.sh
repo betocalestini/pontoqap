@@ -19,5 +19,5 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 fi
 
 echo "Restaurando $FILE em $DATABASE_URL ..."
-gunzip -c "$FILE" | psql "$DATABASE_URL" -v ON_ERROR_STOP=1
+gunzip -c "$FILE" | sed '/^SET transaction_timeout/d' | psql "$DATABASE_URL" -v ON_ERROR_STOP=1
 echo "Restauração concluída."

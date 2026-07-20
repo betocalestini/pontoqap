@@ -15,10 +15,11 @@ Checklist alinhado ao critério de conclusão em `docs/decisions.md` (seção 42
 | Testes unitários e integração | `make test` (PostgreSQL em `localhost:5432`) |
 | Fluxo HTTP checkout | `go test -p 1 ./tests/e2e/...` |
 | Fluxo MVP (checkout → fechamento → Pix) | `go test -p 1 ./tests/e2e/... -run TestMVP` |
+| Restauração de backup | `make test-backup-restore` |
 
 ## Manual (painel e loja)
 
-1. **Gerente** — login em `admin-web` (`gerente@loja.local` / senha do bootstrap).
+1. **Gerente** — login em `admin-web`; se exigido, configurar MFA em `/mfa` e usar código TOTP nos próximos acessos.
 2. **Catálogo** — cadastrar categoria e produto/SKU (API ou tela Produtos).
 3. **Estoque** — entrada de quantidade para o SKU.
 4. **Cliente** — cadastro na loja; gerente aprova e define limite.
@@ -32,8 +33,7 @@ Checklist alinhado ao critério de conclusão em `docs/decisions.md` (seção 42
 
 ## Pendências conhecidas do MVP completo
 
-- MFA administrativo (BK-0212).
-- TLS/reverse proxy em produção (BK-1110).
 - PSP Pix real (hoje: sandbox).
+- Deploy staging com secrets reais (workflow `deploy-staging.yml`).
 
 Registrar evidências (prints ou IDs de pedido/fatura) na issue de release.

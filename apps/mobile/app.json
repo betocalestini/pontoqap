@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Store Platform",
+    "slug": "store-platform",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "storeplatform",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android"],
+    "android": {
+      "package": "com.storeplatform.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.storeplatform.app"
+    }
+  }
+}

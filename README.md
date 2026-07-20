@@ -41,6 +41,7 @@ Em outro terminal:
 pnpm install
 pnpm dev:store   # http://localhost:5173
 pnpm dev:admin   # http://localhost:5174
+pnpm --filter mobile start   # Expo (EP-13)
 ```
 
 ### Credenciais iniciais (bootstrap)

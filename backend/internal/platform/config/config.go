@@ -30,10 +30,11 @@ type HTTPConfig struct {
 }
 
 type SecurityConfig struct {
-	SessionSecret string
-	CSRFSecret    string
-	EncryptionKey string
-	CookieSecure  bool
+	SessionSecret     string
+	CSRFSecret        string
+	EncryptionKey     string
+	CookieSecure      bool
+	AdminMFARequired  bool
 }
 
 type SessionConfig struct {
@@ -68,10 +69,11 @@ func Load() (Config, error) {
 			CORSOrigins:  splitCSV(env("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174")),
 		},
 		Security: SecurityConfig{
-			SessionSecret: env("SESSION_SECRET", "dev-session-secret-change-in-production"),
-			CSRFSecret:    env("CSRF_SECRET", "dev-csrf-secret-change-in-production"),
-			EncryptionKey: env("ENCRYPTION_KEY", "dev-encryption-key-32-bytes!!"),
-			CookieSecure:  env("COOKIE_SECURE", "false") == "true",
+			SessionSecret:    env("SESSION_SECRET", "dev-session-secret-change-in-production"),
+			CSRFSecret:       env("CSRF_SECRET", "dev-csrf-secret-change-in-production"),
+			EncryptionKey:    env("ENCRYPTION_KEY", "dev-encryption-key-32-bytes!!"),
+			CookieSecure:     env("COOKIE_SECURE", "false") == "true",
+			AdminMFARequired: envBool("ADMIN_MFA_REQUIRED", env("APP_ENV", "development") == "production"),
 		},
 		Session: SessionConfig{
 			StoreCookie: env("STORE_SESSION_COOKIE", "store_session"),
@@ -101,6 +103,14 @@ func env(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func envBool(key string, fallback bool) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if v == "" {
+		return fallback
+	}
+	return v == "1" || v == "true" || v == "yes"
 }
 
 func durationEnv(key string, fallback time.Duration) time.Duration {

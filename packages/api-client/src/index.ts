@@ -33,11 +33,19 @@ export function createApiClient(baseUrl = defaultBase) {
   }
 
   return {
-    login: (email: string, password: string, audience: Audience) =>
-      request('/auth/login', {
+    login: (email: string, password: string, audience: Audience, mfaCode?: string) =>
+      request<Record<string, unknown>>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password, audience }),
+        body: JSON.stringify({
+          email,
+          password,
+          audience,
+          ...(mfaCode ? { mfa_code: mfaCode } : {}),
+        }),
       }, audience),
+    mfaSetup: () => request<{ secret: string; otpauth_url: string }>('/auth/mfa/setup', { method: 'POST' }, 'admin'),
+    mfaVerify: (code: string) =>
+      request('/auth/mfa/verify', { method: 'POST', body: JSON.stringify({ code }) }, 'admin'),
     logout: (audience: Audience) =>
       request('/auth/logout', { method: 'POST' }, audience),
     me: (audience: Audience) => request('/auth/me', {}, audience),

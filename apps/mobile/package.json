@@ -2,10 +2,27 @@
   "name": "mobile",
   "private": true,
   "version": "0.0.1",
+  "main": "index.js",
   "scripts": {
-    "start": "echo \"Expo app — ver docs/decisions.md EP-13\"",
-    "build": "echo \"skip\"",
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "build": "echo \"use eas build for releases\"",
     "lint": "echo \"skip\"",
     "test": "echo \"skip\""
+  },
+  "dependencies": {
+    "@store/api-client": "workspace:*",
+    "@store/shared-core": "workspace:*",
+    "expo": "~52.0.27",
+    "expo-secure-store": "~14.0.1",
+    "expo-status-bar": "~2.0.1",
+    "react": "18.3.1",
+    "react-native": "0.76.6"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/react": "~18.3.12",
+    "typescript": "^5.7.2"
   }
 }
