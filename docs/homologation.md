@@ -11,7 +11,7 @@ Alinhado a `docs/decisions.md` (critério de conclusão, §42). Execute em **sta
 | API | http://localhost:8080/api/v1 | https://loja.seudominio.com/api/v1 |
 | Health | http://localhost:8080/health | https://loja.seudominio.com/health |
 
-Credencial bootstrap (somente dev): `gerente@loja.local` / `ChangeMe123!` — em staging, use gerente real com MFA.
+Credencial bootstrap (somente dev): `admin@loja.local` / `ChangeMe123!` — primeiro `system_admin` criado na subida da API se não existir administrador. Demais funcionários entram por convite (menu **Usuários**).
 
 ---
 
@@ -48,6 +48,7 @@ make test-backup-restore
 | 1.3 | Em `/mfa`, gerar segredo e confirmar código TOTP | MFA ativo (`mfa_enabled: true` em `/api/v1/auth/me` com header `X-App-Audience: admin`) | ☐ | print config app autenticador |
 | 1.4 | Logout e novo login | Pedir código MFA de 6 dígitos | ☐ | |
 | 1.5 | Login com TOTP inválido | 401 / mensagem de credencial inválida | ☐ | |
+| 1.6 | Admin → **Usuários** → convidar gerente; abrir link do e-mail (Mailpit em dev) | Aceitar convite, definir senha, login e MFA se exigido | ☐ | |
 
 ---
 

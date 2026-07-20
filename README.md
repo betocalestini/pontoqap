@@ -72,10 +72,11 @@ make openapi-gen   # tipos OpenAPI (só na raiz do repo)
 
 ### Credenciais iniciais (bootstrap)
 
-Após a primeira subida da API, é criado um gerente de demonstração:
+Após a primeira subida da API, é criado um **administrador** bootstrap (se ainda não existir `system_admin` no banco), configurável via `ADMIN_BOOTSTRAP_*` no `.env`:
 
-- **E-mail:** `gerente@loja.local`
-- **Senha:** `ChangeMe123!`
+- **E-mail (padrão):** `admin@loja.local`
+- **Senha (padrão):** `ChangeMe123!`
+- Demais funcionários: convite pelo menu **Usuários** no painel (papel fixo, sem permissões customizadas no MVP).
 - **Audience no login:** enviar `X-App-Audience: admin` ou `"audience": "admin"` no corpo
 - **Painel admin:** após o login, a API devolve um JWT (`access_token`) com validade fixa definida por `SESSION_TTL_ADMIN` (padrão 8h). O navegador envia `Authorization: Bearer …` nas requisições; sem token válido o painel redireciona para `/login`.
 

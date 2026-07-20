@@ -283,6 +283,8 @@ Sistema externo que:
 | RF-IDN-011 | O sistema deverá permitir que um usuário possua mais de um papel |
 | RF-IDN-012 | O sistema deverá registrar logins administrativos na auditoria   |
 
+**Implementação:** funcionários internos são clientes da loja com papel administrativo adicional; atribuição em `POST /admin/customers/{id}/staff-role`; suspensão administrativa (`users.status = suspended`) não impede compras na loja.
+
 ## 9.2. Clientes
 
 | ID         | Requisito                                                       |

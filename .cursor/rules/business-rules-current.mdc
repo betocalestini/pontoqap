@@ -44,3 +44,8 @@ Use isto junto com RF em `requirements.md`. Em conflito com código, **o código
 
 - **Loja:** sessão cookie (`store_session`).
 - **Admin:** JWT `access_token` + audience admin; MFA conforme config.
+- **Mesmo usuário** pode ter papel `customer` e um papel interno (`manager`, etc.) ao mesmo tempo.
+- Funcionários entram pela **cadastro na loja**; admin atribui papel em `POST /admin/customers/{id}/staff-role` (ou convite só para e-mail já cliente).
+- **`suspended` no usuário:** bloqueia login/sessão **admin**; loja continua se o cliente não estiver bloqueado.
+- **`disabled`:** bloqueia loja e admin.
+- Desconto colaborador (`collaborator_category_id`) é independente de ser funcionário.
