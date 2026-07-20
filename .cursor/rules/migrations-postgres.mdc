@@ -1,0 +1,33 @@
+---
+description: Migrations PostgreSQL e golang-migrate
+globs: backend/migrations/**
+alwaysApply: false
+---
+
+# Migrations PostgreSQL
+
+## Estado atual
+
+- **Baseline:** `000001_initial.up.sql` (schema + seeds em `INSERT`).
+- **Incrementais:** `000002_*.sql` em diante (ex.: `status_before_block` em `customers`).
+- **Down baseline:** `DROP SCHEMA public CASCADE` + recriação do schema.
+
+Pré-produção: não há migração de versão antiga (22 arquivos) para versão 1 — ambientes locais usam `docker compose down -v` ou `./scripts/dev-up.sh`.
+
+## Regras ao escrever SQL
+
+1. Início do arquivo incremental: `SET search_path TO public;`
+2. Qualificar objetos: `public.tabela` (o dump da `000001` zera `search_path` na sessão).
+3. **Não** usar blocos `COPY ... FROM stdin` do pg_dump — golang-migrate não executa; usar `INSERT`.
+4. Seeds novos: IDs estáveis opcionais; permissões com UUID único (evitar colisão com `permissions_pkey`).
+5. Uma preocupação lógica por arquivo numerado (`000003_descricao.up.sql` + `.down.sql`).
+
+## Verificação
+
+- `docker compose up --build migrate` ou `make migrate-up` com Postgres saudável.
+- Testes: `go test ./tests/integration/...` após mudança de schema.
+
+## Evolução da baseline
+
+- Preferir migration incremental para mudanças novas.
+- Só re-squash da `000001` com acordo explícito (rebuild de todos os ambientes).

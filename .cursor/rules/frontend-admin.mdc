@@ -1,0 +1,37 @@
+---
+description: Frontends React (admin/loja) e pacotes compartilhados
+globs: apps/admin-web/**,apps/store-web/**,packages/api-client/**,packages/shared-core/**,packages/contracts/**
+alwaysApply: false
+---
+
+# Frontend e API client
+
+## Apps
+
+- `apps/store-web`: catálogo, carrinho, conta — proxy Vite para API em dev.
+- `apps/admin-web`: produtos, estoque, clientes, billing, relatórios.
+
+## Autenticação
+
+| App | Mecanismo |
+| ----- | --------- |
+| Loja | Cookie de sessão após `POST /auth/login` com `audience: store` |
+| Admin | JWT em `access_token` + header `Authorization: Bearer` e `X-App-Audience: admin` |
+
+Cliente HTTP: [`packages/api-client/src/index.ts`](packages/api-client/src/index.ts) — estender métodos ao criar rotas.
+
+## UI admin (padrões do repo)
+
+- Formulários largos: `form form--wide`, `form__full` para campos que ocupam linha inteira.
+- Tabelas: wrapper `table-scroll`; em mobile usar lista de **cards** (ver Produtos, Clientes, Estoque).
+- Layout dois painéis (lista + painel lateral sticky): referência `inventory-layout` / `customers-layout` em `App.css`.
+- Estilos globais em `apps/admin-web/src/App.css` — evitar CSS modules novos sem necessidade.
+
+## Permissões
+
+- `packages/shared-core` lista alguns `permissionCodes`; backend é fonte da verdade.
+- UI ainda mostra ações amplas; 403 do backend é esperado para papel sem permissão.
+
+## Tipos OpenAPI
+
+- `packages/contracts` gerado de `openapi.yaml`; manter alinhado após mudanças de API.

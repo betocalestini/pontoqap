@@ -1,0 +1,45 @@
+---
+description: Convenções do backend Go (monólito modular)
+globs: backend/**
+alwaysApply: false
+---
+
+# Backend Go
+
+## Layout real (não o aspiracional de `decisions.md`)
+
+```
+backend/
+  cmd/api, cmd/worker, cmd/migrate
+  internal/<modulo>/     # service, postgres, domain leve
+  internal/<modulo>/transport/http/
+  internal/app/router.go # montagem de rotas e DI
+  migrations/
+  tests/integration, tests/e2e
+  openapi/openapi.yaml
+```
+
+Módulos típicos: `identity`, `customers`, `catalog`, `inventory`, `sales`, `billing`, `payments`, `reports`, `forecasting`, `jobs`, `audit`, `platform`.
+
+## HTTP e autorização
+
+- Prefixo API: `/api/v1`.
+- Admin: grupo `/admin`, `AdminAudienceMiddleware`, `RequireAuth`, MFA se configurado.
+- Permissões: `identityhttp.RequirePermission("codigo")` por rota — espelhar em novos endpoints.
+- Erros de domínio: `AppError` com `Code`/`Status`; módulo `platform/errors` para códigos comuns.
+- Loja autenticada: `/api/v1/me/*` (cart, invoices, pix).
+
+## Testes
+
+- Integração: `tests/integration` com `testdb.MigrateUp` e fixtures em `tests/testdb`.
+- E2E HTTP: `tests/e2e` contra `app.NewRouter`.
+- Preferir teste de integração para regras de preço/estoque/cliente.
+
+## Contrato
+
+- Alterar handlers → atualizar `backend/openapi/openapi.yaml` e rodar `make openapi-gen` na raiz.
+
+## Estilo de mudança
+
+- Diff mínimo; seguir padrão do módulo vizinho (naming, pgx, chi).
+- Não introduzir camadas `application/command` sem pedido explícito do usuário.
