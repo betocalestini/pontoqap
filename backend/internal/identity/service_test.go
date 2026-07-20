@@ -78,9 +78,6 @@ func (m *mockRepo) FindCustomerIDByUser(ctx context.Context, userID uuid.UUID) (
 func (m *mockRepo) IsCustomerBlocked(ctx context.Context, userID uuid.UUID) (bool, error) {
 	return false, nil
 }
-func (m *mockRepo) EnsureBootstrapManager(ctx context.Context, email, name, passwordHash string) error {
-	return nil
-}
 
 func TestLoginSuccessStore(t *testing.T) {
 	hash, _ := security.HashPassword("secret")

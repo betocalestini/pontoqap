@@ -34,6 +34,7 @@ type SMTPConfig struct {
 
 type AppConfig struct {
 	StoreWebURL string
+	AdminWebURL string
 }
 
 type CustomerConfig struct {
@@ -119,6 +120,7 @@ func Load() (Config, error) {
 		},
 		App: AppConfig{
 			StoreWebURL: env("STORE_WEB_URL", "http://localhost:5173"),
+			AdminWebURL: env("ADMIN_WEB_URL", "http://localhost:5174"),
 		},
 		Customer: CustomerConfig{
 			DefaultCreditLimitCents: int64Env("DEFAULT_CUSTOMER_CREDIT_LIMIT_CENTS", 50_000),

@@ -146,6 +146,30 @@ func scanCustomer(row pgx.Row) (*Customer, error) {
 	return &c, nil
 }
 
+func (s *Service) attachStaffRoles(ctx context.Context, c *Customer) error {
+	if c == nil {
+		return nil
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT ro.code FROM user_roles ur
+		JOIN roles ro ON ro.id = ur.role_id
+		WHERE ur.user_id = $1 AND ro.code <> 'customer'
+		ORDER BY ro.code
+	`, c.UserID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return err
+		}
+		c.StaffRoles = append(c.StaffRoles, code)
+	}
+	return rows.Err()
+}
+
 const customerSelectSQL = `
 	SELECT c.id, c.user_id, u.name, u.email, COALESCE(u.phone,''), COALESCE(c.document,''), c.status,
 	       c.credit_limit_cents, c.current_exposure_cents, c.approved_at,

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/store-platform/store/internal/identity"
@@ -38,6 +39,7 @@ type Customer struct {
 	CollaboratorCategoryID   *uuid.UUID `json:"collaborator_category_id,omitempty"`
 	CollaboratorCategoryName string     `json:"collaborator_category_name,omitempty"`
 	BlockedReason            string     `json:"blocked_reason,omitempty"`
+	StaffRoles               []string   `json:"staff_roles,omitempty"`
 }
 
 type RegisterInput struct {
@@ -58,6 +60,20 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*Customer, er
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+
+	var existingUserID uuid.UUID
+	err = tx.QueryRow(ctx, `SELECT id FROM users WHERE LOWER(email) = LOWER($1)`, in.Email).Scan(&existingUserID)
+	if err == nil {
+		var hasCustomer bool
+		_ = tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM customers WHERE user_id = $1)`, existingUserID).Scan(&hasCustomer)
+		if hasCustomer {
+			return nil, &AppError{Code: platformerrors.CodeConflict, Message: "E-mail já cadastrado", Status: 409}
+		}
+		return nil, &AppError{Code: platformerrors.CodeValidation, Message: "E-mail já em uso; conclua o cadastro na loja ou contate o suporte", Status: 409}
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
 
 	userID := uuid.New()
 	_, err = tx.Exec(ctx, `
@@ -112,7 +128,23 @@ func (s *Service) List(ctx context.Context) ([]Customer, error) {
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Customer, error) {
 	row := s.pool.QueryRow(ctx, customerSelectSQL+` WHERE c.id = $1`, id)
-	return scanCustomer(row)
+	c, err := scanCustomer(row)
+	if err != nil || c == nil {
+		return c, err
+	}
+	if err := s.attachStaffRoles(ctx, c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func (s *Service) UserIDForCustomer(ctx context.Context, customerID uuid.UUID) (uuid.UUID, error) {
+	var userID uuid.UUID
+	err := s.pool.QueryRow(ctx, `SELECT user_id FROM customers WHERE id = $1`, customerID).Scan(&userID)
+	if err == pgx.ErrNoRows {
+		return uuid.Nil, ErrNotFound()
+	}
+	return userID, err
 }
 
 func (s *Service) Approve(ctx context.Context, customerID, managerID uuid.UUID, limitCents int64) error {

@@ -22,10 +22,20 @@ type Service struct {
 	storeTTL      time.Duration
 	adminTTL      time.Duration
 	sessionSecret string
+	audit         AdminLoginAuditor
+}
+
+// AdminLoginAuditor records successful admin logins (RF-IDN-012).
+type AdminLoginAuditor interface {
+	LogAdminLogin(ctx context.Context, userID uuid.UUID) error
 }
 
 func NewService(repo Repository, storeTTL, adminTTL time.Duration, sessionSecret string) *Service {
 	return &Service{repo: repo, storeTTL: storeTTL, adminTTL: adminTTL, sessionSecret: sessionSecret}
+}
+
+func (s *Service) SetAdminLoginAuditor(a AdminLoginAuditor) {
+	s.audit = a
 }
 
 type LoginInput struct {
@@ -53,8 +63,14 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 	if user == nil {
 		return nil, errInvalidCredentials()
 	}
-	if user.Status == "blocked" {
+	if user.Status == "blocked" || user.Status == "temporarily_blocked" {
 		return nil, errForbidden("Conta bloqueada")
+	}
+	if user.Status == "disabled" {
+		return nil, errForbidden("Conta desativada")
+	}
+	if user.Status == "suspended" && in.Audience == "admin" {
+		return nil, errForbidden("Acesso administrativo suspenso")
 	}
 	if user.LockedUntil != nil && user.LockedUntil.After(time.Now()) {
 		return nil, errAccountLocked()
@@ -87,8 +103,14 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 	}
 
 	if in.Audience == "admin" {
+		if user.Status == "invited" {
+			return nil, errForbidden("Aceite o convite antes de entrar")
+		}
+		if user.Status != "active" {
+			return nil, errForbidden("Conta não disponível para acesso administrativo")
+		}
 		roles, _ := s.repo.ListUserRoles(ctx, user.ID)
-		if !hasAdminRole(roles) {
+		if !HasStaffRole(roles) {
 			return nil, errForbidden("Acesso não permitido ao painel administrativo")
 		}
 		if user.MFAEnabled {
@@ -135,6 +157,9 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 			return nil, err
 		}
 		out.AccessToken = jwtRaw
+		if s.audit != nil {
+			_ = s.audit.LogAdminLogin(ctx, user.ID)
+		}
 	}
 	return out, nil
 }
@@ -152,7 +177,7 @@ func (s *Service) AuthenticateSession(ctx context.Context, token, expectedAudien
 		return nil, errUnauthorized()
 	}
 	user, err := s.repo.FindUserByID(ctx, sess.UserID)
-	if err != nil || user == nil || (user.Status != "active" && user.Status != "pending_email") {
+	if err != nil || user == nil || !storeSessionAllowedStatus(user.Status) {
 		return nil, errUnauthorized()
 	}
 	if user.Status == "pending_email" {
@@ -181,7 +206,7 @@ func (s *Service) AuthenticateAdminBearer(ctx context.Context, bearer string) (*
 		return nil, errUnauthorized()
 	}
 	user, err := s.repo.FindUserByID(ctx, sess.UserID)
-	if err != nil || user == nil || user.Status != "active" {
+	if err != nil || user == nil || !adminSessionAllowedStatus(user.Status) {
 		return nil, errUnauthorized()
 	}
 	authUser, err := s.buildAuthUser(ctx, *user)
@@ -261,13 +286,21 @@ func newSessionToken() (raw, hash string, err error) {
 	return raw, hash, nil
 }
 
-func hasAdminRole(roles []string) bool {
-	for _, r := range roles {
-		if r == "manager" || r == "system_admin" {
-			return true
-		}
+func adminSessionAllowedStatus(status string) bool {
+	return status == "active"
+}
+
+func storeSessionAllowedStatus(status string) bool {
+	switch status {
+	case "active", "suspended", "pending_email":
+		return true
+	default:
+		return false
 	}
-	return false
+}
+
+func hasAdminRole(roles []string) bool {
+	return HasStaffRole(roles)
 }
 
 type AppError struct {

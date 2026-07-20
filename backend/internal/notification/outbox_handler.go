@@ -12,6 +12,7 @@ import (
 const (
 	EventUserVerification = "user.verification_requested"
 	EventInvoiceClosed    = "invoice.closed"
+	EventAdminInvitation  = "admin.invitation_sent"
 )
 
 type OutboxHandler struct {
@@ -54,6 +55,17 @@ func (h *OutboxHandler) Handle(ctx context.Context, eventType string, payload js
 		}
 		subj, text, html := InvoiceClosedContent(p.Name, p.InvoiceNumber, p.RefYear, p.RefMonth, p.TotalCents, due, p.InvoiceURL)
 		return h.Mailer.Send(p.To, subj, text, html)
+	case EventAdminInvitation:
+		var p struct {
+			To        string `json:"to"`
+			Name      string `json:"name"`
+			InviteURL string `json:"invite_url"`
+		}
+		if err := json.Unmarshal(payload, &p); err != nil {
+			return err
+		}
+		subj, text, html := AdminInviteContent(p.Name, p.InviteURL)
+		return h.Mailer.Send(p.To, subj, text, html)
 	default:
 		return nil
 	}
@@ -73,4 +85,12 @@ func BuildInvoiceURL(storeWebURL, invoiceID string) string {
 		base = "http://localhost:5173"
 	}
 	return fmt.Sprintf("%s/faturas/%s", base, invoiceID)
+}
+
+func BuildAdminInviteURL(adminWebURL, rawToken string) string {
+	base := config.TrimTrailingSlash(adminWebURL)
+	if base == "" {
+		base = "http://localhost:5174"
+	}
+	return fmt.Sprintf("%s/convite/aceitar?token=%s", base, rawToken)
 }

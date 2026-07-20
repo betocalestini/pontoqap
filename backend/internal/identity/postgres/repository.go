@@ -187,36 +187,4 @@ func (r *Repository) IsCustomerBlocked(ctx context.Context, userID uuid.UUID) (b
 	return status == "blocked", nil
 }
 
-func (r *Repository) EnsureBootstrapManager(ctx context.Context, email, name, passwordHash string) error {
-	var exists bool
-	if err := r.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users)`).Scan(&exists); err != nil {
-		return err
-	}
-	if exists {
-		return nil
-	}
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	userID := uuid.New()
-	_, err = tx.Exec(ctx, `
-		INSERT INTO users (id, name, email, password_hash, status)
-		VALUES ($1, $2, $3, $4, 'active')
-	`, userID, name, email, passwordHash)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `
-		INSERT INTO user_roles (user_id, role_id)
-		VALUES ($1, 'a0000000-0000-4000-8000-000000000002')
-	`, userID)
-	if err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
-}
-
 var _ identity.Repository = (*Repository)(nil)

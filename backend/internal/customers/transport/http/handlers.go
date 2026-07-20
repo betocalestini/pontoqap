@@ -7,16 +7,18 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/store-platform/store/internal/customers"
+	"github.com/store-platform/store/internal/identity"
 	identityhttp "github.com/store-platform/store/internal/identity/transport/http"
 	"github.com/store-platform/store/internal/platform/httpx"
 )
 
 type Handler struct {
-	svc *customers.Service
+	svc        *customers.Service
+	adminUsers *identity.AdminUsersService
 }
 
-func NewHandler(svc *customers.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *customers.Service, adminUsers *identity.AdminUsersService) *Handler {
+	return &Handler{svc: svc, adminUsers: adminUsers}
 }
 
 func (h *Handler) StoreRoutes(r chi.Router) {
@@ -31,6 +33,7 @@ func (h *Handler) AdminRoutes(r chi.Router) {
 	r.Patch("/{id}/credit-limit", h.changeLimit)
 	r.Patch("/{id}/block", h.blockCustomer)
 	r.Patch("/{id}/unblock", h.unblockCustomer)
+	r.With(identityhttp.RequirePermission("users.manage")).Post("/{id}/staff-role", h.assignStaffRole)
 }
 
 func (h *Handler) CollaboratorCategoryRoutes(r chi.Router) {
@@ -55,6 +58,10 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 		Name: body.Name, Email: body.Email, Password: body.Password, Phone: body.Phone, Document: body.Document,
 	})
 	if err != nil {
+		if ae := customers.AsAppError(err); ae != nil {
+			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
+			return
+		}
 		httpx.WriteError(w, http.StatusConflict, "CONFLICT", "Não foi possível registrar o cliente")
 		return
 	}
@@ -87,6 +94,50 @@ func (h *Handler) BlockCustomer(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UnblockCustomer(w http.ResponseWriter, r *http.Request) {
 	h.unblockCustomer(w, r)
+}
+
+func (h *Handler) AssignStaffRole(w http.ResponseWriter, r *http.Request) {
+	h.assignStaffRole(w, r)
+}
+
+func (h *Handler) assignStaffRole(w http.ResponseWriter, r *http.Request) {
+	if h.adminUsers == nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Indisponível")
+		return
+	}
+	actor := identityhttp.UserFromContext(r.Context())
+	if actor == nil {
+		httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
+		return
+	}
+	var body struct {
+		RoleID   string `json:"role_id"`
+		Password string `json:"password"`
+		MFACode  string `json:"mfa_code"`
+	}
+	if err := httpx.DecodeJSON(r, &body); err != nil || body.RoleID == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
+		return
+	}
+	roleID, err := uuid.Parse(body.RoleID)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Papel inválido")
+		return
+	}
+	if err := h.adminUsers.AssignStaffRoleFromCustomer(r.Context(), *actor, id, roleID, body.Password, body.MFACode); err != nil {
+		if ae := identity.AsAppError(err); ae != nil {
+			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
+			return
+		}
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao atribuir papel")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) ListCollaboratorCategories(w http.ResponseWriter, r *http.Request) {

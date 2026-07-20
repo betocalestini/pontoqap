@@ -14,18 +14,20 @@ import (
 )
 
 type Handler struct {
-	svc    *identity.Service
-	verify *identity.VerificationService
-	cfg    config.SessionConfig
-	secure config.SecurityConfig
+	svc        *identity.Service
+	verify     *identity.VerificationService
+	adminUsers *identity.AdminUsersService
+	cfg        config.SessionConfig
+	secure     config.SecurityConfig
 }
 
-func NewHandler(svc *identity.Service, verify *identity.VerificationService, sessionCfg config.SessionConfig, sec config.SecurityConfig) *Handler {
-	return &Handler{svc: svc, verify: verify, cfg: sessionCfg, secure: sec}
+func NewHandler(svc *identity.Service, verify *identity.VerificationService, adminUsers *identity.AdminUsersService, sessionCfg config.SessionConfig, sec config.SecurityConfig) *Handler {
+	return &Handler{svc: svc, verify: verify, adminUsers: adminUsers, cfg: sessionCfg, secure: sec}
 }
 
 func (h *Handler) Routes(r chi.Router) {
 	r.Post("/login", h.login)
+	r.Post("/accept-invitation", h.acceptInvitation)
 	r.Get("/verify-email", h.verifyEmail)
 	r.Post("/resend-verification", h.resendVerification)
 }
@@ -323,6 +325,26 @@ func RequirePermission(code string) func(http.Handler) http.Handler {
 				return
 			}
 			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// RequireAnyPermission allows the request when the user has at least one listed permission.
+func RequireAnyPermission(codes ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for _, code := range codes {
+				if HasPermission(r.Context(), code) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			user := UserFromContext(r.Context())
+			if user == nil {
+				httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+				return
+			}
+			httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Permissão insuficiente")
 		})
 	}
 }

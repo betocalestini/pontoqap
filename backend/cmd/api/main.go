@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -36,8 +37,11 @@ func main() {
 	defer pool.Close()
 
 	idRepo := identitypostgres.NewRepository(pool)
-	hash, _ := security.HashPassword("ChangeMe123!")
-	_ = idRepo.EnsureBootstrapManager(ctx, "gerente@loja.local", "Gerente Demo", hash)
+	adminUsersRepo := identitypostgres.NewAdminUsersRepository(pool)
+	if err := ensureBootstrapSystemAdmin(ctx, adminUsersRepo); err != nil {
+		logger.Error("bootstrap admin failed", "error", err)
+		os.Exit(1)
+	}
 
 	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL, cfg.Security.SessionSecret)
 	verifySvc := identity.NewVerificationService(pool, jobs.NewRepository(pool), cfg.App, cfg.Customer)
@@ -66,4 +70,31 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
+}
+
+func ensureBootstrapSystemAdmin(ctx context.Context, adminRepo *identitypostgres.AdminUsersRepository) error {
+	exists, err := adminRepo.ExistsSystemAdmin(ctx)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	email := strings.TrimSpace(os.Getenv("ADMIN_BOOTSTRAP_EMAIL"))
+	name := strings.TrimSpace(os.Getenv("ADMIN_BOOTSTRAP_NAME"))
+	password := os.Getenv("ADMIN_BOOTSTRAP_PASSWORD")
+	if email == "" {
+		email = "admin@loja.local"
+	}
+	if name == "" {
+		name = "Administrador"
+	}
+	if password == "" {
+		password = "ChangeMe123!"
+	}
+	hash, err := security.HashPassword(password)
+	if err != nil {
+		return err
+	}
+	return adminRepo.CreateBootstrapSystemAdmin(ctx, email, name, hash)
 }

@@ -55,9 +55,6 @@ func (m *mfaRepo) UpdateMFA(ctx context.Context, userID uuid.UUID, secret string
 	m.user.MFAEnabled = enabled
 	return nil
 }
-func (m *mfaRepo) EnsureBootstrapManager(ctx context.Context, email, name, passwordHash string) error {
-	return nil
-}
 
 func TestAdminLoginRequiresMFACodeWhenEnabled(t *testing.T) {
 	secret := "JBSWY3DPEHPK3PXP"

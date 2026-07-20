@@ -28,6 +28,30 @@ type ProductFixture struct {
 	Price     int64
 }
 
+// SeedSystemAdmin cria administrador com papel system_admin.
+func SeedSystemAdmin(ctx context.Context, pool *pgxpool.Pool, email string) (Manager, error) {
+	hash, err := security.HashPassword("password123")
+	if err != nil {
+		return Manager{}, err
+	}
+	userID := uuid.New()
+	_, err = pool.Exec(ctx, `
+		INSERT INTO users (id, name, email, password_hash, status, email_verified_at)
+		VALUES ($1, 'Admin Teste', $2, $3, 'active', NOW())
+	`, userID, email, hash)
+	if err != nil {
+		return Manager{}, err
+	}
+	_, err = pool.Exec(ctx, `
+		INSERT INTO user_roles (user_id, role_id)
+		VALUES ($1, 'a0000000-0000-4000-8000-000000000001')
+	`, userID)
+	if err != nil {
+		return Manager{}, err
+	}
+	return Manager{UserID: userID, Email: email}, nil
+}
+
 // SeedManager cria gerente com papel manager e todas as permissões operacionais.
 func SeedManager(ctx context.Context, pool *pgxpool.Pool, email string) (Manager, error) {
 	hash, err := security.HashPassword("password123")

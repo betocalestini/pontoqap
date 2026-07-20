@@ -51,5 +51,4 @@ type Repository interface {
 	UpdateMFA(ctx context.Context, userID uuid.UUID, secret string, enabled bool) error
 	FindCustomerIDByUser(ctx context.Context, userID uuid.UUID) (*uuid.UUID, error)
 	IsCustomerBlocked(ctx context.Context, userID uuid.UUID) (bool, error)
-	EnsureBootstrapManager(ctx context.Context, email, name, passwordHash string) error
 }

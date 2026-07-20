@@ -72,6 +72,24 @@ paths:
       responses:
         '204':
           description: Aceito (sem revelar se o e-mail existe)
+  /auth/accept-invitation:
+    post:
+      tags: [auth]
+      summary: Aceitar convite administrativo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string }
+                name: { type: string }
+      responses:
+        '204':
+          description: Conta ativada
   /auth/logout:
     post:
       tags: [auth]
@@ -176,6 +194,30 @@ paths:
       responses:
         '200':
           description: Processado
+  /admin/users:
+    get:
+      tags: [admin]
+      summary: Listar usuários internos
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Lista de usuários
+  /admin/users/invitations:
+    post:
+      tags: [admin]
+      summary: Convidar usuário interno
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: Convite criado
+  /admin/roles:
+    get:
+      tags: [admin]
+      summary: Papéis internos
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Papéis
   /admin/customers:
     get:
       tags: [admin]
@@ -297,6 +339,30 @@ paths:
       responses:
         '204':
           description: Desbloqueado
+  /admin/customers/{id}/staff-role:
+    post:
+      tags: [admin]
+      summary: Atribuir papel administrativo a um cliente
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role_id]
+              properties:
+                role_id: { type: string, format: uuid }
+                password: { type: string }
+                mfa_code: { type: string }
+      responses:
+        '204':
+          description: Papel atribuído
   /admin/collaborator-categories:
     get:
       tags: [admin]

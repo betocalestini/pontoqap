@@ -29,3 +29,10 @@ func formatBRL(cents int64) string {
 	}
 	return fmt.Sprintf("R$ %d,%02d", reais, frac)
 }
+
+func AdminInviteContent(name, inviteURL string) (subject, text, html string) {
+	subject = "Convite para o painel administrativo — Store"
+	text = fmt.Sprintf("Olá, %s!\n\nVocê foi convidado(a) para acessar o painel administrativo. Crie sua senha pelo link (válido por 48 horas):\n\n%s\n", name, inviteURL)
+	html = fmt.Sprintf(`<p>Olá, %s!</p><p>Você foi convidado(a) para o painel administrativo. <a href="%s">Criar senha e ativar conta</a> (válido por 48 horas).</p>`, name, inviteURL)
+	return subject, text, html
+}

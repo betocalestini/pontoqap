@@ -20,6 +20,7 @@ import (
 	customershttp "github.com/store-platform/store/internal/customers/transport/http"
 	"github.com/store-platform/store/internal/forecasting"
 	"github.com/store-platform/store/internal/identity"
+	identitypostgres "github.com/store-platform/store/internal/identity/postgres"
 	identityhttp "github.com/store-platform/store/internal/identity/transport/http"
 	"github.com/store-platform/store/internal/inventory"
 	inventoryhttp "github.com/store-platform/store/internal/inventory/transport/http"
@@ -49,10 +50,16 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 	catalogSvc := catalog.NewService(pool)
 	catalogHandler := cataloghttp.NewHandler(catalogSvc, invSvc, uploadRoot)
 	custSvc := customers.NewService(pool, verifySvc)
-	customersHandler := customershttp.NewHandler(custSvc)
+	auditSvc := audit.NewService(pool)
+	idRepo := identitypostgres.NewRepository(pool)
+	adminUsersRepo := identitypostgres.NewAdminUsersRepository(pool)
+	adminUsersSvc := identity.NewAdminUsersService(pool, idRepo, adminUsersRepo, jobRepo, auditSvc, cfg.App.AdminWebURL)
+	customersHandler := customershttp.NewHandler(custSvc, adminUsersSvc)
 	invHandler := inventoryhttp.NewHandler(invSvc, catalogSvc)
 	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc, catalogSvc, custSvc))
-	idHandler := identityhttp.NewHandler(idSvc, verifySvc, cfg.Session, cfg.Security)
+	idSvc.SetAdminLoginAuditor(auditSvc)
+	idHandler := identityhttp.NewHandler(idSvc, verifySvc, adminUsersSvc, cfg.Session, cfg.Security)
+	adminUsersHandler := identityhttp.NewAdminUsersHandler(adminUsersSvc)
 
 	gateway := payments.NewSandboxGateway(cfg.Payments.WebhookSecret)
 	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments.WebhookSecret)
@@ -60,8 +67,6 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 	billHandler := billinghttp.NewHandler(billSvc)
 	reportsHandler := reportshttp.NewReportsHandler(reports.NewService(pool))
 	forecastHandler := reportshttp.NewForecastHandler(forecasting.NewService(pool))
-
-	_ = audit.NewService(pool)
 
 	storeAuth := identityhttp.AuthMiddleware(idSvc, cfg.Session)
 	adminAuth := AdminAudienceMiddleware(identityhttp.AuthMiddleware(idSvc, cfg.Session))
@@ -138,6 +143,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 					cr.With(identityhttp.RequirePermission("customers.change_limit")).Patch("/{id}/credit-limit", customersHandler.ChangeLimit)
 					cr.With(identityhttp.RequirePermission("customers.write")).Patch("/{id}/block", customersHandler.BlockCustomer)
 					cr.With(identityhttp.RequirePermission("customers.write")).Patch("/{id}/unblock", customersHandler.UnblockCustomer)
+					cr.With(identityhttp.RequirePermission("users.manage")).Post("/{id}/staff-role", customersHandler.AssignStaffRole)
 				})
 				priv.Route("/collaborator-categories", func(cr chi.Router) {
 					cr.With(identityhttp.RequirePermission("customers.read")).Get("/", customersHandler.ListCollaboratorCategories)
@@ -146,8 +152,9 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 				})
 				priv.With(identityhttp.RequirePermission("inventory.read")).Get("/inventory/balances", invHandler.ListBalances)
 				priv.With(identityhttp.RequirePermission("inventory.read")).Get("/inventory/movements", invHandler.ListMovements)
-				priv.Post("/inventory/movements", invHandler.CreateMovement)
+				priv.With(identityhttp.RequireAnyPermission("inventory.entry", "inventory.loss", "inventory.adjust")).Post("/inventory/movements", invHandler.CreateMovement)
 				priv.With(identityhttp.RequirePermission("inventory.entry")).Post("/inventory/entries", invHandler.RegisterEntry)
+				adminUsersHandler.Routes(priv)
 				priv.Route("/billing", func(br chi.Router) {
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/calendar", billHandler.ListCalendar)
 					br.With(identityhttp.RequirePermission("settings.write")).Put("/calendar", billHandler.UpsertCalendar)
