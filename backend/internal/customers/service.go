@@ -40,6 +40,8 @@ type Customer struct {
 	CollaboratorCategoryName string     `json:"collaborator_category_name,omitempty"`
 	BlockedReason            string     `json:"blocked_reason,omitempty"`
 	StaffRoles               []string   `json:"staff_roles,omitempty"`
+	OpenInvoicesCount        int        `json:"open_invoices_count"`
+	OverdueInvoicesCount     int        `json:"overdue_invoices_count"`
 }
 
 type RegisterInput struct {

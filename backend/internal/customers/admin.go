@@ -128,7 +128,8 @@ func scanCustomer(row pgx.Row) (*Customer, error) {
 	var phone string
 	err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Email, &phone, &c.Document, &c.Status,
 		&c.CreditLimitCents, &c.CurrentExposureCents, &c.ApprovedAt, &c.EmailVerified,
-		&catID, &catName, &blockedReason)
+		&catID, &catName, &blockedReason,
+		&c.OpenInvoicesCount, &c.OverdueInvoicesCount)
 	if err == pgx.ErrNoRows {
 		return nil, nil
 	}
@@ -174,8 +175,18 @@ const customerSelectSQL = `
 	SELECT c.id, c.user_id, u.name, u.email, COALESCE(u.phone,''), COALESCE(c.document,''), c.status,
 	       c.credit_limit_cents, c.current_exposure_cents, c.approved_at,
 	       (u.email_verified_at IS NOT NULL),
-	       c.collaborator_category_id, cc.name, c.blocked_reason
+	       c.collaborator_category_id, cc.name, c.blocked_reason,
+	       COALESCE(inv.open_invoices_count, 0), COALESCE(inv.overdue_invoices_count, 0)
 	FROM customers c
 	JOIN users u ON u.id = c.user_id
 	LEFT JOIN collaborator_categories cc ON cc.id = c.collaborator_category_id
+	LEFT JOIN LATERAL (
+		SELECT
+			COUNT(*) FILTER (
+				WHERE i.status IN ('open', 'overdue') AND i.total_cents > i.paid_cents
+			)::int AS open_invoices_count,
+			COUNT(*) FILTER (WHERE i.status = 'overdue')::int AS overdue_invoices_count
+		FROM invoices i
+		WHERE i.customer_id = c.id
+	) inv ON true
 `
