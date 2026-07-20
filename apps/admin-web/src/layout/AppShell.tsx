@@ -2,6 +2,13 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { adminNavLinks } from './navLinks';
+import { usePermissions } from '../auth/usePermissions';
+
+function navVisible(permissions: string[], permission?: string | string[]) {
+  if (!permission) return true;
+  const codes = Array.isArray(permission) ? permission : [permission];
+  return codes.some((c) => permissions.includes(c));
+}
 
 type AppShellProps = {
   children: ReactNode;
@@ -17,16 +24,20 @@ function NavLinks({
   onNavigate,
   pathname,
   id,
+  permissions,
 }: {
   navClassName: string;
   onNavigate?: () => void;
   pathname: string;
   id?: string;
+  permissions: string[];
 }) {
   return (
     <nav id={id} className={navClassName} aria-label="Principal">
       <ul className="app-nav__list">
-        {adminNavLinks.map(({ to, label }) => (
+        {adminNavLinks
+          .filter((link) => navVisible(permissions, link.permission))
+          .map(({ to, label }) => (
           <li key={to}>
             <Link
               to={to}
@@ -45,6 +56,7 @@ function NavLinks({
 export function AppShell({ children }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const permissions = usePermissions();
 
   useEffect(() => {
     setMenuOpen(false);
@@ -78,6 +90,7 @@ export function AppShell({ children }: AppShellProps) {
           id="admin-primary-nav"
           onNavigate={closeMenu}
           pathname={location.pathname}
+          permissions={permissions}
         />
       </>,
       document.body,
@@ -90,7 +103,7 @@ export function AppShell({ children }: AppShellProps) {
           <Link to="/" className="app-brand">
             Painel
           </Link>
-          <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} />
+          <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} permissions={permissions} />
           <button
             type="button"
             className="nav-toggle"

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AdminCustomer, CollaboratorCategory } from '@store/api-client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { AdminCustomer, AdminStaffRole, CollaboratorCategory } from '@store/api-client';
 import { api } from '../api';
 
 function formatBRL(cents: number) {
@@ -140,6 +140,8 @@ function CustomerCard({
 export function CustomersPage() {
   const [items, setItems] = useState<AdminCustomer[]>([]);
   const [categories, setCategories] = useState<CollaboratorCategory[]>([]);
+  const [staffRoles, setStaffRoles] = useState<AdminStaffRole[]>([]);
+  const [editingCustomer, setEditingCustomer] = useState<AdminCustomer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -147,6 +149,7 @@ export function CustomersPage() {
     phone: '',
     document: '',
     collaborator_category_id: '',
+    staff_role_id: '',
     limit_cents: '',
     limit_reason: '',
     block_reason: '',
@@ -155,15 +158,28 @@ export function CustomersPage() {
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [initialLimitCents, setInitialLimitCents] = useState(0);
   const [approveLimitReais, setApproveLimitReais] = useState('1000');
+  const [clientFilter, setClientFilter] = useState('');
   const editPanelRef = useRef<HTMLDivElement>(null);
 
+  const filteredItems = useMemo(() => {
+    const q = clientFilter.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((c) => {
+      const name = (c.name ?? '').toLowerCase();
+      const email = (c.email ?? '').toLowerCase();
+      return name.includes(q) || email.includes(q);
+    });
+  }, [items, clientFilter]);
+
   const load = useCallback(async () => {
-    const [custRes, catRes] = await Promise.all([
+    const [custRes, catRes, rolesRes] = await Promise.all([
       api.adminListCustomers(),
       api.adminListCollaboratorCategories(),
+      api.adminListStaffRoles(),
     ]);
     setItems((custRes.items ?? []) as AdminCustomer[]);
     setCategories((catRes.items ?? []) as CollaboratorCategory[]);
+    setStaffRoles((rolesRes.items ?? []) as AdminStaffRole[]);
   }, []);
 
   useEffect(() => {
@@ -187,19 +203,44 @@ export function CustomersPage() {
 
   function startEdit(c: AdminCustomer) {
     setEditingId(c.id);
+    setEditingCustomer(c);
     setInitialLimitCents(c.credit_limit_cents ?? 0);
+    const currentStaff = (c.staff_roles ?? [])[0] ?? '';
+    const roleMatch = staffRoles.find((r) => r.code === currentStaff);
     setForm({
       name: c.name ?? '',
       phone: c.phone ?? '',
       document: c.document ?? '',
       collaborator_category_id: c.collaborator_category_id ?? '',
+      staff_role_id: roleMatch?.id ?? '',
       limit_cents: String((c.credit_limit_cents ?? 0) / 100),
       limit_reason: '',
       block_reason: '',
     });
+    void api.adminGetCustomer(c.id).then((fresh) => {
+      setEditingCustomer(fresh);
+      const code = (fresh.staff_roles ?? [])[0] ?? '';
+      const match = staffRoles.find((r) => r.code === code);
+      setForm((f) => ({ ...f, staff_role_id: match?.id ?? '' }));
+    });
     requestAnimationFrame(() => {
       editPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
+  }
+
+  async function assignStaffRole() {
+    if (!editingId || !form.staff_role_id) return;
+    const password = window.prompt('Confirme sua senha para atribuir acesso administrativo:');
+    if (!password) return;
+    setError(null);
+    try {
+      await api.adminAssignCustomerStaffRole(editingId, { role_id: form.staff_role_id, password });
+      await load();
+      const fresh = await api.adminGetCustomer(editingId);
+      setEditingCustomer(fresh);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao atribuir papel');
+    }
   }
 
   async function saveCustomer(e: React.FormEvent) {
@@ -359,8 +400,26 @@ export function CustomersPage() {
                 aria-label="Limite na aprovação em reais"
               />
             </label>
+            <label className="customers-toolbar__search">
+              Buscar cliente
+              <input
+                type="search"
+                value={clientFilter}
+                onChange={(e) => setClientFilter(e.target.value)}
+                placeholder="Nome ou e-mail"
+                aria-label="Filtrar por nome ou e-mail"
+              />
+            </label>
           </div>
 
+          {filteredItems.length === 0 ? (
+            <p className="customers-panel__placeholder">
+              {items.length === 0
+                ? 'Nenhum cliente cadastrado.'
+                : 'Nenhum cliente corresponde à busca.'}
+            </p>
+          ) : (
+            <>
           <div className="table-scroll customers-table-desktop">
             <table className="customers-table">
               <thead>
@@ -375,7 +434,7 @@ export function CustomersPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((c) => (
+                {filteredItems.map((c) => (
                   <CustomerTableRow
                     key={c.id}
                     customer={c}
@@ -390,7 +449,7 @@ export function CustomersPage() {
           </div>
 
           <ul className="customers-cards" aria-label="Lista de clientes">
-            {items.map((c) => (
+            {filteredItems.map((c) => (
               <CustomerCard
                 key={c.id}
                 customer={c}
@@ -401,6 +460,8 @@ export function CustomersPage() {
               />
             ))}
           </ul>
+            </>
+          )}
         </div>
 
         <div ref={editPanelRef} className="customers-panel customers-panel--form">
@@ -441,6 +502,34 @@ export function CustomersPage() {
                 Motivo do limite (opcional)
                 <input value={form.limit_reason} onChange={(e) => setForm((f) => ({ ...f, limit_reason: e.target.value }))} />
               </label>
+              <fieldset className="customer-staff-fieldset form__full">
+                <legend>Acesso administrativo</legend>
+                <p className="form-hint">
+                  Funcionários devem ter cadastro na loja. O papel interno não remove o perfil de cliente.
+                </p>
+                {(editingCustomer?.staff_roles?.length ?? 0) > 0 && (
+                  <p>
+                    Papel atual: <strong>{(editingCustomer?.staff_roles ?? []).join(', ')}</strong>
+                  </p>
+                )}
+                <label>
+                  Papel interno
+                  <select
+                    value={form.staff_role_id}
+                    onChange={(e) => setForm((f) => ({ ...f, staff_role_id: e.target.value }))}
+                  >
+                    <option value="">— Sem acesso ao painel —</option>
+                    {staffRoles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} ({r.code})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button type="button" disabled={!form.staff_role_id} onClick={() => void assignStaffRole()}>
+                  Atribuir / alterar papel
+                </button>
+              </fieldset>
               <div className="form__actions form__full">
                 <button type="submit">Salvar</button>
                 <button type="button" onClick={() => setEditingId(null)}>

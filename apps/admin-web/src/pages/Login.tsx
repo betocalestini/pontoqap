@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthProvider';
 export function LoginPage() {
   const navigate = useNavigate();
   const { completeLogin } = useAuth();
-  const [email, setEmail] = useState('gerente@loja.local');
+  const [email, setEmail] = useState('admin@loja.local');
   const [password, setPassword] = useState('ChangeMe123!');
   const [mfaCode, setMfaCode] = useState('');
   const [needsMfa, setNeedsMfa] = useState(false);

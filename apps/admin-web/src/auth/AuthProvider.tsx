@@ -19,6 +19,7 @@ export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 type AuthContextValue = {
   status: AuthStatus;
+  permissions: string[];
   completeLogin: (accessToken: string) => void;
   signOut: () => Promise<void>;
 };
@@ -28,9 +29,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [status, setStatus] = useState<AuthStatus>('loading');
+  const [permissions, setPermissions] = useState<string[]>([]);
 
   const markUnauthenticated = useCallback(() => {
     clearAdminAccessToken();
+    setPermissions([]);
     setStatus('unauthenticated');
   }, []);
 
@@ -40,7 +43,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      await api.me('admin');
+      const me = (await api.me('admin')) as { permissions?: unknown };
+      const perms = Array.isArray(me.permissions) ? (me.permissions as string[]) : [];
+      setPermissions(perms);
       setStatus('authenticated');
     } catch {
       markUnauthenticated();
@@ -48,6 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [markUnauthenticated]);
 
   useEffect(() => {
+    if (location.pathname === '/convite/aceitar') {
+      setStatus('unauthenticated');
+      return;
+    }
     if (location.pathname === '/login') {
       if (hasValidAdminAccessToken()) {
         void verifySession();
@@ -59,10 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void verifySession();
   }, [location.pathname, verifySession]);
 
-  const completeLogin = useCallback((accessToken: string) => {
-    setAdminAccessToken(accessToken);
-    setStatus('authenticated');
-  }, []);
+  const completeLogin = useCallback(
+    (accessToken: string) => {
+      setAdminAccessToken(accessToken);
+      void verifySession();
+    },
+    [verifySession],
+  );
 
   const signOut = useCallback(async () => {
     try {
@@ -75,8 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, completeLogin, signOut }),
-    [status, completeLogin, signOut],
+    () => ({ status, permissions, completeLogin, signOut }),
+    [status, permissions, completeLogin, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

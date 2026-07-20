@@ -710,6 +710,16 @@ tr.row--warning td {
   max-width: 10rem;
 }
 
+.customers-toolbar__search {
+  margin: 0;
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.customers-toolbar__search input {
+  width: 100%;
+}
+
 .customers-table-desktop .customers-table {
   min-width: 44rem;
 }

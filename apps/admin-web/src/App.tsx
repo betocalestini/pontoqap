@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { AppShell } from './layout/AppShell';
 import { LoginPage } from './pages/Login';
@@ -9,10 +9,22 @@ import { BillingPage } from './pages/Billing';
 import { ProductsPage } from './pages/Products';
 import { InventoryPage } from './pages/Inventory';
 import { ReportsPage } from './pages/Reports';
+import { UsersPage } from './pages/Users';
+import { AcceptInvitePage } from './pages/AcceptInvite';
 import './App.css';
 
 function AppRoutes() {
   const { status } = useAuth();
+  const location = useLocation();
+  const publicInvite = location.pathname === '/convite/aceitar';
+
+  if (publicInvite) {
+    return (
+      <Routes>
+        <Route path="/convite/aceitar" element={<AcceptInvitePage />} />
+      </Routes>
+    );
+  }
 
   if (status === 'loading') {
     return null;
@@ -38,6 +50,7 @@ function AppRoutes() {
         <Route path="/produtos" element={<ProductsPage />} />
         <Route path="/estoque" element={<InventoryPage />} />
         <Route path="/relatorios" element={<ReportsPage />} />
+        <Route path="/usuarios" element={<UsersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
