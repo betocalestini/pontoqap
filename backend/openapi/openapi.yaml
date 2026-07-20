@@ -519,6 +519,26 @@ paths:
         '200':
           description: Pagamento simulado
 components:
+  schemas:
+    AdminCustomer:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        document: { type: string }
+        status: { type: string }
+        credit_limit_cents: { type: integer, format: int64 }
+        current_exposure_cents: { type: integer, format: int64 }
+        email_verified: { type: boolean }
+        collaborator_category_id: { type: string, format: uuid }
+        collaborator_category_name: { type: string }
+        blocked_reason: { type: string }
+        staff_roles: { type: array, items: { type: string } }
+        open_invoices_count: { type: integer }
+        overdue_invoices_count: { type: integer }
   securitySchemes:
     cookieAuth:
       type: apiKey

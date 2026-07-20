@@ -25,6 +25,8 @@ export type AdminCustomer = {
   collaborator_category_name?: string;
   blocked_reason?: string;
   staff_roles?: string[];
+  open_invoices_count?: number;
+  overdue_invoices_count?: number;
 };
 
 export type AdminUpdateCustomerBody = {

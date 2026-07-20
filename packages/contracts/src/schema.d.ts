@@ -953,6 +953,51 @@ export interface paths {
         };
         trace?: never;
     };
+    "/admin/customers/{id}/staff-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Atribuir papel administrativo a um cliente */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        role_id: string;
+                        password?: string;
+                        mfa_code?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Papel atribuído */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/collaborator-categories": {
         parameters: {
             query?: never;
@@ -1437,7 +1482,32 @@ export interface paths {
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        AdminCustomer: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            user_id?: string;
+            name?: string;
+            /** Format: email */
+            email?: string;
+            phone?: string;
+            document?: string;
+            status?: string;
+            /** Format: int64 */
+            credit_limit_cents?: number;
+            /** Format: int64 */
+            current_exposure_cents?: number;
+            email_verified?: boolean;
+            /** Format: uuid */
+            collaborator_category_id?: string;
+            collaborator_category_name?: string;
+            blocked_reason?: string;
+            staff_roles?: string[];
+            open_invoices_count?: number;
+            overdue_invoices_count?: number;
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;
