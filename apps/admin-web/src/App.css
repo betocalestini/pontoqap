@@ -653,6 +653,18 @@ tr.row--warning td {
   min-height: var(--touch-min);
 }
 
+.product-promo-fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-md);
+}
+
+.product-promo-fieldset legend {
+  padding: 0 var(--space-xs);
+}
+
 .inventory-filter-bar {
   display: grid;
   gap: var(--space-md);

@@ -49,6 +49,14 @@ func (s *Service) ProductMarginPercent(ctx context.Context, productID uuid.UUID)
 	return m, err
 }
 
+func (s *Service) effectiveMarginForProduct(ctx context.Context, productID uuid.UUID) (float64, error) {
+	p, err := s.GetProduct(ctx, productID, false)
+	if err != nil || p == nil {
+		return 0, err
+	}
+	return EffectiveMarginPercent(*p), nil
+}
+
 // RecalculateSKU updates sale price from lot average cost and product margin.
 func (s *Service) RecalculateSKU(ctx context.Context, skuID uuid.UUID, changedBy uuid.UUID, reason string, avgCostFn func(context.Context, uuid.UUID) (int64, bool, error)) (bool, error) {
 	var productID uuid.UUID
@@ -59,7 +67,7 @@ func (s *Service) RecalculateSKU(ctx context.Context, skuID uuid.UUID, changedBy
 	if err != nil {
 		return false, err
 	}
-	margin, err := s.ProductMarginPercent(ctx, productID)
+	margin, err := s.effectiveMarginForProduct(ctx, productID)
 	if err != nil {
 		return false, err
 	}

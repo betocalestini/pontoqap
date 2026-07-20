@@ -22,6 +22,11 @@ export type AdminProduct = {
   description?: string;
   category_id?: string;
   margin_percent?: number;
+  promo_active?: boolean;
+  promo_margin_percent?: number;
+  promo_quantity_total?: number;
+  promo_quantity_remaining?: number;
+  on_promotion?: boolean;
   active: boolean;
   visible: boolean;
   image_url?: string;
@@ -51,6 +56,9 @@ export type AdminUpdateProductBody = {
   active?: boolean;
   visible?: boolean;
   margin_percent?: number;
+  promo_active?: boolean;
+  promo_margin_percent?: number;
+  promo_quantity?: number;
 };
 
 export type AdminUpdateSkuBody = {

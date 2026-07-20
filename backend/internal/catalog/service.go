@@ -47,7 +47,12 @@ type Product struct {
 	Slug          string    `json:"slug"`
 	Description   string    `json:"description,omitempty"`
 	CategoryID    *uuid.UUID `json:"category_id,omitempty"`
-	MarginPercent float64   `json:"margin_percent"`
+	MarginPercent          float64   `json:"margin_percent"`
+	PromoActive            bool      `json:"promo_active"`
+	PromoMarginPercent     *float64  `json:"promo_margin_percent,omitempty"`
+	PromoQuantityTotal     int       `json:"promo_quantity_total"`
+	PromoQuantityRemaining int       `json:"promo_quantity_remaining"`
+	OnPromotion            bool      `json:"on_promotion"`
 	Active        bool      `json:"active"`
 	Visible       bool      `json:"visible"`
 	UpdatedAt     time.Time `json:"updated_at"`
@@ -107,6 +112,14 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 	arg := 1
 	if !f.Admin {
 		where = append(where, "p.active = TRUE AND p.visible = TRUE")
+		locID, _ := uuid.Parse(inventory.DefaultLocationID)
+		where = append(where, `EXISTS (
+			SELECT 1 FROM skus s
+			JOIN inventory_balances ib ON ib.sku_id = s.id AND ib.location_id = $`+itoa(arg)+`
+			WHERE s.product_id = p.id AND s.active = TRUE AND ib.available_quantity > 0
+		)`)
+		args = append(args, locID)
+		arg++
 	}
 	if f.Search != "" {
 		where = append(where, "(p.name ILIKE $"+itoa(arg)+" OR p.slug ILIKE $"+itoa(arg)+")")
@@ -127,12 +140,18 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 	}
 
 	args = append(args, f.PageSize, offset)
+	orderSQL := `ORDER BY p.name`
+	if !f.Admin && f.Search == "" {
+		orderSQL = `ORDER BY (p.promo_active AND p.promo_quantity_remaining > 0) DESC, p.name`
+	}
 	q := `
-		SELECT p.id, p.name, p.slug, COALESCE(p.description,''), p.category_id, p.margin_percent, p.active, p.visible, p.updated_at
+		SELECT p.id, p.name, p.slug, COALESCE(p.description,''), p.category_id, p.margin_percent,
+		       p.promo_active, p.promo_margin_percent, p.promo_quantity_total, p.promo_quantity_remaining,
+		       p.active, p.visible, p.updated_at
 		FROM products p
 		LEFT JOIN categories c ON c.id = p.category_id
 		WHERE ` + whereSQL + `
-		ORDER BY p.name
+		` + orderSQL + `
 		LIMIT $` + itoa(arg) + ` OFFSET $` + itoa(arg+1)
 
 	rows, err := s.pool.Query(ctx, q, args...)
@@ -145,9 +164,12 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 	var ids []uuid.UUID
 	for rows.Next() {
 		var p Product
-		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.MarginPercent, &p.Active, &p.Visible, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.MarginPercent,
+			&p.PromoActive, &p.PromoMarginPercent, &p.PromoQuantityTotal, &p.PromoQuantityRemaining,
+			&p.Active, &p.Visible, &p.UpdatedAt); err != nil {
 			return nil, 0, err
 		}
+		p.OnPromotion = p.IsOnPromotion()
 		products = append(products, p)
 		ids = append(ids, p.ID)
 	}
@@ -185,16 +207,21 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 
 func (s *Service) GetProduct(ctx context.Context, id uuid.UUID, publicOnly bool) (*Product, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, name, slug, COALESCE(description,''), category_id, margin_percent, active, visible, updated_at
+		SELECT id, name, slug, COALESCE(description,''), category_id, margin_percent,
+		       promo_active, promo_margin_percent, promo_quantity_total, promo_quantity_remaining,
+		       active, visible, updated_at
 		FROM products WHERE id = $1
 	`, id)
 	var p Product
-	if err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.MarginPercent, &p.Active, &p.Visible, &p.UpdatedAt); err != nil {
+	if err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.MarginPercent,
+		&p.PromoActive, &p.PromoMarginPercent, &p.PromoQuantityTotal, &p.PromoQuantityRemaining,
+		&p.Active, &p.Visible, &p.UpdatedAt); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
 	}
+	p.OnPromotion = p.IsOnPromotion()
 	if publicOnly && (!p.Active || !p.Visible) {
 		return nil, nil
 	}
@@ -203,6 +230,9 @@ func (s *Service) GetProduct(ctx context.Context, id uuid.UUID, publicOnly bool)
 		return nil, err
 	}
 	p.SKUs = m[p.ID]
+	if publicOnly && !productHasAvailableStock(p.SKUs) {
+		return nil, nil
+	}
 	if img, err := s.loadPrimaryImages(ctx, []uuid.UUID{p.ID}); err != nil {
 		return nil, err
 	} else if im, ok := img[p.ID]; ok {
@@ -425,6 +455,15 @@ func slugify(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	s = strings.ReplaceAll(s, " ", "-")
 	return s
+}
+
+func productHasAvailableStock(skus []SKU) bool {
+	for _, sku := range skus {
+		if sku.AvailableQty != nil && *sku.AvailableQty > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func itoa(n int) string {

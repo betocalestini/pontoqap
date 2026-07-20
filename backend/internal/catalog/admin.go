@@ -15,6 +15,9 @@ type UpdateProductInput struct {
 	Active        *bool
 	Visible       *bool
 	MarginPercent *float64
+	PromoActive   *bool
+	PromoMarginPercent *float64
+	PromoQuantity *int
 }
 
 type UpdateSKUInput struct {
@@ -58,10 +61,46 @@ func (s *Service) UpdateProduct(ctx context.Context, id uuid.UUID, in UpdateProd
 	if in.MarginPercent != nil {
 		margin = *in.MarginPercent
 	}
+	promoActive := p.PromoActive
+	promoMargin := p.PromoMarginPercent
+	promoTotal := p.PromoQuantityTotal
+	promoRemaining := p.PromoQuantityRemaining
+	if in.PromoActive != nil {
+		promoActive = *in.PromoActive
+	}
+	if in.PromoMarginPercent != nil {
+		promoMargin = in.PromoMarginPercent
+	}
+	if in.PromoQuantity != nil {
+		promoTotal = *in.PromoQuantity
+		if promoActive {
+			promoRemaining = promoTotal
+		}
+	}
+	if !promoActive {
+		promoMargin = nil
+		promoTotal = 0
+		promoRemaining = 0
+	} else {
+		if promoMargin == nil {
+			return nil, ErrValidation("Margem promocional obrigatória")
+		}
+		if err := validatePromoMargin(*promoMargin); err != nil {
+			return nil, err
+		}
+		if promoTotal <= 0 {
+			return nil, ErrValidation("Quantidade da promoção deve ser maior que zero")
+		}
+		if in.PromoQuantity == nil && promoRemaining <= 0 {
+			promoRemaining = promoTotal
+		}
+	}
 	_, err = s.pool.Exec(ctx, `
-		UPDATE products SET name = $2, description = $3, category_id = $4, active = $5, visible = $6, margin_percent = $7, updated_at = NOW()
+		UPDATE products SET name = $2, description = $3, category_id = $4, active = $5, visible = $6, margin_percent = $7,
+			promo_active = $8, promo_margin_percent = $9, promo_quantity_total = $10, promo_quantity_remaining = $11,
+			updated_at = NOW()
 		WHERE id = $1
-	`, id, name, desc, catID, active, visible, margin)
+	`, id, name, desc, catID, active, visible, margin, promoActive, promoMargin, promoTotal, promoRemaining)
 	if err != nil {
 		return nil, err
 	}

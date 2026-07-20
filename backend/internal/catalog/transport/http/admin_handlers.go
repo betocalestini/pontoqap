@@ -37,12 +37,15 @@ func (h *Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Name          *string  `json:"name"`
-		Description   *string  `json:"description"`
-		CategoryID    *string  `json:"category_id"`
-		Active        *bool    `json:"active"`
-		Visible       *bool    `json:"visible"`
-		MarginPercent *float64 `json:"margin_percent"`
+		Name               *string  `json:"name"`
+		Description        *string  `json:"description"`
+		CategoryID         *string  `json:"category_id"`
+		Active             *bool    `json:"active"`
+		Visible            *bool    `json:"visible"`
+		MarginPercent      *float64 `json:"margin_percent"`
+		PromoActive        *bool    `json:"promo_active"`
+		PromoMarginPercent *float64 `json:"promo_margin_percent"`
+		PromoQuantity      *int     `json:"promo_quantity"`
 	}
 	if err := httpx.DecodeJSON(r, &body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
@@ -50,7 +53,8 @@ func (h *Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	in := catalog.UpdateProductInput{
 		Name: body.Name, Description: body.Description, Active: body.Active, Visible: body.Visible,
-		MarginPercent: body.MarginPercent,
+		MarginPercent: body.MarginPercent, PromoActive: body.PromoActive,
+		PromoMarginPercent: body.PromoMarginPercent, PromoQuantity: body.PromoQuantity,
 	}
 	if body.CategoryID != nil {
 		if strings.TrimSpace(*body.CategoryID) == "" {
@@ -66,12 +70,23 @@ func (h *Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	p, err := h.svc.UpdateProduct(r.Context(), id, in)
 	if err != nil {
+		if ve, ok := err.(catalog.ValidationError); ok {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", ve.Msg)
+			return
+		}
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao atualizar produto")
 		return
 	}
-	if user := identityhttp.UserFromContext(r.Context()); user != nil && body.MarginPercent != nil {
-		h.recalculateProductSKUs(r.Context(), id, user.User.ID, "auto:margem")
-		p, _ = h.svc.GetProduct(r.Context(), id, false)
+	if user := identityhttp.UserFromContext(r.Context()); user != nil {
+		recalc := body.MarginPercent != nil || body.PromoActive != nil || body.PromoMarginPercent != nil || body.PromoQuantity != nil
+		if recalc {
+			reason := "auto:margem"
+			if body.PromoActive != nil || body.PromoMarginPercent != nil || body.PromoQuantity != nil {
+				reason = "auto:promo"
+			}
+			h.recalculateProductSKUs(r.Context(), id, user.User.ID, reason)
+			p, _ = h.svc.GetProduct(r.Context(), id, false)
+		}
 	}
 	httpx.WriteJSON(w, http.StatusOK, p)
 }

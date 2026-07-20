@@ -103,7 +103,8 @@ func (s *Service) SetCartItemQuantity(ctx context.Context, customerID, skuID uui
 
 func (s *Service) loadCart(ctx context.Context, cartID uuid.UUID) (*Cart, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT ci.id, ci.sku_id, ci.quantity, p.name, COALESCE(s.code,''), s.sale_price_cents
+		SELECT ci.id, ci.sku_id, ci.quantity, p.id, p.name, COALESCE(s.code,''), s.sale_price_cents,
+		       p.promo_active, p.promo_quantity_remaining
 		FROM cart_items ci
 		JOIN skus s ON s.id = ci.sku_id
 		JOIN products p ON p.id = s.product_id
@@ -114,13 +115,37 @@ func (s *Service) loadCart(ctx context.Context, cartID uuid.UUID) (*Cart, error)
 		return nil, err
 	}
 	defer rows.Close()
+	promoLeft := make(map[uuid.UUID]int)
 	var items []CartItem
 	for rows.Next() {
 		var it CartItem
-		if err := rows.Scan(&it.ID, &it.SKUID, &it.Quantity, &it.ProductName, &it.SKUCode, &it.UnitPriceCents); err != nil {
+		var productID uuid.UUID
+		var salePrice int64
+		var promoActive bool
+		var promoRemainDB int
+		if err := rows.Scan(&it.ID, &it.SKUID, &it.Quantity, &productID, &it.ProductName, &it.SKUCode, &salePrice,
+			&promoActive, &promoRemainDB); err != nil {
 			return nil, err
 		}
-		it.LineTotalCents = it.UnitPriceCents * int64(it.Quantity)
+		remain, ok := promoLeft[productID]
+		if !ok {
+			remain = promoRemainDB
+		}
+		if s.catalog != nil {
+			res, err := s.catalog.PriceLine(ctx, catalog.PriceLineInput{
+				ProductID: productID, SKUID: it.SKUID, Quantity: it.Quantity,
+				SalePrice: salePrice, PromoActive: promoActive, PromoRemain: remain,
+			}, s.inventory.WeightedAverageCostCents)
+			if err != nil {
+				return nil, err
+			}
+			it.UnitPriceCents = res.UnitPriceCents
+			it.LineTotalCents = res.LineTotalCents
+			promoLeft[productID] = remain - res.PromoUnits
+		} else {
+			it.UnitPriceCents = salePrice
+			it.LineTotalCents = salePrice * int64(it.Quantity)
+		}
 		items = append(items, it)
 	}
 	return &Cart{ID: cartID, Items: items}, rows.Err()
@@ -174,28 +199,68 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 
 	type line struct {
 		skuID       uuid.UUID
+		productID   uuid.UUID
 		qty         int
 		unitPrice   int64
+		lineTotal   int64
 		productName string
 		skuCode     string
+		promoEnded  bool
 	}
 	var lines []line
 	var total int64
+	var promoEndedProducts []uuid.UUID
+	promoLeft := make(map[uuid.UUID]int)
 	for _, it := range cart.Items {
 		var l line
 		l.skuID = it.SKUID
 		l.qty = it.Quantity
+		var promoActive bool
+		var promoRemainDB int
 		err := tx.QueryRow(ctx, `
-			SELECT s.sale_price_cents, s.code, p.name
+			SELECT s.sale_price_cents, s.code, p.name, p.id,
+			       p.promo_active, p.promo_quantity_remaining
 			FROM skus s JOIN products p ON p.id = s.product_id
 			WHERE s.id = $1 AND s.active = TRUE AND p.active = TRUE AND p.visible = TRUE
-			FOR UPDATE OF s
-		`, it.SKUID).Scan(&l.unitPrice, &l.skuCode, &l.productName)
+			FOR UPDATE OF s, p
+		`, it.SKUID).Scan(&l.unitPrice, &l.skuCode, &l.productName, &l.productID, &promoActive, &promoRemainDB)
 		if err != nil {
 			return nil, err
 		}
-		lineTotal := l.unitPrice * int64(l.qty)
-		total += lineTotal
+		promoRemain, ok := promoLeft[l.productID]
+		if !ok {
+			promoRemain = promoRemainDB
+		}
+		salePromo := l.unitPrice
+		var priced catalog.PriceLineResult
+		if s.catalog != nil {
+			priced, err = s.catalog.PriceLine(ctx, catalog.PriceLineInput{
+				ProductID: l.productID, SKUID: l.skuID, Quantity: l.qty,
+				SalePrice: salePromo, PromoActive: promoActive, PromoRemain: promoRemain,
+			}, s.inventory.WeightedAverageCostCents)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			priced = catalog.PriceLineResult{
+				LineTotalCents: salePromo * int64(l.qty),
+				UnitPriceCents: salePromo,
+			}
+		}
+		l.lineTotal = priced.LineTotalCents
+		l.unitPrice = priced.UnitPriceCents
+		if priced.PromoUnits > 0 && s.catalog != nil {
+			_, ended, err := s.catalog.ConsumePromoQuotaTx(ctx, tx, l.productID, priced.PromoUnits)
+			if err != nil {
+				return nil, err
+			}
+			promoLeft[l.productID] = promoRemain - priced.PromoUnits
+			if ended {
+				l.promoEnded = true
+				promoEndedProducts = append(promoEndedProducts, l.productID)
+			}
+		}
+		total += l.lineTotal
 		lines = append(lines, l)
 	}
 
@@ -215,11 +280,10 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 	}
 
 	for _, l := range lines {
-		itemTotal := l.unitPrice * int64(l.qty)
 		_, err = tx.Exec(ctx, `
 			INSERT INTO order_items (order_id, sku_id, product_name_snapshot, sku_code_snapshot, unit_price_cents, quantity, total_cents)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
-		`, orderID, l.skuID, l.productName, l.skuCode, l.unitPrice, l.qty, itemTotal)
+		`, orderID, l.skuID, l.productName, l.skuCode, l.unitPrice, l.qty, l.lineTotal)
 		if err != nil {
 			return nil, err
 		}
@@ -260,6 +324,9 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 			}
 			seen[l.skuID] = struct{}{}
 			_, _ = s.catalog.RecalculateSKU(ctx, l.skuID, actorUserID, "auto:venda", s.inventory.WeightedAverageCostCents)
+		}
+		for _, pid := range promoEndedProducts {
+			_ = s.catalog.RecalculateProductSKUs(ctx, pid, actorUserID, "auto:promo_fim", s.inventory.WeightedAverageCostCents)
 		}
 	}
 	return &Order{ID: orderID, OrderNumber: orderNumber, TotalCents: total, Status: "confirmed"}, nil

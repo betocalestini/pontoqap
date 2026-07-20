@@ -11,6 +11,8 @@ type Product = {
   image_url?: string;
   image_alt?: string;
   updated_at?: string;
+  on_promotion?: boolean;
+  promo_quantity_remaining?: number;
   skus?: { id: string; sale_price_cents: number; available_quantity?: number }[];
 };
 
@@ -149,6 +151,11 @@ export function CatalogPage() {
               {sku && (
                 <>
                   <p className="product-card__price">{formatMoney(sku.sale_price_cents)}</p>
+                  {p.on_promotion && (p.promo_quantity_remaining ?? 0) > 0 && (
+                    <p className="product-card__promo">
+                      Promoção: restam {p.promo_quantity_remaining} unidades neste preço.
+                    </p>
+                  )}
                   <button type="button" onClick={() => add(sku.id)}>
                     Adicionar ao carrinho
                   </button>

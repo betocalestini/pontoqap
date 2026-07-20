@@ -27,6 +27,9 @@ const emptyForm = () => ({
   cost_price_cents: '',
   minimum_stock: '0',
   initial_stock: '',
+  promo_active: false,
+  promo_margin_percent: '',
+  promo_quantity: '',
   active: true,
   visible: true,
 });
@@ -150,6 +153,13 @@ export function ProductsPage() {
               : '',
         minimum_stock: String(sku?.minimum_stock ?? 0),
         initial_stock: '',
+        promo_active: p.promo_active ?? false,
+        promo_margin_percent:
+          p.promo_margin_percent != null ? String(p.promo_margin_percent) : '',
+        promo_quantity:
+          p.promo_quantity_total != null && p.promo_quantity_total > 0
+            ? String(p.promo_quantity_total)
+            : '',
         active: p.active,
         visible: p.visible,
       });
@@ -239,6 +249,16 @@ export function ProductsPage() {
       }
 
       if (editingId) {
+        if (form.promo_active) {
+          const pm = parseFloat(form.promo_margin_percent.replace(',', '.'));
+          const pq = parseInt(form.promo_quantity, 10);
+          if (!Number.isFinite(pm) || pm < 0) {
+            throw new Error('Margem promocional inválida');
+          }
+          if (!Number.isFinite(pq) || pq <= 0) {
+            throw new Error('Informe a quantidade de unidades da promoção');
+          }
+        }
         const sku = (await api.adminGetProduct(editingId)).skus?.[0];
         if (sku) {
           await api.adminUpdateSku(sku.id, {
@@ -257,6 +277,13 @@ export function ProductsPage() {
           active: form.active,
           visible: form.visible,
           margin_percent: margin,
+          promo_active: form.promo_active,
+          promo_margin_percent: form.promo_active
+            ? parseFloat(form.promo_margin_percent.replace(',', '.'))
+            : undefined,
+          promo_quantity: form.promo_active
+            ? parseInt(form.promo_quantity, 10) || 0
+            : undefined,
         });
         const uploadOk = fileToUpload
           ? await uploadImageForProduct(editingId, fileToUpload)
@@ -381,6 +408,46 @@ export function ProductsPage() {
             />
             <small>Preço de venda = custo médio dos lotes × (1 + margem/100)</small>
           </label>
+          {editingId !== 'new' && (
+            <fieldset className="form__full product-promo-fieldset">
+              <legend>Promoção</legend>
+              <label className="form__checkbox">
+                <input
+                  type="checkbox"
+                  checked={form.promo_active}
+                  onChange={(e) => setForm((f) => ({ ...f, promo_active: e.target.checked }))}
+                />
+                Promoção ativa
+              </label>
+              {form.promo_active && (
+                <>
+                  <label>
+                    Margem promocional (%)
+                    <input
+                      value={form.promo_margin_percent}
+                      onChange={(e) => setForm((f) => ({ ...f, promo_margin_percent: e.target.value }))}
+                      inputMode="decimal"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Unidades na promoção
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.promo_quantity}
+                      onChange={(e) => setForm((f) => ({ ...f, promo_quantity: e.target.value }))}
+                      required
+                    />
+                    <small>
+                      Ao salvar, redefine a cota (restam = total). O preço na loja usa a margem promocional até
+                      esgotar as unidades; depois volta à margem normal.
+                    </small>
+                  </label>
+                </>
+              )}
+            </fieldset>
+          )}
           <label>
             Custo unitário (R$) — base do preço (lotes em estoque)
             <input value={form.cost_price_cents} onChange={(e) => setForm((f) => ({ ...f, cost_price_cents: e.target.value }))} />
@@ -468,6 +535,7 @@ export function ProductsPage() {
               <th>Margem</th>
               <th>Custo médio</th>
               <th>Preço venda</th>
+              <th>Promoção</th>
               <th>Estoque</th>
               <th>Status</th>
               <th />
@@ -529,6 +597,13 @@ function ProductTableRow({
       <td>{p.margin_percent != null ? `${p.margin_percent}%` : '—'}</td>
       <td>{sku?.average_cost_cents != null ? formatBRL(sku.average_cost_cents) : '—'}</td>
       <td>{sku ? formatBRL(sku.sale_price_cents) : '—'}</td>
+      <td>
+        {p.on_promotion
+          ? `Ativa (${p.promo_quantity_remaining ?? 0} rest.)`
+          : p.promo_active
+            ? 'Inativa'
+            : '—'}
+      </td>
       <td className={low ? 'error' : undefined}>{qty}</td>
       <td>
         {!p.active && 'Inativo '}
@@ -577,6 +652,14 @@ function ProductCard({
             Margem {p.margin_percent ?? '—'}% · Custo médio{' '}
             {sku?.average_cost_cents != null ? formatBRL(sku.average_cost_cents) : '—'} · Venda{' '}
             {sku ? formatBRL(sku.sale_price_cents) : '—'}
+          </p>
+          <p className="product-card__meta">
+            Promoção:{' '}
+            {p.on_promotion
+              ? `ativa (${p.promo_quantity_remaining ?? 0} rest.)`
+              : p.promo_active
+                ? 'inativa'
+                : '—'}
           </p>
           <p className="product-card__meta">
             Estoque: <span className={low ? 'error' : undefined}>{qty}</span>
