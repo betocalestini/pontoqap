@@ -3,6 +3,7 @@ package http
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -24,6 +25,7 @@ func (h *Handler) PublicRoutes(r chi.Router) {
 	r.Get("/categories", h.listCategories)
 	r.Get("/products", h.listProducts)
 	r.Get("/products/{id}", h.getProduct)
+	r.Get("/product-images/{name}", h.serveProductImage)
 }
 
 func (h *Handler) AdminRoutes(r chi.Router) {
@@ -52,6 +54,23 @@ func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ChangePrice(w http.ResponseWriter, r *http.Request) {
 	h.changePrice(w, r)
+}
+
+func (h *Handler) serveProductImage(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	if name == "" || strings.Contains(name, "..") || strings.Contains(name, "/") {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Arquivo inválido")
+		return
+	}
+	data, filename, err := catalog.OpenProductImageBySlug(name)
+	if err != nil {
+		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Imagem não encontrada")
+		return
+	}
+	w.Header().Set("Content-Type", catalog.ProductImageContentType(filename))
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
 }
 
 func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) {

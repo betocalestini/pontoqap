@@ -43,6 +43,8 @@ type Product struct {
 	CategoryID  *uuid.UUID `json:"category_id,omitempty"`
 	Active      bool      `json:"active"`
 	Visible     bool      `json:"visible"`
+	ImageURL    string    `json:"image_url,omitempty"`
+	ImageAlt    string    `json:"image_alt,omitempty"`
 	SKUs        []SKU     `json:"skus,omitempty"`
 }
 
@@ -144,8 +146,24 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 	if err != nil {
 		return nil, 0, err
 	}
+	imgMap, err := s.loadPrimaryImages(ctx, ids)
+	if err != nil {
+		return nil, 0, err
+	}
 	for i := range products {
 		products[i].SKUs = skuMap[products[i].ID]
+		if img, ok := imgMap[products[i].ID]; ok {
+			products[i].ImageURL = img.URL
+			products[i].ImageAlt = img.Alt
+		}
+		if products[i].ImageURL == "" {
+			if u := ImageURLForSlug(products[i].Slug); u != "" {
+				products[i].ImageURL = u
+				if products[i].ImageAlt == "" {
+					products[i].ImageAlt = products[i].Name
+				}
+			}
+		}
 	}
 	return products, total, nil
 }
@@ -170,6 +188,20 @@ func (s *Service) GetProduct(ctx context.Context, id uuid.UUID, publicOnly bool)
 		return nil, err
 	}
 	p.SKUs = m[p.ID]
+	if img, err := s.loadPrimaryImages(ctx, []uuid.UUID{p.ID}); err != nil {
+		return nil, err
+	} else if im, ok := img[p.ID]; ok {
+		p.ImageURL = im.URL
+		p.ImageAlt = im.Alt
+	}
+	if p.ImageURL == "" {
+		if u := ImageURLForSlug(p.Slug); u != "" {
+			p.ImageURL = u
+			if p.ImageAlt == "" {
+				p.ImageAlt = p.Name
+			}
+		}
+	}
 	return &p, nil
 }
 
@@ -199,6 +231,34 @@ func (s *Service) loadSKUs(ctx context.Context, productIDs []uuid.UUID, activeOn
 		}
 		sku.AvailableQty = &qty
 		out[productID] = append(out[productID], sku)
+	}
+	return out, rows.Err()
+}
+
+type productImage struct {
+	URL string
+	Alt string
+}
+
+func (s *Service) loadPrimaryImages(ctx context.Context, productIDs []uuid.UUID) (map[uuid.UUID]productImage, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT DISTINCT ON (product_id) product_id, storage_key, COALESCE(alt_text, '')
+		FROM product_images
+		WHERE product_id = ANY($1)
+		ORDER BY product_id, position ASC, created_at ASC
+	`, productIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[uuid.UUID]productImage)
+	for rows.Next() {
+		var productID uuid.UUID
+		var key, alt string
+		if err := rows.Scan(&productID, &key, &alt); err != nil {
+			return nil, err
+		}
+		out[productID] = productImage{URL: ResolveImageURL(key), Alt: alt}
 	}
 	return out, rows.Err()
 }

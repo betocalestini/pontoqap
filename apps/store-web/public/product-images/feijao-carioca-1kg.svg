@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600" role="img" aria-label="Feijão Carioca 1kg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f3e8dc"/>
+      <stop offset="100%" stop-color="#d4a574"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#bg)"/>
+  <ellipse cx="300" cy="300" rx="140" ry="100" fill="#8b5a2b"/>
+  <ellipse cx="260" cy="280" rx="50" ry="35" fill="#a66b38" opacity="0.7"/>
+  <text x="300" y="500" text-anchor="middle" font-family="system-ui,sans-serif" font-size="32" font-weight="700" fill="#4a3020">Feijão Carioca 1kg</text>
+</svg>
