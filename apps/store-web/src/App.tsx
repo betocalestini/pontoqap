@@ -5,6 +5,7 @@ import { RegisterPage } from './pages/Register';
 import { CartPage } from './pages/Cart';
 import { InvoicesPage } from './pages/Invoices';
 import { InvoiceDetailPage } from './pages/InvoiceDetail';
+import { VerifyEmailPage } from './pages/VerifyEmail';
 import './App.css';
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
         <nav>
           <Link to="/carrinho">Carrinho</Link>
           <Link to="/faturas">Faturas</Link>
+          <Link to="/cadastro">Criar conta</Link>
           <Link to="/login">Entrar</Link>
         </nav>
       </header>
@@ -24,6 +26,7 @@ export default function App() {
         <Route path="/cadastro" element={<RegisterPage />} />
         <Route path="/carrinho" element={<CartPage />} />
         <Route path="/faturas" element={<InvoicesPage />} />
+        <Route path="/verificar-email" element={<VerifyEmailPage />} />
         <Route path="/faturas/:id" element={<InvoiceDetailPage />} />
       </Routes>
     </div>

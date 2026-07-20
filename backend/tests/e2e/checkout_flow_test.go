@@ -14,6 +14,7 @@ import (
 	"github.com/store-platform/store/internal/app"
 	"github.com/store-platform/store/internal/identity"
 	identitypostgres "github.com/store-platform/store/internal/identity/postgres"
+	"github.com/store-platform/store/internal/jobs"
 	"github.com/store-platform/store/internal/platform/config"
 	"github.com/store-platform/store/tests/testdb"
 )
@@ -56,10 +57,14 @@ func TestHTTPCheckoutFlow(t *testing.T) {
 		Payments: config.PaymentsConfig{
 			WebhookSecret: "test-webhook-secret",
 		},
+		App:      config.AppConfig{StoreWebURL: "http://localhost"},
+		Customer: config.CustomerConfig{DefaultCreditLimitCents: 100_000},
 	}
 	idRepo := identitypostgres.NewRepository(pool)
 	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL)
-	handler := app.NewRouter(cfg, pool, idSvc, slog.Default())
+	jobRepo := jobs.NewRepository(pool)
+	verifySvc := identity.NewVerificationService(pool, jobRepo, cfg.App, cfg.Customer)
+	handler := app.NewRouter(cfg, pool, idSvc, verifySvc, slog.Default())
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 
@@ -68,9 +73,7 @@ func TestHTTPCheckoutFlow(t *testing.T) {
 	// Admin: aprovar cliente após registro na loja
 	email := testdb.UniqueEmail(t, "cli")
 	registerStoreCustomer(t, client, server.URL, email)
-	adminCookie := login(t, client, server.URL, mgr.Email, "password123", "admin")
-	customerID := findCustomerID(t, client, server.URL, adminCookie, email)
-	approveCustomer(t, client, server.URL, adminCookie, customerID, 100_000)
+	verifyStoreCustomer(t, ctx, pool, email, 100_000)
 
 	storeCookie := login(t, client, server.URL, email, "password123", "store")
 	cartBody, _ := json.Marshal(map[string]any{"sku_id": prod.SKUID.String(), "quantity": 3})

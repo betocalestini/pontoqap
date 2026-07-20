@@ -15,6 +15,12 @@ services:
       timeout: 5s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   migrate:
     build:
       context: ./backend
@@ -38,11 +44,17 @@ services:
       CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:5174
       COOKIE_SECURE: "false"
       APP_ENV: development
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      STORE_WEB_URL: http://localhost:5173
+      DEFAULT_CUSTOMER_CREDIT_LIMIT_CENTS: "50000"
     ports:
       - "8080:8080"
     depends_on:
       migrate:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_started
 
   worker:
     build:
@@ -54,9 +66,14 @@ services:
       WORKER_POLL_INTERVAL: 5s
       WORKER_ID: worker-1
       PAYMENT_WEBHOOK_SECRET: sandbox-webhook-secret
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      STORE_WEB_URL: http://localhost:5173
     depends_on:
       migrate:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_started
 
   store-web:
     build:

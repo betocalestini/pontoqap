@@ -68,7 +68,7 @@ func TestCustomerApproveAndLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := customers.NewService(pool)
+	svc := customers.NewService(pool, nil)
 	if err := svc.Approve(ctx, cust.ID, mgr.UserID, 50_000); err != nil {
 		t.Fatal(err)
 	}

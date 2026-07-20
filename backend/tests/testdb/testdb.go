@@ -100,7 +100,7 @@ func Reset(ctx context.Context, pool *pgxpool.Pool) error {
 			stock_movements, inventory_balances,
 			price_history, product_images, skus, products, categories,
 			customer_limit_history, customers,
-			password_reset_tokens, sessions, user_roles, users
+			email_verification_tokens, password_reset_tokens, sessions, user_roles, users
 		RESTART IDENTITY CASCADE
 	`)
 	return err

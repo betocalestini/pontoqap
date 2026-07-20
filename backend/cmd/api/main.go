@@ -14,6 +14,7 @@ import (
 	"github.com/store-platform/store/internal/identity"
 	identitypostgres "github.com/store-platform/store/internal/identity/postgres"
 	"github.com/store-platform/store/internal/identity/security"
+	"github.com/store-platform/store/internal/jobs"
 	"github.com/store-platform/store/internal/platform/config"
 	"github.com/store-platform/store/internal/platform/database"
 	"github.com/store-platform/store/internal/platform/logging"
@@ -39,7 +40,8 @@ func main() {
 	_ = idRepo.EnsureBootstrapManager(ctx, "gerente@loja.local", "Gerente Demo", hash)
 
 	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL)
-	handler := app.NewRouter(cfg, pool, idSvc, logger)
+	verifySvc := identity.NewVerificationService(pool, jobs.NewRepository(pool), cfg.App, cfg.Customer)
+	handler := app.NewRouter(cfg, pool, idSvc, verifySvc, logger)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Addr,

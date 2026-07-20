@@ -17,6 +17,7 @@ import (
 	"github.com/store-platform/store/internal/app"
 	"github.com/store-platform/store/internal/identity"
 	identitypostgres "github.com/store-platform/store/internal/identity/postgres"
+	"github.com/store-platform/store/internal/jobs"
 	"github.com/store-platform/store/internal/inventory"
 	"github.com/store-platform/store/internal/platform/config"
 )
@@ -43,10 +44,14 @@ func newE2EServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, *http.Cli
 		Payments: config.PaymentsConfig{
 			WebhookSecret: "test-webhook-secret",
 		},
+		App: config.AppConfig{StoreWebURL: "http://localhost"},
+		Customer: config.CustomerConfig{DefaultCreditLimitCents: 100_000},
 	}
 	idRepo := identitypostgres.NewRepository(pool)
 	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL)
-	handler := app.NewRouter(cfg, pool, idSvc, slog.Default())
+	jobRepo := jobs.NewRepository(pool)
+	verifySvc := identity.NewVerificationService(pool, jobRepo, cfg.App, cfg.Customer)
+	handler := app.NewRouter(cfg, pool, idSvc, verifySvc, slog.Default())
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 	return server, &http.Client{Timeout: 15 * time.Second}
@@ -70,6 +75,13 @@ func registerStoreCustomer(t *testing.T, client *http.Client, baseURL, email str
 		t.Fatalf("register: %v status=%d", err, regRes.StatusCode)
 	}
 	regRes.Body.Close()
+}
+
+func verifyStoreCustomer(t *testing.T, ctx context.Context, pool *pgxpool.Pool, email string, limit int64) {
+	t.Helper()
+	if err := identity.ConfirmEmailForTest(ctx, pool, email, limit); err != nil {
+		t.Fatalf("verify email: %v", err)
+	}
 }
 
 func findCustomerID(t *testing.T, client *http.Client, baseURL string, adminCookie *http.Cookie, email string) string {

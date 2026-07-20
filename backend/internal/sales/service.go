@@ -26,9 +26,13 @@ func NewService(pool *pgxpool.Pool, inv *inventory.Service, bill *billing.Servic
 }
 
 type CartItem struct {
-	ID       uuid.UUID `json:"id"`
-	SKUID    uuid.UUID `json:"sku_id"`
-	Quantity int       `json:"quantity"`
+	ID             uuid.UUID `json:"id"`
+	SKUID          uuid.UUID `json:"sku_id"`
+	Quantity       int       `json:"quantity"`
+	ProductName    string    `json:"product_name"`
+	SKUCode        string    `json:"sku_code,omitempty"`
+	UnitPriceCents int64     `json:"unit_price_cents"`
+	LineTotalCents int64     `json:"line_total_cents"`
 }
 
 type Cart struct {
@@ -50,23 +54,11 @@ func (s *Service) GetOrCreateCart(ctx context.Context, customerID uuid.UUID) (*C
 	} else if err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id, sku_id, quantity FROM cart_items WHERE cart_id = $1`, cartID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []CartItem
-	for rows.Next() {
-		var it CartItem
-		if err := rows.Scan(&it.ID, &it.SKUID, &it.Quantity); err != nil {
-			return nil, err
-		}
-		items = append(items, it)
-	}
-	return &Cart{ID: cartID, Items: items}, rows.Err()
+	return s.loadCart(ctx, cartID)
 }
 
-func (s *Service) UpsertCartItem(ctx context.Context, customerID, skuID uuid.UUID, quantity int) (*Cart, error) {
+// AddCartItem soma unidades ao item (catálogo / "Comprar" de novo).
+func (s *Service) AddCartItem(ctx context.Context, customerID, skuID uuid.UUID, quantity int) (*Cart, error) {
 	if quantity <= 0 {
 		return nil, fmt.Errorf("invalid quantity")
 	}
@@ -77,12 +69,63 @@ func (s *Service) UpsertCartItem(ctx context.Context, customerID, skuID uuid.UUI
 	_, err = s.pool.Exec(ctx, `
 		INSERT INTO cart_items (cart_id, sku_id, quantity)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (cart_id, sku_id) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()
+		ON CONFLICT (cart_id, sku_id) DO UPDATE
+		SET quantity = cart_items.quantity + EXCLUDED.quantity, updated_at = NOW()
 	`, cart.ID, skuID, quantity)
 	if err != nil {
 		return nil, err
 	}
-	return s.GetOrCreateCart(ctx, customerID)
+	return s.loadCart(ctx, cart.ID)
+}
+
+// SetCartItemQuantity define a quantidade absoluta (0 remove o item).
+func (s *Service) SetCartItemQuantity(ctx context.Context, customerID, skuID uuid.UUID, quantity int) (*Cart, error) {
+	cart, err := s.GetOrCreateCart(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+	if quantity <= 0 {
+		_, err = s.pool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id = $1 AND sku_id = $2`, cart.ID, skuID)
+	} else {
+		_, err = s.pool.Exec(ctx, `
+			INSERT INTO cart_items (cart_id, sku_id, quantity)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (cart_id, sku_id) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()
+		`, cart.ID, skuID, quantity)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s.loadCart(ctx, cart.ID)
+}
+
+func (s *Service) loadCart(ctx context.Context, cartID uuid.UUID) (*Cart, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT ci.id, ci.sku_id, ci.quantity, p.name, COALESCE(s.code,''), s.sale_price_cents
+		FROM cart_items ci
+		JOIN skus s ON s.id = ci.sku_id
+		JOIN products p ON p.id = s.product_id
+		WHERE ci.cart_id = $1
+		ORDER BY ci.created_at
+	`, cartID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CartItem
+	for rows.Next() {
+		var it CartItem
+		if err := rows.Scan(&it.ID, &it.SKUID, &it.Quantity, &it.ProductName, &it.SKUCode, &it.UnitPriceCents); err != nil {
+			return nil, err
+		}
+		it.LineTotalCents = it.UnitPriceCents * int64(it.Quantity)
+		items = append(items, it)
+	}
+	return &Cart{ID: cartID, Items: items}, rows.Err()
+}
+
+func (s *Service) UpsertCartItem(ctx context.Context, customerID, skuID uuid.UUID, quantity int) (*Cart, error) {
+	return s.SetCartItemQuantity(ctx, customerID, skuID, quantity)
 }
 
 type Order struct {
@@ -107,7 +150,7 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 		return nil, err
 	}
 
-	custSvc := customers.NewService(s.pool)
+	custSvc := customers.NewService(s.pool, nil)
 	cust, err := custSvc.GetByID(ctx, customerID)
 	if err != nil || cust == nil {
 		return nil, customers.ErrNotApproved()

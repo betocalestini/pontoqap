@@ -11,4 +11,5 @@ const (
 	CodeInvalidCredentials = "INVALID_CREDENTIALS"
 	CodeAccountLocked      = "ACCOUNT_LOCKED"
 	CodeMFARequired        = "MFA_REQUIRED"
+	CodeEmailNotVerified   = "EMAIL_NOT_VERIFIED"
 )

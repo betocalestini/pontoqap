@@ -8,14 +8,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/store-platform/store/internal/jobs"
 )
 
 type Service struct {
-	pool *pgxpool.Pool
+	pool          *pgxpool.Pool
+	jobs          *jobs.Repository
+	storeWebURL   string
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool}
+func NewService(pool *pgxpool.Pool, jobRepo *jobs.Repository, storeWebURL string) *Service {
+	return &Service{pool: pool, jobs: jobRepo, storeWebURL: storeWebURL}
 }
 
 func (s *Service) EnsureOpenPeriodTx(ctx context.Context, tx pgx.Tx, customerID uuid.UUID, at time.Time) (uuid.UUID, error) {

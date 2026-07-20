@@ -75,7 +75,7 @@ func TestCheckoutReducesStockAndCreatesBillingEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""))
 	if _, err := salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestCheckoutIdempotency(t *testing.T) {
 	inv := inventory.NewService(pool)
 	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada")
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
 
 	o1, err := salesSvc.Checkout(ctx, cust.ID, "same-key", cust.UserID)
@@ -169,7 +169,7 @@ func TestCheckoutInsufficientLimit(t *testing.T) {
 	inv := inventory.NewService(pool)
 	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada")
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
 	_, err := salesSvc.Checkout(ctx, cust.ID, "limit-key", cust.UserID)
 	if err == nil {

@@ -1,5 +1,13 @@
 export type ApiErrorBody = { code: string; message: string };
 
+export class ApiError extends Error {
+  code: string;
+  constructor(body: ApiErrorBody) {
+    super(body.message);
+    this.code = body.code;
+  }
+}
+
 const defaultBase = 'http://localhost:8080/api/v1';
 
 type Audience = 'store' | 'admin';
@@ -24,7 +32,7 @@ export function createApiClient(baseUrl = defaultBase) {
     });
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
-      throw new Error(body.message ?? res.statusText);
+      throw new ApiError({ code: body.code ?? 'ERROR', message: body.message ?? res.statusText });
     }
     if (res.status === 204) {
       return undefined as T;
@@ -50,6 +58,11 @@ export function createApiClient(baseUrl = defaultBase) {
       request('/auth/logout', { method: 'POST' }, audience),
     me: (audience: Audience) => request('/auth/me', {}, audience),
 
+    verifyEmail: (token: string) =>
+      request<{ status: string }>(`/auth/verify-email?token=${encodeURIComponent(token)}`),
+    resendVerification: (email: string) =>
+      request('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
+
     listProducts: () => request<{ items: unknown[]; total: number }>('/catalog/products'),
     registerCustomer: (body: Record<string, string>) =>
       request('/customers/register', { method: 'POST', body: JSON.stringify(body) }),
@@ -60,7 +73,16 @@ export function createApiClient(baseUrl = defaultBase) {
         method: 'POST',
         body: JSON.stringify({ sku_id: skuId, quantity }),
       }, 'store'),
-    checkout: () => request('/me/cart/checkout', { method: 'POST' }, 'store'),
+    setCartItemQuantity: (skuId: string, quantity: number) =>
+      request('/me/cart/items/' + encodeURIComponent(skuId), {
+        method: 'PATCH',
+        body: JSON.stringify({ quantity }),
+      }, 'store'),
+    checkout: () =>
+      request('/me/cart/checkout', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+      }, 'store'),
 
     listMyInvoices: () => request<{ items: unknown[] }>('/me/invoices', {}, 'store'),
     getMyInvoice: (id: string) => request(`/me/invoices/${id}`, {}, 'store'),

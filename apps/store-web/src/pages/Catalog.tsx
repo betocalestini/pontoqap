@@ -10,11 +10,17 @@ type Product = {
 
 export function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listProducts().then((res) => setProducts(res.items as Product[])).catch((e: Error) => setError(e.message));
+    setLoading(true);
+    api
+      .listProducts()
+      .then((res) => setProducts((res.items ?? []) as Product[]))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   async function add(skuId: string) {
@@ -30,8 +36,12 @@ export function CatalogPage() {
   return (
     <section>
       <h1>Catálogo</h1>
+      {loading && <p>Carregando produtos…</p>}
       {error && <p className="error">{error}</p>}
       {msg && <p className="ok">{msg}</p>}
+      {!loading && !error && products.length === 0 && (
+        <p>Nenhum produto disponível. Cadastre itens no painel admin ou rode as migrations (seed de demo).</p>
+      )}
       <ul className="grid">
         {products.map((p) => {
           const sku = p.skus?.[0];
@@ -41,7 +51,7 @@ export function CatalogPage() {
               {sku && (
                 <>
                   <div>{formatMoney(sku.sale_price_cents)}</div>
-                  <button type="button" onClick={() => add(sku.id)}>Comprar</button>
+                  <button type="button" onClick={() => add(sku.id)}>Adicionar ao carrinho</button>
                 </>
               )}
             </li>

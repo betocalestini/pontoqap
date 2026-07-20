@@ -14,7 +14,7 @@ func TestAvailableLimit(t *testing.T) {
 		CreditLimitCents:     10_000,
 		CurrentExposureCents: 3_500,
 	}
-	if got := customers.NewService(nil).AvailableLimit(c); got != 6_500 {
+	if got := customers.NewService(nil, nil).AvailableLimit(c); got != 6_500 {
 		t.Fatalf("expected 6500, got %d", got)
 	}
 }
@@ -24,7 +24,7 @@ func TestAvailableLimitNeverNegative(t *testing.T) {
 		CreditLimitCents:     1_000,
 		CurrentExposureCents: 5_000,
 	}
-	if got := customers.NewService(nil).AvailableLimit(c); got != 0 {
+	if got := customers.NewService(nil, nil).AvailableLimit(c); got != 0 {
 		t.Fatalf("expected 0, got %d", got)
 	}
 }

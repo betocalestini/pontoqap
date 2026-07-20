@@ -1,10 +1,18 @@
 GO ?= go
 PNPM ?= pnpm
 
-.PHONY: help deps migrate-up api worker test lint docker-up docker-down openapi-gen backup restore
+.PHONY: help deps migrate-up api worker test lint docker-up docker-down dev-up dev-up-local openapi-gen backup restore test-backup-restore deploy-staging-help
 
 help:
-	@echo "Targets: deps, migrate-up, api, worker, test, docker-up, openapi-gen, backup, restore"
+	@echo "Targets: deps, migrate-up, api, worker, test, docker-up, dev-up, dev-up-local, openapi-gen, backup, restore, test-backup-restore"
+
+dev-up:
+	@chmod +x scripts/dev-up.sh
+	./scripts/dev-up.sh
+
+dev-up-local:
+	@chmod +x scripts/dev-up.sh
+	./scripts/dev-up.sh --local
 
 deps:
 	cd backend && $(GO) mod download
@@ -45,4 +53,9 @@ restore:
 
 test-backup-restore:
 	@chmod +x infra/backup/verify_restore.sh
-	DATABASE_URL=$${DATABASE_URL:-postgres://store:store@localhost:5432/store?sslmode=disable} ./infra/backup/verify_restore.sh
+	PGPASSWORD=$${PGPASSWORD:-store} DATABASE_URL=$${DATABASE_URL:-postgres://store:store@localhost:5432/store?sslmode=disable} ./infra/backup/verify_restore.sh
+
+deploy-staging-help:
+	@echo "Deploy: GitHub Actions → Deploy Staging (compose.traefik.yaml por padrão)"
+	@echo "Servidor: COMPOSE_FILE=infra/compose/compose.traefik.yaml ./infra/deploy/deploy.sh"
+	@echo "Ver docs/deployment.md e infra/portainer/README.md"

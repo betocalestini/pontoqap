@@ -1,0 +1,8 @@
+# Ferramentas do monorepo (https://mise.jdx.dev)
+[tools]
+go = "1.25.0"
+node = "22"
+pnpm = "9.15.0"
+
+[env]
+_.path = ["./node_modules/.bin"]

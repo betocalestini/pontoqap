@@ -1,5 +1,5 @@
 # TLS e reverse proxy (Caddy)
-# Defina DOMAIN e ACME_EMAIL no ambiente de produção.
+# Variáveis: DOMAIN (loja), ADMIN_DOMAIN (painel), ACME_EMAIL
 
 {
 	email {$ACME_EMAIL}
@@ -15,10 +15,19 @@
 	handle /health {
 		reverse_proxy api:8080
 	}
-	handle /admin* {
-		reverse_proxy admin-web:80
-	}
 	handle {
 		reverse_proxy store-web:80
+	}
+}
+
+{$ADMIN_DOMAIN} {
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+	handle {
+		reverse_proxy admin-web:80
 	}
 }

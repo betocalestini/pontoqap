@@ -69,6 +69,10 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 		return nil, errInvalidCredentials()
 	}
 
+	if in.Audience == "store" && user.Status == "pending_email" {
+		return nil, errEmailNotVerified()
+	}
+
 	if in.Audience == "admin" {
 		roles, _ := s.repo.ListUserRoles(ctx, user.ID)
 		if !hasAdminRole(roles) {
@@ -127,7 +131,10 @@ func (s *Service) AuthenticateSession(ctx context.Context, token, expectedAudien
 		return nil, errUnauthorized()
 	}
 	user, err := s.repo.FindUserByID(ctx, sess.UserID)
-	if err != nil || user == nil || user.Status != "active" {
+	if err != nil || user == nil || (user.Status != "active" && user.Status != "pending_email") {
+		return nil, errUnauthorized()
+	}
+	if user.Status == "pending_email" {
 		return nil, errUnauthorized()
 	}
 	authUser, err := s.buildAuthUser(ctx, *user)

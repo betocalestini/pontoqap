@@ -49,3 +49,16 @@
 .form label { display: block; margin-bottom: 0.5rem; }
 .pix code { display: block; word-break: break-all; font-size: 0.75rem; }
 .grid { list-style: none; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.cart-lines { list-style: none; padding: 0; text-align: left; }
+.cart-lines li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+}
+.cart-line-meta { display: block; font-size: 0.85rem; opacity: 0.85; }
+.cart-line-qty { display: flex; align-items: center; gap: 0.5rem; }
+.cart-line-qty button { min-width: 2rem; padding: 0.25rem 0.5rem; }
+.cart-total { margin: 1rem 0; }

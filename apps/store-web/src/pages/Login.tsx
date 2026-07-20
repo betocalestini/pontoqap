@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ApiError } from '@store/api-client';
 import { api } from '../api';
 
 export function LoginPage() {
@@ -7,15 +8,32 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [needsVerify, setNeedsVerify] = useState(false);
+  const [resent, setResent] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setNeedsVerify(false);
+    setResent(false);
     try {
       await api.login(email, password, 'store');
       nav('/');
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') {
+        setNeedsVerify(true);
+      }
       setError(err instanceof Error ? err.message : 'Falha no login');
+    }
+  }
+
+  async function resend() {
+    setResent(false);
+    try {
+      await api.resendVerification(email);
+      setResent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao reenviar');
     }
   }
 
@@ -32,8 +50,17 @@ export function LoginPage() {
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         {error && <p className="error">{error}</p>}
+        {needsVerify && (
+          <p>
+            <button type="button" onClick={resend}>Reenviar e-mail de confirmação</button>
+          </p>
+        )}
+        {resent && <p className="ok">Se o e-mail existir, enviamos um novo link.</p>}
         <button type="submit">Entrar</button>
       </form>
+      <p>
+        Ainda não tem conta? <Link to="/cadastro">Criar conta</Link>
+      </p>
     </section>
   );
 }

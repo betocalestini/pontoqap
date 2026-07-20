@@ -6,12 +6,13 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/store-platform/store/internal/billing"
+	"github.com/store-platform/store/internal/notification"
 )
 
 type Handler struct {
-	Billing *billing.Service
+	Billing BillingWorker
 	Log     *slog.Logger
+	Outbox  *notification.OutboxHandler
 }
 
 func (h *Handler) Handle(ctx context.Context, job Job) error {
@@ -26,7 +27,12 @@ func (h *Handler) Handle(ctx context.Context, job Job) error {
 		}
 		if p.Year == 0 {
 			now := time.Now()
-			p.Year, p.Month = billing.PreviousMonth(now.Year(), int(now.Month()))
+			y, m := now.Year(), int(now.Month())
+			if m == 1 {
+				p.Year, p.Month = y-1, 12
+			} else {
+				p.Year, p.Month = y, m-1
+			}
 		}
 		_, err := h.Billing.CloseOpenPeriodsForReference(ctx, p.Year, p.Month)
 		return err
@@ -47,6 +53,11 @@ type Runner struct {
 }
 
 func (r *Runner) Tick(ctx context.Context) error {
+	if r.Handler.Outbox != nil {
+		_ = r.Repo.ProcessOutbox(ctx, r.Batch, func(eventType string, payload json.RawMessage) error {
+			return r.Handler.Outbox.Handle(ctx, eventType, payload)
+		})
+	}
 	jobs, err := r.Repo.Acquire(ctx, r.WorkerID, r.Batch)
 	if err != nil {
 		return err

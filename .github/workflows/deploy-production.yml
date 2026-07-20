@@ -1,0 +1,45 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag ou SHA aprovado para produção
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          port: ${{ secrets.PRODUCTION_SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            export REPO_DIR="${{ secrets.PRODUCTION_REPO_DIR || '/opt/store-platform' }}"
+            export DEPLOY_REF="${{ inputs.ref }}"
+            export COMPOSE_FILE="${{ secrets.PRODUCTION_COMPOSE_FILE || 'infra/compose/compose.traefik.yaml' }}"
+            export ENV_FILE="infra/compose/.env.production"
+            cd "$REPO_DIR"
+            chmod +x infra/deploy/deploy.sh infra/backup/*.sh
+            ./infra/deploy/deploy.sh
+
+      - name: Smoke HTTP
+        env:
+          HEALTH_URL: ${{ secrets.PRODUCTION_HEALTH_URL }}
+        run: |
+          if [[ -z "$HEALTH_URL" ]]; then
+            echo "PRODUCTION_HEALTH_URL não configurado." >&2
+            exit 1
+          fi
+          curl -fsS "$HEALTH_URL"

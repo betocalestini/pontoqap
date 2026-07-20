@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 
-type Customer = { id: string; status: string; user?: { email: string; name: string } };
+type Customer = { id: string; status: string; email?: string; email_verified?: boolean };
 
 export function CustomersPage() {
   const [items, setItems] = useState<Customer[]>([]);
@@ -33,7 +33,8 @@ export function CustomersPage() {
       <ul>
         {items.map((c) => (
           <li key={c.id}>
-            {c.user?.email ?? c.id} — {c.status}
+            {c.email ?? c.id} — {c.status}
+            {c.email_verified === false && ' (e-mail não confirmado)'}
             {c.status === 'pending' && (
               <button type="button" onClick={() => approve(c.id)}>Aprovar</button>
             )}

@@ -22,6 +22,7 @@ import (
 	identityhttp "github.com/store-platform/store/internal/identity/transport/http"
 	"github.com/store-platform/store/internal/inventory"
 	inventoryhttp "github.com/store-platform/store/internal/inventory/transport/http"
+	"github.com/store-platform/store/internal/jobs"
 	"github.com/store-platform/store/internal/payments"
 	paymentshttp "github.com/store-platform/store/internal/payments/transport/http"
 	"github.com/store-platform/store/internal/platform/config"
@@ -34,14 +35,15 @@ import (
 )
 
 // NewRouter monta o roteador HTTP da API (usado por cmd/api e testes E2E).
-func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, logger *slog.Logger) http.Handler {
-	billSvc := billing.NewService(pool)
+func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, verifySvc *identity.VerificationService, logger *slog.Logger) http.Handler {
+	jobRepo := jobs.NewRepository(pool)
+	billSvc := billing.NewService(pool, jobRepo, cfg.App.StoreWebURL)
 	catalogHandler := cataloghttp.NewHandler(catalog.NewService(pool))
-	customersHandler := customershttp.NewHandler(customers.NewService(pool))
+	customersHandler := customershttp.NewHandler(customers.NewService(pool, verifySvc))
 	invSvc := inventory.NewService(pool)
 	invHandler := inventoryhttp.NewHandler(invSvc)
 	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc))
-	idHandler := identityhttp.NewHandler(idSvc, cfg.Session, cfg.Security)
+	idHandler := identityhttp.NewHandler(idSvc, verifySvc, cfg.Session, cfg.Security)
 
 	gateway := payments.NewSandboxGateway(cfg.Payments.WebhookSecret)
 	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments.WebhookSecret)

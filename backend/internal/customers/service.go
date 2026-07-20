@@ -10,16 +10,18 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/store-platform/store/internal/identity"
 	"github.com/store-platform/store/internal/identity/security"
 	platformerrors "github.com/store-platform/store/internal/platform/errors"
 )
 
 type Service struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	verify *identity.VerificationService
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool}
+func NewService(pool *pgxpool.Pool, verify *identity.VerificationService) *Service {
+	return &Service{pool: pool, verify: verify}
 }
 
 type Customer struct {
@@ -32,6 +34,7 @@ type Customer struct {
 	CreditLimitCents     int64      `json:"credit_limit_cents"`
 	CurrentExposureCents int64      `json:"current_exposure_cents"`
 	ApprovedAt           *time.Time `json:"approved_at,omitempty"`
+	EmailVerified        bool       `json:"email_verified"`
 }
 
 type RegisterInput struct {
@@ -56,7 +59,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*Customer, er
 	userID := uuid.New()
 	_, err = tx.Exec(ctx, `
 		INSERT INTO users (id, name, email, phone, password_hash, status)
-		VALUES ($1, $2, $3, NULLIF($4,''), $5, 'active')
+		VALUES ($1, $2, $3, NULLIF($4,''), $5, 'pending_email')
 	`, userID, in.Name, in.Email, in.Phone, hash)
 	if err != nil {
 		return nil, err
@@ -76,6 +79,11 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*Customer, er
 	if err != nil {
 		return nil, err
 	}
+	if s.verify != nil {
+		if err := s.verify.EnqueueVerification(ctx, tx, userID, in.Email, in.Name); err != nil {
+			return nil, err
+		}
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -85,7 +93,8 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*Customer, er
 func (s *Service) List(ctx context.Context) ([]Customer, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT c.id, c.user_id, u.name, u.email, COALESCE(c.document,''), c.status,
-		       c.credit_limit_cents, c.current_exposure_cents, c.approved_at
+		       c.credit_limit_cents, c.current_exposure_cents, c.approved_at,
+		       (u.email_verified_at IS NOT NULL)
 		FROM customers c
 		JOIN users u ON u.id = c.user_id
 		ORDER BY c.created_at DESC
@@ -98,7 +107,7 @@ func (s *Service) List(ctx context.Context) ([]Customer, error) {
 	for rows.Next() {
 		var c Customer
 		if err := rows.Scan(&c.ID, &c.UserID, &c.Name, &c.Email, &c.Document, &c.Status,
-			&c.CreditLimitCents, &c.CurrentExposureCents, &c.ApprovedAt); err != nil {
+			&c.CreditLimitCents, &c.CurrentExposureCents, &c.ApprovedAt, &c.EmailVerified); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
@@ -109,14 +118,15 @@ func (s *Service) List(ctx context.Context) ([]Customer, error) {
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Customer, error) {
 	row := s.pool.QueryRow(ctx, `
 		SELECT c.id, c.user_id, u.name, u.email, COALESCE(c.document,''), c.status,
-		       c.credit_limit_cents, c.current_exposure_cents, c.approved_at
+		       c.credit_limit_cents, c.current_exposure_cents, c.approved_at,
+		       (u.email_verified_at IS NOT NULL)
 		FROM customers c
 		JOIN users u ON u.id = c.user_id
 		WHERE c.id = $1
 	`, id)
 	var c Customer
 	err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Email, &c.Document, &c.Status,
-		&c.CreditLimitCents, &c.CurrentExposureCents, &c.ApprovedAt)
+		&c.CreditLimitCents, &c.CurrentExposureCents, &c.ApprovedAt, &c.EmailVerified)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -138,6 +148,13 @@ func (s *Service) Approve(ctx context.Context, customerID, managerID uuid.UUID, 
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("customer not pending")
+	}
+	_, err = s.pool.Exec(ctx, `
+		UPDATE users u SET status = 'active', email_verified_at = COALESCE(u.email_verified_at, NOW()), updated_at = NOW()
+		FROM customers c WHERE c.user_id = u.id AND c.id = $1
+	`, customerID)
+	if err != nil {
+		return err
 	}
 	_, err = s.pool.Exec(ctx, `
 		INSERT INTO customer_limit_history (customer_id, previous_limit_cents, new_limit_cents, reason, changed_by)

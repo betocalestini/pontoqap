@@ -34,9 +34,8 @@ func TestMVPBillingPixAndDashboard(t *testing.T) {
 	server, client := newE2EServer(t, pool)
 	email := testdb.UniqueEmail(t, "cli")
 	registerStoreCustomer(t, client, server.URL, email)
+	verifyStoreCustomer(t, ctx, pool, email, 50_000)
 	adminCookie := login(t, client, server.URL, mgr.Email, "password123", "admin")
-	customerID := findCustomerID(t, client, server.URL, adminCookie, email)
-	approveCustomer(t, client, server.URL, adminCookie, customerID, 50_000)
 
 	storeCookie := login(t, client, server.URL, email, "password123", "store")
 	cartBody, _ := json.Marshal(map[string]any{"sku_id": prod.SKUID.String(), "quantity": 2})

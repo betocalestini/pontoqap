@@ -2,13 +2,45 @@ name: Deploy Staging
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag ou SHA para deploy
+        required: true
+        default: master
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: staging
     steps:
-      - uses: actions/checkout@v4
-      - name: Deploy placeholder
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: ${{ secrets.STAGING_SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            export REPO_DIR="${{ secrets.STAGING_REPO_DIR || '/opt/store-platform' }}"
+            export DEPLOY_REF="${{ inputs.ref }}"
+            export COMPOSE_FILE="${{ secrets.STAGING_COMPOSE_FILE || 'infra/compose/compose.traefik.yaml' }}"
+            export ENV_FILE="infra/compose/.env.production"
+            cd "$REPO_DIR"
+            chmod +x infra/deploy/deploy.sh infra/backup/*.sh
+            ./infra/deploy/deploy.sh
+
+      - name: Smoke HTTP (opcional)
+        env:
+          HEALTH_URL: ${{ secrets.STAGING_HEALTH_URL }}
         run: |
-          echo "Configure SSH/host secrets e docker compose pull/up no servidor de staging."
-          echo "Ver docs/deployment.md"
+          if [[ -n "$HEALTH_URL" ]]; then
+            curl -fsS "$HEALTH_URL"
+          else
+            echo "STAGING_HEALTH_URL não configurado; smoke ignorado."
+          fi

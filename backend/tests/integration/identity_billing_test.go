@@ -63,7 +63,7 @@ func TestBillingEnsureOpenPeriod(t *testing.T) {
 	}
 	defer tx.Rollback(ctx)
 
-	svc := billing.NewService(pool)
+	svc := billing.NewService(pool, nil, "")
 	now := time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC)
 	pid, err := svc.EnsureOpenPeriodTx(ctx, tx, cust.ID, now)
 	if err != nil || pid == uuid.Nil {

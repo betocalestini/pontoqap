@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api';
 
 export function RegisterPage() {
@@ -11,7 +12,7 @@ export function RegisterPage() {
     setError(null);
     try {
       await api.registerCustomer(form);
-      setMsg('Cadastro enviado. Aguarde aprovação da loja.');
+      setMsg('Cadastro recebido. Enviamos um e-mail de confirmação — clique no link para ativar sua conta e começar a comprar.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro');
     }
@@ -48,6 +49,9 @@ export function RegisterPage() {
         {msg && <p className="ok">{msg}</p>}
         <button type="submit">Enviar</button>
       </form>
+      <p>
+        Já tem conta? <Link to="/login">Entrar</Link>
+      </p>
     </section>
   );
 }

@@ -19,6 +19,25 @@ type Config struct {
 	Worker      WorkerConfig
 	Payments    PaymentsConfig
 	UploadDir   string
+	SMTP        SMTPConfig
+	App         AppConfig
+	Customer    CustomerConfig
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	From     string
+}
+
+type AppConfig struct {
+	StoreWebURL string
+}
+
+type CustomerConfig struct {
+	DefaultCreditLimitCents int64
 }
 
 type HTTPConfig struct {
@@ -90,6 +109,19 @@ func Load() (Config, error) {
 			WebhookSecret: env("PAYMENT_WEBHOOK_SECRET", "sandbox-webhook-secret"),
 		},
 		UploadDir: env("UPLOAD_DIR", "./data/uploads"),
+		SMTP: SMTPConfig{
+			Host:     env("SMTP_HOST", "localhost"),
+			Port:     intEnv("SMTP_PORT", 1025),
+			User:     env("SMTP_USER", ""),
+			Password: env("SMTP_PASSWORD", ""),
+			From:     env("SMTP_FROM", "Store <noreply@store.local>"),
+		},
+		App: AppConfig{
+			StoreWebURL: env("STORE_WEB_URL", "http://localhost:5173"),
+		},
+		Customer: CustomerConfig{
+			DefaultCreditLimitCents: int64Env("DEFAULT_CUSTOMER_CREDIT_LIMIT_CENTS", 50_000),
+		},
 	}
 
 	if len(cfg.Security.SessionSecret) < 16 {
@@ -135,4 +167,32 @@ func splitCSV(s string) []string {
 		}
 	}
 	return out
+}
+
+func intEnv(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	var n int
+	if _, err := fmt.Sscanf(v, "%d", &n); err != nil {
+		return fallback
+	}
+	return n
+}
+
+func int64Env(key string, fallback int64) int64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	var n int64
+	if _, err := fmt.Sscanf(v, "%d", &n); err != nil {
+		return fallback
+	}
+	return n
+}
+
+func TrimTrailingSlash(s string) string {
+	return strings.TrimRight(strings.TrimSpace(s), "/")
 }

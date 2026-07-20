@@ -4,26 +4,88 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      push_registry:
+        description: Publicar imagens no GHCR
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        if: github.event_name == 'workflow_dispatch' && inputs.push_registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: docker/setup-buildx-action@v3
-      - name: Build API image
+
+      - name: Image metadata
+        id: meta
+        run: |
+          OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "prefix=${REGISTRY}/${OWNER}/store-platform" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build API
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/Dockerfile
           target: api
-          push: false
-          tags: store-platform/api:ci
-      - name: Build worker image
+          push: ${{ github.event_name == 'workflow_dispatch' && inputs.push_registry }}
+          tags: |
+            ${{ steps.meta.outputs.prefix }}-api:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.prefix }}-api:latest
+
+      - name: Build worker
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/Dockerfile
           target: worker
-          push: false
-          tags: store-platform/worker:ci
+          push: ${{ github.event_name == 'workflow_dispatch' && inputs.push_registry }}
+          tags: |
+            ${{ steps.meta.outputs.prefix }}-worker:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.prefix }}-worker:latest
+
+      - name: Build migrate
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          target: migrate
+          push: ${{ github.event_name == 'workflow_dispatch' && inputs.push_registry }}
+          tags: |
+            ${{ steps.meta.outputs.prefix }}-migrate:${{ steps.meta.outputs.tag }}
+
+      - name: Build store-web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/store-web/Dockerfile
+          push: ${{ github.event_name == 'workflow_dispatch' && inputs.push_registry }}
+          tags: |
+            ${{ steps.meta.outputs.prefix }}-store-web:${{ steps.meta.outputs.tag }}
+
+      - name: Build admin-web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/admin-web/Dockerfile
+          push: ${{ github.event_name == 'workflow_dispatch' && inputs.push_registry }}
+          tags: |
+            ${{ steps.meta.outputs.prefix }}-admin-web:${{ steps.meta.outputs.tag }}

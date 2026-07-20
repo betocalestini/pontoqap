@@ -7,6 +7,7 @@ import (
 
 	"github.com/store-platform/store/internal/billing"
 	"github.com/store-platform/store/internal/jobs"
+	"github.com/store-platform/store/internal/notification"
 	"github.com/store-platform/store/internal/platform/config"
 	"github.com/store-platform/store/internal/platform/database"
 	"github.com/store-platform/store/internal/platform/logging"
@@ -25,13 +26,19 @@ func main() {
 	}
 	defer pool.Close()
 
-	billSvc := billing.NewService(pool)
 	jobRepo := jobs.NewRepository(pool)
+	billSvc := billing.NewService(pool, jobRepo, cfg.App.StoreWebURL)
+	mailer := notification.NewSMTPMailer(cfg.SMTP)
+	outbox := &notification.OutboxHandler{Mailer: mailer, Log: logger}
 	runner := &jobs.Runner{
-		Repo:    jobRepo,
+		Repo:     jobRepo,
 		WorkerID: cfg.Worker.WorkerID,
-		Batch:   5,
-		Handler: &jobs.Handler{Billing: billSvc, Log: logger},
+		Batch:    5,
+		Handler: &jobs.Handler{
+			Billing: billSvc,
+			Log:     logger,
+			Outbox:  outbox,
+		},
 	}
 
 	logger.Info("worker started", "id", cfg.Worker.WorkerID)

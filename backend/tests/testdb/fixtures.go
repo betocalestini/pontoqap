@@ -36,8 +36,8 @@ func SeedManager(ctx context.Context, pool *pgxpool.Pool, email string) (Manager
 	}
 	userID := uuid.New()
 	_, err = pool.Exec(ctx, `
-		INSERT INTO users (id, name, email, password_hash, status)
-		VALUES ($1, 'Gerente Teste', $2, $3, 'active')
+		INSERT INTO users (id, name, email, password_hash, status, email_verified_at)
+		VALUES ($1, 'Gerente Teste', $2, $3, 'active', NOW())
 	`, userID, email, hash)
 	if err != nil {
 		return Manager{}, err
@@ -61,8 +61,8 @@ func SeedCustomer(ctx context.Context, pool *pgxpool.Pool, email, name string) (
 	userID := uuid.New()
 	customerID := uuid.New()
 	_, err = pool.Exec(ctx, `
-		INSERT INTO users (id, name, email, password_hash, status)
-		VALUES ($1, $2, $3, $4, 'active')
+		INSERT INTO users (id, name, email, password_hash, status, email_verified_at)
+		VALUES ($1, $2, $3, $4, 'active', NOW())
 	`, userID, name, email, hash)
 	if err != nil {
 		return Customer{}, err

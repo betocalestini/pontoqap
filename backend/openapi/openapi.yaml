@@ -44,6 +44,34 @@ paths:
       responses:
         '200':
           description: Sessão criada (cookie)
+  /auth/verify-email:
+    get:
+      tags: [auth]
+      summary: Confirmar e-mail do cadastro
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: E-mail confirmado
+  /auth/resend-verification:
+    post:
+      tags: [auth]
+      summary: Reenviar e-mail de confirmação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '204':
+          description: Aceito (sem revelar se o e-mail existe)
   /auth/logout:
     post:
       tags: [auth]

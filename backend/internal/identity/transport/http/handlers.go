@@ -14,16 +14,19 @@ import (
 
 type Handler struct {
 	svc    *identity.Service
+	verify *identity.VerificationService
 	cfg    config.SessionConfig
 	secure config.SecurityConfig
 }
 
-func NewHandler(svc *identity.Service, sessionCfg config.SessionConfig, sec config.SecurityConfig) *Handler {
-	return &Handler{svc: svc, cfg: sessionCfg, secure: sec}
+func NewHandler(svc *identity.Service, verify *identity.VerificationService, sessionCfg config.SessionConfig, sec config.SecurityConfig) *Handler {
+	return &Handler{svc: svc, verify: verify, cfg: sessionCfg, secure: sec}
 }
 
 func (h *Handler) Routes(r chi.Router) {
 	r.Post("/login", h.login)
+	r.Get("/verify-email", h.verifyEmail)
+	r.Post("/resend-verification", h.resendVerification)
 }
 
 func (h *Handler) AuthenticatedRoutes(r chi.Router) {
@@ -122,6 +125,37 @@ func (h *Handler) mfaVerify(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.VerifyMFA(r.Context(), user.User.ID, body.Code); err != nil {
 		writeAppError(w, err)
 		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) verifyEmail(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Token obrigatório")
+		return
+	}
+	if h.verify == nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Verificação indisponível")
+		return
+	}
+	if err := h.verify.VerifyEmail(r.Context(), token); err != nil {
+		writeAppError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "verified"})
+}
+
+func (h *Handler) resendVerification(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Email string `json:"email"`
+	}
+	if err := httpx.DecodeJSON(r, &body); err != nil || body.Email == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "E-mail obrigatório")
+		return
+	}
+	if h.verify != nil {
+		_ = h.verify.ResendVerification(r.Context(), strings.TrimSpace(body.Email))
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

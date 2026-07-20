@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/store-platform/store/internal/notification"
 )
 
 type Invoice struct {
@@ -132,6 +134,32 @@ func (s *Service) ClosePeriod(ctx context.Context, periodID uuid.UUID) (*Invoice
 	`, periodID, now)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.jobs != nil {
+		var email, name string
+		err = tx.QueryRow(ctx, `
+			SELECT u.email, u.name FROM users u
+			JOIN customers c ON c.user_id = u.id
+			WHERE c.id = $1
+		`, customerID).Scan(&email, &name)
+		if err != nil {
+			return nil, err
+		}
+		invoiceURL := notification.BuildInvoiceURL(s.storeWebURL, invID.String())
+		payload := map[string]any{
+			"to":             email,
+			"name":           name,
+			"invoice_number": invNumber,
+			"ref_year":       refYear,
+			"ref_month":      refMonth,
+			"total_cents":    total,
+			"due_at":         dueAt.Format(time.RFC3339),
+			"invoice_url":    invoiceURL,
+		}
+		if err := s.jobs.PublishOutbox(ctx, tx, notification.EventInvoiceClosed, "invoice", invID, payload); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
