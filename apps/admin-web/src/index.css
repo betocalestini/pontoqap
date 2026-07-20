@@ -15,6 +15,7 @@
   --color-accent: #646cff;
   --color-accent-hover: #535bf2;
   --color-danger: #ff6b6b;
+  --color-success: #3dd68c;
   --color-header-bg: rgba(26, 26, 26, 0.92);
 
   --space-xs: 0.25rem;
@@ -130,6 +131,7 @@ button:disabled {
     --color-accent: #4f56e8;
     --color-accent-hover: #3b42d4;
     --color-danger: #b00020;
+    --color-success: #0a7;
     --color-header-bg: rgba(255, 255, 255, 0.94);
   }
 }

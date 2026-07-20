@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -31,6 +32,8 @@ type SKU struct {
 	Barcode        string    `json:"barcode,omitempty"`
 	Unit           string    `json:"unit"`
 	SalePriceCents int64     `json:"sale_price_cents"`
+	CostPriceCents *int64    `json:"cost_price_cents,omitempty"`
+	MinimumStock   int       `json:"minimum_stock"`
 	Active         bool      `json:"active"`
 	AvailableQty   *int      `json:"available_quantity,omitempty"`
 }
@@ -43,9 +46,17 @@ type Product struct {
 	CategoryID  *uuid.UUID `json:"category_id,omitempty"`
 	Active      bool      `json:"active"`
 	Visible     bool      `json:"visible"`
+	UpdatedAt   time.Time `json:"updated_at"`
 	ImageURL    string    `json:"image_url,omitempty"`
 	ImageAlt    string    `json:"image_alt,omitempty"`
+	Images      []ProductImage `json:"images,omitempty"`
 	SKUs        []SKU     `json:"skus,omitempty"`
+}
+
+type ProductImage struct {
+	ID  uuid.UUID `json:"id"`
+	URL string    `json:"url"`
+	Alt string    `json:"alt,omitempty"`
 }
 
 type ListProductsFilter struct {
@@ -113,7 +124,7 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 
 	args = append(args, f.PageSize, offset)
 	q := `
-		SELECT p.id, p.name, p.slug, COALESCE(p.description,''), p.category_id, p.active, p.visible
+		SELECT p.id, p.name, p.slug, COALESCE(p.description,''), p.category_id, p.active, p.visible, p.updated_at
 		FROM products p
 		LEFT JOIN categories c ON c.id = p.category_id
 		WHERE ` + whereSQL + `
@@ -130,7 +141,7 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 	var ids []uuid.UUID
 	for rows.Next() {
 		var p Product
-		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.Active, &p.Visible); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.Active, &p.Visible, &p.UpdatedAt); err != nil {
 			return nil, 0, err
 		}
 		products = append(products, p)
@@ -170,11 +181,11 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 
 func (s *Service) GetProduct(ctx context.Context, id uuid.UUID, publicOnly bool) (*Product, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, name, slug, COALESCE(description,''), category_id, active, visible
+		SELECT id, name, slug, COALESCE(description,''), category_id, active, visible, updated_at
 		FROM products WHERE id = $1
 	`, id)
 	var p Product
-	if err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.Active, &p.Visible); err != nil {
+	if err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.Active, &p.Visible, &p.UpdatedAt); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
@@ -202,12 +213,20 @@ func (s *Service) GetProduct(ctx context.Context, id uuid.UUID, publicOnly bool)
 			}
 		}
 	}
+	if !publicOnly {
+		imgs, err := s.loadProductImages(ctx, p.ID)
+		if err != nil {
+			return nil, err
+		}
+		p.Images = imgs
+	}
 	return &p, nil
 }
 
 func (s *Service) loadSKUs(ctx context.Context, productIDs []uuid.UUID, activeOnly bool) (map[uuid.UUID][]SKU, error) {
 	q := `
-		SELECT s.id, s.product_id, s.code, COALESCE(s.barcode,''), s.unit, s.sale_price_cents, s.active,
+		SELECT s.id, s.product_id, s.code, COALESCE(s.barcode,''), s.unit, s.sale_price_cents,
+		       s.cost_price_cents, s.minimum_stock, s.active,
 		       COALESCE(ib.available_quantity, 0)
 		FROM skus s
 		LEFT JOIN inventory_balances ib ON ib.sku_id = s.id
@@ -226,7 +245,8 @@ func (s *Service) loadSKUs(ctx context.Context, productIDs []uuid.UUID, activeOn
 		var sku SKU
 		var productID uuid.UUID
 		var qty int
-		if err := rows.Scan(&sku.ID, &productID, &sku.Code, &sku.Barcode, &sku.Unit, &sku.SalePriceCents, &sku.Active, &qty); err != nil {
+		if err := rows.Scan(&sku.ID, &productID, &sku.Code, &sku.Barcode, &sku.Unit, &sku.SalePriceCents,
+			&sku.CostPriceCents, &sku.MinimumStock, &sku.Active, &qty); err != nil {
 			return nil, err
 		}
 		sku.AvailableQty = &qty
@@ -263,6 +283,30 @@ func (s *Service) loadPrimaryImages(ctx context.Context, productIDs []uuid.UUID)
 	return out, rows.Err()
 }
 
+func (s *Service) loadProductImages(ctx context.Context, productID uuid.UUID) ([]ProductImage, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, storage_key, COALESCE(alt_text, '')
+		FROM product_images
+		WHERE product_id = $1
+		ORDER BY position ASC, created_at ASC
+	`, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ProductImage
+	for rows.Next() {
+		var im ProductImage
+		var key string
+		if err := rows.Scan(&im.ID, &key, &im.Alt); err != nil {
+			return nil, err
+		}
+		im.URL = ResolveImageURL(key)
+		out = append(out, im)
+	}
+	return out, rows.Err()
+}
+
 type CreateCategoryInput struct {
 	Name string
 	Slug string
@@ -281,13 +325,16 @@ func (s *Service) CreateCategory(ctx context.Context, in CreateCategoryInput) (C
 }
 
 type CreateProductInput struct {
-	Name        string
-	Slug        string
-	Description string
-	CategoryID  *uuid.UUID
-	SKUCode     string
-	SalePrice   int64
-	Unit        string
+	Name         string
+	Slug         string
+	Description  string
+	CategoryID   *uuid.UUID
+	SKUCode      string
+	SalePrice    int64
+	CostPrice    *int64
+	MinimumStock int
+	Barcode      string
+	Unit         string
 }
 
 func (s *Service) CreateProduct(ctx context.Context, in CreateProductInput) (*Product, error) {
@@ -316,11 +363,11 @@ func (s *Service) CreateProduct(ctx context.Context, in CreateProductInput) (*Pr
 	}
 	var sku SKU
 	err = tx.QueryRow(ctx, `
-		INSERT INTO skus (product_id, code, unit, sale_price_cents, active)
-		VALUES ($1, $2, $3, $4, TRUE)
-		RETURNING id, code, COALESCE(barcode,''), unit, sale_price_cents, active
-	`, p.ID, in.SKUCode, in.Unit, in.SalePrice).Scan(
-		&sku.ID, &sku.Code, &sku.Barcode, &sku.Unit, &sku.SalePriceCents, &sku.Active,
+		INSERT INTO skus (product_id, code, barcode, unit, sale_price_cents, cost_price_cents, minimum_stock, active)
+		VALUES ($1, $2, NULLIF($3,''), $4, $5, $6, $7, TRUE)
+		RETURNING id, code, COALESCE(barcode,''), unit, sale_price_cents, cost_price_cents, minimum_stock, active
+	`, p.ID, in.SKUCode, in.Barcode, in.Unit, in.SalePrice, in.CostPrice, in.MinimumStock).Scan(
+		&sku.ID, &sku.Code, &sku.Barcode, &sku.Unit, &sku.SalePriceCents, &sku.CostPriceCents, &sku.MinimumStock, &sku.Active,
 	)
 	if err != nil {
 		return nil, err

@@ -75,6 +75,7 @@ type PaymentsConfig struct {
 
 func Load() (Config, error) {
 	_ = godotenv.Load()
+	_ = godotenv.Load("../.env")
 
 	cfg := Config{
 		AppEnv:      env("APP_ENV", "development"),
@@ -108,7 +109,7 @@ func Load() (Config, error) {
 			Provider:      env("PAYMENT_PROVIDER", "sandbox"),
 			WebhookSecret: env("PAYMENT_WEBHOOK_SECRET", "sandbox-webhook-secret"),
 		},
-		UploadDir: env("UPLOAD_DIR", "./data/uploads"),
+		UploadDir: env("UPLOAD_DIR", "internal/catalog/static"),
 		SMTP: SMTPConfig{
 			Host:     env("SMTP_HOST", "localhost"),
 			Port:     intEnv("SMTP_PORT", 1025),

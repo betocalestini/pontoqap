@@ -10,6 +10,7 @@ type Product = {
   slug?: string;
   image_url?: string;
   image_alt?: string;
+  updated_at?: string;
   skus?: { id: string; sale_price_cents: number; available_quantity?: number }[];
 };
 
@@ -18,10 +19,14 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 function productImageSrc(product: Product): string {
   const url = product.image_url?.trim();
-  if (url) {
-    return url;
+  if (!url) {
+    return PLACEHOLDER_IMAGE;
   }
-  return PLACEHOLDER_IMAGE;
+  if (product.updated_at) {
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}v=${encodeURIComponent(product.updated_at)}`;
+  }
+  return url;
 }
 
 export function CatalogPage() {

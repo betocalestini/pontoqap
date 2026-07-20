@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { adminNavLinks } from './navLinks';
 
@@ -50,13 +51,37 @@ export function AppShell({ children }: AppShellProps) {
   }, [location.pathname]);
 
   useEffect(() => {
-    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    const onResize = () => {
+      if (window.innerWidth >= 768) setMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
     return () => {
-      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
     };
   }, [menuOpen]);
 
   const closeMenu = () => setMenuOpen(false);
+
+  const mobileMenu =
+    menuOpen &&
+    createPortal(
+      <>
+        <button type="button" className="nav-backdrop" aria-label="Fechar menu" onClick={closeMenu} />
+        <NavLinks
+          navClassName="app-nav app-nav--drawer is-open"
+          id="admin-primary-nav"
+          onNavigate={closeMenu}
+          pathname={location.pathname}
+        />
+      </>,
+      document.body,
+    );
 
   return (
     <div className={`app-shell${menuOpen ? ' app-shell--menu-open' : ''}`}>
@@ -79,17 +104,7 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </div>
 
-      {menuOpen && (
-        <>
-          <button type="button" className="nav-backdrop" aria-label="Fechar menu" onClick={closeMenu} />
-          <NavLinks
-            navClassName="app-nav app-nav--drawer is-open"
-            id="admin-primary-nav"
-            onNavigate={closeMenu}
-            pathname={location.pathname}
-          />
-        </>
-      )}
+      {mobileMenu}
 
       <main className="app-main">{children}</main>
     </div>

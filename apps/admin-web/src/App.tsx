@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/Dashboard';
 import { CustomersPage } from './pages/Customers';
 import { BillingPage } from './pages/Billing';
 import { ProductsPage } from './pages/Products';
+import { InventoryPage } from './pages/Inventory';
 import { ReportsPage } from './pages/Reports';
 import './App.css';
 
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/clientes" element={authed ? <CustomersPage /> : <Navigate to="/login" replace />} />
       <Route path="/faturamento" element={authed ? <BillingPage /> : <Navigate to="/login" replace />} />
       <Route path="/produtos" element={authed ? <ProductsPage /> : <Navigate to="/login" replace />} />
+      <Route path="/estoque" element={authed ? <InventoryPage /> : <Navigate to="/login" replace />} />
       <Route path="/relatorios" element={authed ? <ReportsPage /> : <Navigate to="/login" replace />} />
     </Routes>
   );

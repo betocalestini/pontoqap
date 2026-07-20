@@ -18,6 +18,9 @@ ENTRYPOINT ["/migrate"]
 FROM alpine:3.21 AS api
 RUN apk add --no-cache ca-certificates
 COPY --from=build /bin/api /api
+RUN mkdir -p /data/catalog-static/product-images
+COPY --from=build /src/internal/catalog/static/product-images/ /data/catalog-static/product-images/
+ENV UPLOAD_DIR=/data/catalog-static
 EXPOSE 8080
 ENTRYPOINT ["/api"]
 

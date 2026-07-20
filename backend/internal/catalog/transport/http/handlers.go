@@ -1,6 +1,8 @@
 package http
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,16 +11,19 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/store-platform/store/internal/catalog"
+	"github.com/store-platform/store/internal/inventory"
 	identityhttp "github.com/store-platform/store/internal/identity/transport/http"
 	"github.com/store-platform/store/internal/platform/httpx"
 )
 
 type Handler struct {
-	svc *catalog.Service
+	svc       *catalog.Service
+	inv       *inventory.Service
+	uploadDir string
 }
 
-func NewHandler(svc *catalog.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *catalog.Service, inv *inventory.Service, uploadDir string) *Handler {
+	return &Handler{svc: svc, inv: inv, uploadDir: uploadDir}
 }
 
 func (h *Handler) PublicRoutes(r chi.Router) {
@@ -32,7 +37,12 @@ func (h *Handler) AdminRoutes(r chi.Router) {
 	r.Get("/categories", h.ListCategoriesAdmin)
 	r.Post("/categories", h.CreateCategory)
 	r.Get("/products", h.ListProductsAdmin)
+	r.Get("/products/{id}", h.GetProductAdmin)
 	r.Post("/products", h.CreateProduct)
+	r.Patch("/products/{id}", h.UpdateProduct)
+	r.Post("/products/{id}/images", h.UploadProductImage)
+	r.Delete("/products/{id}/images/{imageId}", h.DeleteProductImage)
+	r.Patch("/skus/{skuId}", h.UpdateSKU)
 	r.Patch("/skus/{skuId}/price", h.ChangePrice)
 }
 
@@ -56,6 +66,26 @@ func (h *Handler) ChangePrice(w http.ResponseWriter, r *http.Request) {
 	h.changePrice(w, r)
 }
 
+func (h *Handler) GetProductAdmin(w http.ResponseWriter, r *http.Request) {
+	h.getProductAdmin(w, r)
+}
+
+func (h *Handler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
+	h.updateProduct(w, r)
+}
+
+func (h *Handler) UpdateSKU(w http.ResponseWriter, r *http.Request) {
+	h.updateSKU(w, r)
+}
+
+func (h *Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
+	h.uploadProductImage(w, r)
+}
+
+func (h *Handler) DeleteProductImage(w http.ResponseWriter, r *http.Request) {
+	h.deleteProductImage(w, r)
+}
+
 func (h *Handler) serveProductImage(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	if name == "" || strings.Contains(name, "..") || strings.Contains(name, "/") {
@@ -67,8 +97,17 @@ func (h *Handler) serveProductImage(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Imagem não encontrada")
 		return
 	}
+	sum := sha256.Sum256(data)
+	etag := `"` + hex.EncodeToString(sum[:12]) + `"`
+	if inm := r.Header.Get("If-None-Match"); inm == etag {
+		w.Header().Set("ETag", etag)
+		w.Header().Set("Cache-Control", "public, max-age=86400, must-revalidate")
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
 	w.Header().Set("Content-Type", catalog.ProductImageContentType(filename))
-	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "public, max-age=86400, must-revalidate")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
 }
@@ -149,45 +188,6 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, c)
-}
-
-func (h *Handler) createProduct(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Name        string  `json:"name"`
-		Slug        string  `json:"slug"`
-		Description string  `json:"description"`
-		CategoryID  *string `json:"category_id"`
-		SKUCode     string  `json:"sku_code"`
-		SalePrice   int64   `json:"sale_price_cents"`
-		Unit        string  `json:"unit"`
-	}
-	if err := httpx.DecodeJSON(r, &body); err != nil || body.Name == "" || body.SKUCode == "" {
-		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
-		return
-	}
-	var catID *uuid.UUID
-	if body.CategoryID != nil {
-		id, err := uuid.Parse(*body.CategoryID)
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Categoria inválida")
-			return
-		}
-		catID = &id
-	}
-	p, err := h.svc.CreateProduct(r.Context(), catalog.CreateProductInput{
-		Name:        body.Name,
-		Slug:        body.Slug,
-		Description: body.Description,
-		CategoryID:  catID,
-		SKUCode:     body.SKUCode,
-		SalePrice:   body.SalePrice,
-		Unit:        body.Unit,
-	})
-	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao criar produto")
-		return
-	}
-	httpx.WriteJSON(w, http.StatusCreated, p)
 }
 
 func (h *Handler) changePrice(w http.ResponseWriter, r *http.Request) {

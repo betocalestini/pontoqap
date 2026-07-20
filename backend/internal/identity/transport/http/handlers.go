@@ -289,20 +289,32 @@ func RequireAdminMFA(required bool) func(http.Handler) http.Handler {
 func RequirePermission(code string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user := UserFromContext(r.Context())
-			if user == nil {
-				httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
-				return
-			}
-			for _, p := range user.Permissions {
-				if p == code {
-					next.ServeHTTP(w, r)
+			if !HasPermission(r.Context(), code) {
+				user := UserFromContext(r.Context())
+				if user == nil {
+					httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
 					return
 				}
+				httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Permissão insuficiente")
+				return
 			}
-			httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Permissão insuficiente")
+			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// HasPermission reports whether the authenticated user has a permission code.
+func HasPermission(ctx context.Context, code string) bool {
+	user := UserFromContext(ctx)
+	if user == nil {
+		return false
+	}
+	for _, p := range user.Permissions {
+		if p == code {
+			return true
+		}
+	}
+	return false
 }
 
 func setSessionCookie(w http.ResponseWriter, name, value string, maxAge int, secure bool) {

@@ -3,6 +3,7 @@ package app
 import (
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -38,9 +39,15 @@ import (
 func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, verifySvc *identity.VerificationService, logger *slog.Logger) http.Handler {
 	jobRepo := jobs.NewRepository(pool)
 	billSvc := billing.NewService(pool, jobRepo, cfg.App.StoreWebURL)
-	catalogHandler := cataloghttp.NewHandler(catalog.NewService(pool))
-	customersHandler := customershttp.NewHandler(customers.NewService(pool, verifySvc))
 	invSvc := inventory.NewService(pool)
+	uploadRoot := cfg.UploadDir
+	if abs, err := filepath.Abs(uploadRoot); err == nil {
+		uploadRoot = abs
+	}
+	catalog.SetProductImagesUploadDir(uploadRoot)
+	logger.Info("product images disk root", "upload_dir", uploadRoot, "images_dir", filepath.Join(uploadRoot, "product-images"))
+	catalogHandler := cataloghttp.NewHandler(catalog.NewService(pool), invSvc, uploadRoot)
+	customersHandler := customershttp.NewHandler(customers.NewService(pool, verifySvc))
 	invHandler := inventoryhttp.NewHandler(invSvc)
 	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc))
 	idHandler := identityhttp.NewHandler(idSvc, verifySvc, cfg.Session, cfg.Security)
@@ -110,14 +117,22 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 				priv.With(identityhttp.RequirePermission("products.read")).Get("/categories", catalogHandler.ListCategoriesAdmin)
 				priv.With(identityhttp.RequirePermission("products.write")).Post("/categories", catalogHandler.CreateCategory)
 				priv.With(identityhttp.RequirePermission("products.read")).Get("/products", catalogHandler.ListProductsAdmin)
+				priv.With(identityhttp.RequirePermission("products.read")).Get("/products/{id}", catalogHandler.GetProductAdmin)
 				priv.With(identityhttp.RequirePermission("products.write")).Post("/products", catalogHandler.CreateProduct)
+				priv.With(identityhttp.RequirePermission("products.write")).Patch("/products/{id}", catalogHandler.UpdateProduct)
+				priv.With(identityhttp.RequirePermission("products.write")).Post("/products/{id}/images", catalogHandler.UploadProductImage)
+				priv.With(identityhttp.RequirePermission("products.write")).Delete("/products/{id}/images/{imageId}", catalogHandler.DeleteProductImage)
+				priv.With(identityhttp.RequirePermission("products.write")).Patch("/skus/{skuId}", catalogHandler.UpdateSKU)
 				priv.With(identityhttp.RequirePermission("products.write")).Patch("/skus/{skuId}/price", catalogHandler.ChangePrice)
 				priv.Route("/customers", func(cr chi.Router) {
 					cr.With(identityhttp.RequirePermission("customers.read")).Get("/", customersHandler.List)
 					cr.With(identityhttp.RequirePermission("customers.approve")).Patch("/{id}/approve", customersHandler.Approve)
 					cr.With(identityhttp.RequirePermission("customers.change_limit")).Patch("/{id}/credit-limit", customersHandler.ChangeLimit)
 				})
-				priv.With(identityhttp.RequirePermission("inventory.adjust")).Post("/inventory/entries", invHandler.RegisterEntry)
+				priv.With(identityhttp.RequirePermission("inventory.read")).Get("/inventory/balances", invHandler.ListBalances)
+				priv.With(identityhttp.RequirePermission("inventory.read")).Get("/inventory/movements", invHandler.ListMovements)
+				priv.Post("/inventory/movements", invHandler.CreateMovement)
+				priv.With(identityhttp.RequirePermission("inventory.entry")).Post("/inventory/entries", invHandler.RegisterEntry)
 				priv.Route("/billing", func(br chi.Router) {
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/calendar", billHandler.ListCalendar)
 					br.With(identityhttp.RequirePermission("settings.write")).Put("/calendar", billHandler.UpsertCalendar)

@@ -4,8 +4,11 @@ import (
 	"embed"
 	"errors"
 	"io/fs"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
+	"sync"
 )
 
 //go:embed static/product-images/*
@@ -17,6 +20,18 @@ var productImagesSub fs.FS
 var productImageExtensions = []string{".webp", ".png", ".jpg", ".jpeg", ".svg"}
 
 var errProductImageNotFound = errors.New("product image not found")
+
+var (
+	productImagesUploadDir string
+	uploadDirMu            sync.RWMutex
+)
+
+// SetProductImagesUploadDir sets the directory for uploaded product images (under product-images/).
+func SetProductImagesUploadDir(dir string) {
+	uploadDirMu.Lock()
+	productImagesUploadDir = strings.TrimSpace(dir)
+	uploadDirMu.Unlock()
+}
 
 func init() {
 	sub, err := fs.Sub(productImageFS, "static/product-images")
@@ -114,11 +129,32 @@ func HasProductImage(slug string) bool {
 	return err == nil
 }
 
+// ProductImageExtensions lists extensions tried when resolving product images.
+func ProductImageExtensions() []string {
+	return append([]string(nil), productImageExtensions...)
+}
+
 // OpenProductImageBySlug loads the first matching file for slug across supported extensions.
 func OpenProductImageBySlug(slug string) ([]byte, string, error) {
 	slug = normalizeImageSlug(slug)
 	if slug == "" {
 		return nil, "", errProductImageNotFound
+	}
+	uploadDirMu.RLock()
+	uploadRoot := productImagesUploadDir
+	uploadDirMu.RUnlock()
+	if uploadRoot != "" {
+		for _, ext := range productImageExtensions {
+			filename := slug + ext
+			full := filepath.Join(uploadRoot, "product-images", filename)
+			data, err := os.ReadFile(full)
+			if err == nil && len(data) > 0 {
+				return data, filename, nil
+			}
+			if err == nil && len(data) == 0 {
+				_ = os.Remove(full)
+			}
+		}
 	}
 	for _, ext := range productImageExtensions {
 		filename := slug + ext

@@ -27,7 +27,7 @@
 .app-top {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 50;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-header-bg);
 }
@@ -139,6 +139,19 @@
 }
 
 @media (max-width: 767px) {
+  .app-top {
+    z-index: 20;
+  }
+
+  .app-shell--menu-open .app-top {
+    z-index: 400;
+  }
+
+  .app-shell--menu-open {
+    overflow: hidden;
+    height: 100dvh;
+  }
+
   .app-nav--drawer.is-open {
     display: block;
     position: fixed;
@@ -242,8 +255,207 @@
   color: var(--color-danger);
 }
 
+.ok {
+  color: var(--color-success);
+}
+
 .form {
   max-width: 28rem;
+}
+
+.form.form--wide {
+  max-width: 100%;
+  display: grid;
+  gap: 0 var(--space-md);
+  grid-template-columns: 1fr;
+  margin-bottom: var(--space-lg);
+}
+
+@media (min-width: 640px) {
+  .form.form--wide {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.form.form--wide .form__full {
+  grid-column: 1 / -1;
+}
+
+.form.form--wide .form__checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.form.form--wide .form__checkbox input {
+  width: auto;
+  margin: 0;
+}
+
+.form.form--wide .form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.form label small {
+  display: block;
+  margin-top: var(--space-xs);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.page-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.page-toolbar h1 {
+  margin: 0;
+}
+
+.file-upload {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.file-upload__label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.file-upload__preview {
+  display: block;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: var(--space-sm);
+  max-width: 100%;
+  height: auto;
+}
+
+.file-upload__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-min);
+  padding: 0 var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.file-upload__button:hover {
+  border-color: var(--color-accent);
+}
+
+.file-upload__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.file-upload__name {
+  margin: var(--space-sm) 0 0;
+  font-size: 0.9rem;
+}
+
+.file-upload__hint {
+  margin: var(--space-xs) 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.product-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.product-thumb--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+.products-table-mobile {
+  display: none;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.product-card {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.product-card__row {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+
+.product-card__meta {
+  margin: var(--space-xs) 0 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.product-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  align-items: center;
+}
+
+.table-actions__link {
+  margin-left: var(--space-sm);
+}
+
+@media (max-width: 767px) {
+  .products-table-desktop {
+    display: none;
+  }
+
+  .products-table-mobile {
+    display: flex;
+  }
+
+  .table-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-xs);
+    white-space: normal;
+  }
+
+  .table-actions__link {
+    margin-left: 0;
+  }
 }
 
 .form label {
@@ -298,6 +510,17 @@ td {
   padding: var(--space-sm) var(--space-md);
   text-align: left;
   border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.table-actions {
+  position: relative;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.table-actions button {
+  margin-right: var(--space-xs);
 }
 
 .code-block {

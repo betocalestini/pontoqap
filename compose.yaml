@@ -48,6 +48,9 @@ services:
       SMTP_PORT: 1025
       STORE_WEB_URL: http://localhost:5173
       DEFAULT_CUSTOMER_CREDIT_LIMIT_CENTS: "50000"
+      UPLOAD_DIR: /data/catalog-static
+    volumes:
+      - ./backend/internal/catalog/static:/data/catalog-static
     ports:
       - "8080:8080"
     depends_on:

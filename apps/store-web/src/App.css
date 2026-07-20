@@ -9,7 +9,7 @@
 .app-top {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 50;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-header-bg);
 }
@@ -122,6 +122,19 @@
 }
 
 @media (max-width: 767px) {
+  .app-top {
+    z-index: 20;
+  }
+
+  .app-shell--menu-open .app-top {
+    z-index: 400;
+  }
+
+  .app-shell--menu-open {
+    overflow: hidden;
+    height: 100dvh;
+  }
+
   .app-nav--drawer.is-open {
     display: block;
     position: fixed;

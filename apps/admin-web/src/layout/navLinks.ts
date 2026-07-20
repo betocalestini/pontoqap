@@ -3,5 +3,6 @@ export const adminNavLinks = [
   { to: '/clientes', label: 'Clientes' },
   { to: '/faturamento', label: 'Faturamento' },
   { to: '/produtos', label: 'Produtos' },
+  { to: '/estoque', label: 'Estoque' },
   { to: '/relatorios', label: 'Relatórios' },
 ] as const;
