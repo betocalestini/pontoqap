@@ -2,6 +2,37 @@ export type ApiErrorBody = { code: string; message: string };
 
 export type AdminCategory = { id: string; name: string; slug: string; active: boolean };
 
+export type CollaboratorCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  margin_percent: number;
+  active: boolean;
+};
+
+export type AdminCustomer = {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  document?: string;
+  status: string;
+  credit_limit_cents: number;
+  current_exposure_cents: number;
+  email_verified?: boolean;
+  collaborator_category_id?: string;
+  collaborator_category_name?: string;
+  blocked_reason?: string;
+};
+
+export type AdminUpdateCustomerBody = {
+  name?: string;
+  phone?: string;
+  document?: string;
+  collaborator_category_id?: string | null;
+};
+
 export type AdminSku = {
   id: string;
   code: string;
@@ -217,9 +248,42 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     simulatePixPayment: (chargeId: string) =>
       request(`/dev/pix/simulate/${chargeId}`, { method: 'POST' }),
 
-    adminListCustomers: () => request<{ items: unknown[] }>('/admin/customers', {}, 'admin'),
-    adminApproveCustomer: (id: string) =>
-      request(`/admin/customers/${id}/approve`, { method: 'PATCH' }, 'admin'),
+    adminListCustomers: () => request<{ items: AdminCustomer[] }>('/admin/customers', {}, 'admin'),
+    adminGetCustomer: (id: string) => request<AdminCustomer>(`/admin/customers/${id}`, {}, 'admin'),
+    adminUpdateCustomer: (id: string, body: AdminUpdateCustomerBody) =>
+      request<AdminCustomer>(`/admin/customers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }, 'admin'),
+    adminApproveCustomer: (id: string, credit_limit_cents = 100_000) =>
+      request(`/admin/customers/${id}/approve`, {
+        method: 'PATCH',
+        body: JSON.stringify({ credit_limit_cents }),
+      }, 'admin'),
+    adminChangeCustomerLimit: (id: string, credit_limit_cents: number, reason: string) =>
+      request(`/admin/customers/${id}/credit-limit`, {
+        method: 'PATCH',
+        body: JSON.stringify({ credit_limit_cents, reason }),
+      }, 'admin'),
+    adminBlockCustomer: (id: string, reason?: string) =>
+      request(`/admin/customers/${id}/block`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason: reason ?? '' }),
+      }, 'admin'),
+    adminUnblockCustomer: (id: string) =>
+      request(`/admin/customers/${id}/unblock`, { method: 'PATCH' }, 'admin'),
+    adminListCollaboratorCategories: () =>
+      request<{ items: CollaboratorCategory[] }>('/admin/collaborator-categories', {}, 'admin'),
+    adminCreateCollaboratorCategory: (body: { name: string; slug?: string; margin_percent: number }) =>
+      request<CollaboratorCategory>('/admin/collaborator-categories', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }, 'admin'),
+    adminUpdateCollaboratorCategory: (
+      id: string,
+      body: { name?: string; margin_percent?: number; active?: boolean },
+    ) =>
+      request<CollaboratorCategory>(`/admin/collaborator-categories/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }, 'admin'),
     adminInventoryEntry: (body: {
       sku_id: string;
       quantity: number;

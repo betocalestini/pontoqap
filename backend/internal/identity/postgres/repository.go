@@ -175,6 +175,18 @@ func (r *Repository) FindCustomerIDByUser(ctx context.Context, userID uuid.UUID)
 	return &id, nil
 }
 
+func (r *Repository) IsCustomerBlocked(ctx context.Context, userID uuid.UUID) (bool, error) {
+	var status string
+	err := r.pool.QueryRow(ctx, `SELECT status FROM customers WHERE user_id = $1`, userID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return status == "blocked", nil
+}
+
 func (r *Repository) EnsureBootstrapManager(ctx context.Context, email, name, passwordHash string) error {
 	var exists bool
 	if err := r.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users)`).Scan(&exists); err != nil {

@@ -1,5 +1,0 @@
-DROP TABLE IF EXISTS price_history;
-DROP TABLE IF EXISTS product_images;
-DROP TABLE IF EXISTS skus;
-DROP TABLE IF EXISTS products;
-DROP TABLE IF EXISTS categories;

@@ -48,9 +48,10 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 	logger.Info("product images disk root", "upload_dir", uploadRoot, "images_dir", filepath.Join(uploadRoot, "product-images"))
 	catalogSvc := catalog.NewService(pool)
 	catalogHandler := cataloghttp.NewHandler(catalogSvc, invSvc, uploadRoot)
-	customersHandler := customershttp.NewHandler(customers.NewService(pool, verifySvc))
+	custSvc := customers.NewService(pool, verifySvc)
+	customersHandler := customershttp.NewHandler(custSvc)
 	invHandler := inventoryhttp.NewHandler(invSvc, catalogSvc)
-	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc, catalogSvc))
+	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc, catalogSvc, custSvc))
 	idHandler := identityhttp.NewHandler(idSvc, verifySvc, cfg.Session, cfg.Security)
 
 	gateway := payments.NewSandboxGateway(cfg.Payments.WebhookSecret)
@@ -103,6 +104,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 		api.Group(func(me chi.Router) {
 			me.Use(storeAuth)
 			me.Use(identityhttp.RequireAuth)
+			me.Use(customershttp.RequireStoreCustomerActive(custSvc))
 			me.Route("/me", func(m chi.Router) {
 				salesHandler.MeRoutes(m)
 				billHandler.MeRoutes(m)
@@ -130,8 +132,17 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 				priv.With(identityhttp.RequirePermission("products.write")).Patch("/skus/{skuId}/price", catalogHandler.ChangePrice)
 				priv.Route("/customers", func(cr chi.Router) {
 					cr.With(identityhttp.RequirePermission("customers.read")).Get("/", customersHandler.List)
+					cr.With(identityhttp.RequirePermission("customers.read")).Get("/{id}", customersHandler.GetCustomer)
+					cr.With(identityhttp.RequirePermission("customers.write")).Patch("/{id}", customersHandler.UpdateCustomer)
 					cr.With(identityhttp.RequirePermission("customers.approve")).Patch("/{id}/approve", customersHandler.Approve)
 					cr.With(identityhttp.RequirePermission("customers.change_limit")).Patch("/{id}/credit-limit", customersHandler.ChangeLimit)
+					cr.With(identityhttp.RequirePermission("customers.write")).Patch("/{id}/block", customersHandler.BlockCustomer)
+					cr.With(identityhttp.RequirePermission("customers.write")).Patch("/{id}/unblock", customersHandler.UnblockCustomer)
+				})
+				priv.Route("/collaborator-categories", func(cr chi.Router) {
+					cr.With(identityhttp.RequirePermission("customers.read")).Get("/", customersHandler.ListCollaboratorCategories)
+					cr.With(identityhttp.RequirePermission("customers.write")).Post("/", customersHandler.CreateCollaboratorCategory)
+					cr.With(identityhttp.RequirePermission("customers.write")).Patch("/{id}", customersHandler.UpdateCollaboratorCategory)
 				})
 				priv.With(identityhttp.RequirePermission("inventory.read")).Get("/inventory/balances", invHandler.ListBalances)
 				priv.With(identityhttp.RequirePermission("inventory.read")).Get("/inventory/movements", invHandler.ListMovements)

@@ -33,6 +33,10 @@ func (h *Handler) getCart(w http.ResponseWriter, r *http.Request) {
 	}
 	cart, err := h.svc.GetOrCreateCart(r.Context(), *user.CustomerID)
 	if err != nil {
+		if ae := sales.AsAppError(err); ae != nil {
+			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
+			return
+		}
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao carregar carrinho")
 		return
 	}
@@ -63,6 +67,10 @@ func (h *Handler) addItem(w http.ResponseWriter, r *http.Request) {
 	}
 	cart, err := h.svc.AddCartItem(r.Context(), *user.CustomerID, skuID, body.Quantity)
 	if err != nil {
+		if ae := sales.AsAppError(err); ae != nil {
+			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
+			return
+		}
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
@@ -89,6 +97,10 @@ func (h *Handler) setItemQuantity(w http.ResponseWriter, r *http.Request) {
 	}
 	cart, err := h.svc.SetCartItemQuantity(r.Context(), *user.CustomerID, skuID, body.Quantity)
 	if err != nil {
+		if ae := sales.AsAppError(err); ae != nil {
+			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
+			return
+		}
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}

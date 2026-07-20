@@ -1419,31 +1419,12 @@ backend/internal/platform/
 
 ```text
 backend/migrations/
-├── 000001_create_identity.up.sql
-├── 000001_create_identity.down.sql
-├── 000002_create_customers.up.sql
-├── 000002_create_customers.down.sql
-├── 000003_create_catalog.up.sql
-├── 000003_create_catalog.down.sql
-├── 000004_create_inventory.up.sql
-├── 000004_create_inventory.down.sql
-├── 000005_create_sales.up.sql
-├── 000005_create_sales.down.sql
-├── 000006_create_billing.up.sql
-├── 000006_create_billing.down.sql
-├── 000007_create_payments.up.sql
-├── 000007_create_payments.down.sql
-├── 000008_create_forecasting.up.sql
-├── 000008_create_forecasting.down.sql
-├── 000009_create_jobs.up.sql
-├── 000009_create_jobs.down.sql
-├── 000010_create_audit.up.sql
-├── 000010_create_audit.down.sql
-├── 000011_create_indexes.up.sql
-├── 000011_create_indexes.down.sql
-├── 000012_seed_roles_permissions.up.sql
-└── 000012_seed_roles_permissions.down.sql
+├── 000001_initial.up.sql    # schema + seeds (catálogo demo, roles, permissões, etc.)
+└── 000001_initial.down.sql  # DROP SCHEMA public CASCADE
 ```
+
+Antes da produção, migrations incrementais foram consolidadas num único snapshot do schema atual.
+Novas alterações voltam a ser migrations numeradas (`000002_…`, `000003_…`).
 
 ---
 

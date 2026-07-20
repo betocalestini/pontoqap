@@ -75,6 +75,9 @@ func (m *mockRepo) UpdateMFA(ctx context.Context, userID uuid.UUID, secret strin
 func (m *mockRepo) FindCustomerIDByUser(ctx context.Context, userID uuid.UUID) (*uuid.UUID, error) {
 	return nil, nil
 }
+func (m *mockRepo) IsCustomerBlocked(ctx context.Context, userID uuid.UUID) (bool, error) {
+	return false, nil
+}
 func (m *mockRepo) EnsureBootstrapManager(ctx context.Context, email, name, passwordHash string) error {
 	return nil
 }

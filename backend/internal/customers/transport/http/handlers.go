@@ -25,8 +25,18 @@ func (h *Handler) StoreRoutes(r chi.Router) {
 
 func (h *Handler) AdminRoutes(r chi.Router) {
 	r.Get("/", h.list)
+	r.Get("/{id}", h.getCustomer)
+	r.Patch("/{id}", h.updateCustomer)
 	r.Patch("/{id}/approve", h.approve)
 	r.Patch("/{id}/credit-limit", h.changeLimit)
+	r.Patch("/{id}/block", h.blockCustomer)
+	r.Patch("/{id}/unblock", h.unblockCustomer)
+}
+
+func (h *Handler) CollaboratorCategoryRoutes(r chi.Router) {
+	r.Get("/", h.listCollaboratorCategories)
+	r.Post("/", h.createCollaboratorCategory)
+	r.Patch("/{id}", h.updateCollaboratorCategory)
 }
 
 func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +71,34 @@ func (h *Handler) Approve(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ChangeLimit(w http.ResponseWriter, r *http.Request) {
 	h.changeLimit(w, r)
+}
+
+func (h *Handler) GetCustomer(w http.ResponseWriter, r *http.Request) {
+	h.getCustomer(w, r)
+}
+
+func (h *Handler) UpdateCustomer(w http.ResponseWriter, r *http.Request) {
+	h.updateCustomer(w, r)
+}
+
+func (h *Handler) BlockCustomer(w http.ResponseWriter, r *http.Request) {
+	h.blockCustomer(w, r)
+}
+
+func (h *Handler) UnblockCustomer(w http.ResponseWriter, r *http.Request) {
+	h.unblockCustomer(w, r)
+}
+
+func (h *Handler) ListCollaboratorCategories(w http.ResponseWriter, r *http.Request) {
+	h.listCollaboratorCategories(w, r)
+}
+
+func (h *Handler) CreateCollaboratorCategory(w http.ResponseWriter, r *http.Request) {
+	h.createCollaboratorCategory(w, r)
+}
+
+func (h *Handler) UpdateCollaboratorCategory(w http.ResponseWriter, r *http.Request) {
+	h.updateCollaboratorCategory(w, r)
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {

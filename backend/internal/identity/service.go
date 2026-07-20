@@ -76,6 +76,16 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 		return nil, errEmailNotVerified()
 	}
 
+	if in.Audience == "store" {
+		blocked, err := s.repo.IsCustomerBlocked(ctx, user.ID)
+		if err != nil {
+			return nil, err
+		}
+		if blocked {
+			return nil, errForbidden("Cliente bloqueado")
+		}
+	}
+
 	if in.Audience == "admin" {
 		roles, _ := s.repo.ListUserRoles(ctx, user.ID)
 		if !hasAdminRole(roles) {

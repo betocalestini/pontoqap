@@ -21,10 +21,11 @@ type Service struct {
 	inventory *inventory.Service
 	billing   *billing.Service
 	catalog   *catalog.Service
+	customers *customers.Service
 }
 
-func NewService(pool *pgxpool.Pool, inv *inventory.Service, bill *billing.Service, cat *catalog.Service) *Service {
-	return &Service{pool: pool, inventory: inv, billing: bill, catalog: cat}
+func NewService(pool *pgxpool.Pool, inv *inventory.Service, bill *billing.Service, cat *catalog.Service, cust *customers.Service) *Service {
+	return &Service{pool: pool, inventory: inv, billing: bill, catalog: cat, customers: cust}
 }
 
 type CartItem struct {
@@ -56,7 +57,7 @@ func (s *Service) GetOrCreateCart(ctx context.Context, customerID uuid.UUID) (*C
 	} else if err != nil {
 		return nil, err
 	}
-	return s.loadCart(ctx, cartID)
+	return s.loadCart(ctx, cartID, customerID)
 }
 
 // AddCartItem soma unidades ao item (catálogo / "Comprar" de novo).
@@ -77,7 +78,7 @@ func (s *Service) AddCartItem(ctx context.Context, customerID, skuID uuid.UUID, 
 	if err != nil {
 		return nil, err
 	}
-	return s.loadCart(ctx, cart.ID)
+	return s.loadCart(ctx, cart.ID, customerID)
 }
 
 // SetCartItemQuantity define a quantidade absoluta (0 remove o item).
@@ -98,10 +99,18 @@ func (s *Service) SetCartItemQuantity(ctx context.Context, customerID, skuID uui
 	if err != nil {
 		return nil, err
 	}
-	return s.loadCart(ctx, cart.ID)
+	return s.loadCart(ctx, cart.ID, customerID)
 }
 
-func (s *Service) loadCart(ctx context.Context, cartID uuid.UUID) (*Cart, error) {
+func (s *Service) loadCart(ctx context.Context, cartID, customerID uuid.UUID) (*Cart, error) {
+	var collabMargin *float64
+	if s.customers != nil {
+		var err error
+		collabMargin, err = s.customers.CollaboratorMarginForCustomer(ctx, customerID)
+		if err != nil {
+			return nil, err
+		}
+	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT ci.id, ci.sku_id, ci.quantity, p.id, p.name, COALESCE(s.code,''), s.sale_price_cents,
 		       p.promo_active, p.promo_quantity_remaining
@@ -135,6 +144,7 @@ func (s *Service) loadCart(ctx context.Context, cartID uuid.UUID) (*Cart, error)
 			res, err := s.catalog.PriceLine(ctx, catalog.PriceLineInput{
 				ProductID: productID, SKUID: it.SKUID, Quantity: it.Quantity,
 				SalePrice: salePrice, PromoActive: promoActive, PromoRemain: remain,
+				CollaboratorMargin: collabMargin,
 			}, s.inventory.WeightedAverageCostCents)
 			if err != nil {
 				return nil, err
@@ -177,13 +187,21 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 		return nil, err
 	}
 
-	custSvc := customers.NewService(s.pool, nil)
+	custSvc := s.customers
+	if custSvc == nil {
+		custSvc = customers.NewService(s.pool, nil)
+	}
 	cust, err := custSvc.GetByID(ctx, customerID)
 	if err != nil || cust == nil {
 		return nil, customers.ErrNotApproved()
 	}
-	if cust.Status != "approved" {
-		return nil, customers.ErrNotApproved()
+	if err := custSvc.EnsureNotBlocked(cust); err != nil {
+		return nil, err
+	}
+
+	collabMargin, err := custSvc.CollaboratorMarginForCustomer(ctx, customerID)
+	if err != nil {
+		return nil, err
 	}
 
 	cart, err := s.GetOrCreateCart(ctx, customerID)
@@ -237,6 +255,7 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 			priced, err = s.catalog.PriceLine(ctx, catalog.PriceLineInput{
 				ProductID: l.productID, SKUID: l.skuID, Quantity: l.qty,
 				SalePrice: salePromo, PromoActive: promoActive, PromoRemain: promoRemain,
+				CollaboratorMargin: collabMargin,
 			}, s.inventory.WeightedAverageCostCents)
 			if err != nil {
 				return nil, err

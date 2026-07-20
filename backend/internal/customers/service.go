@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/store-platform/store/internal/identity"
@@ -25,16 +24,20 @@ func NewService(pool *pgxpool.Pool, verify *identity.VerificationService) *Servi
 }
 
 type Customer struct {
-	ID                   uuid.UUID  `json:"id"`
-	UserID               uuid.UUID  `json:"user_id"`
-	Name                 string     `json:"name"`
-	Email                string     `json:"email"`
-	Document             string     `json:"document,omitempty"`
-	Status               string     `json:"status"`
-	CreditLimitCents     int64      `json:"credit_limit_cents"`
-	CurrentExposureCents int64      `json:"current_exposure_cents"`
-	ApprovedAt           *time.Time `json:"approved_at,omitempty"`
-	EmailVerified        bool       `json:"email_verified"`
+	ID                       uuid.UUID  `json:"id"`
+	UserID                   uuid.UUID  `json:"user_id"`
+	Name                     string     `json:"name"`
+	Email                    string     `json:"email"`
+	Phone                    string     `json:"phone,omitempty"`
+	Document                 string     `json:"document,omitempty"`
+	Status                   string     `json:"status"`
+	CreditLimitCents         int64      `json:"credit_limit_cents"`
+	CurrentExposureCents     int64      `json:"current_exposure_cents"`
+	ApprovedAt               *time.Time `json:"approved_at,omitempty"`
+	EmailVerified            bool       `json:"email_verified"`
+	CollaboratorCategoryID   *uuid.UUID `json:"collaborator_category_id,omitempty"`
+	CollaboratorCategoryName string     `json:"collaborator_category_name,omitempty"`
+	BlockedReason            string     `json:"blocked_reason,omitempty"`
 }
 
 type RegisterInput struct {
@@ -91,49 +94,25 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*Customer, er
 }
 
 func (s *Service) List(ctx context.Context) ([]Customer, error) {
-	rows, err := s.pool.Query(ctx, `
-		SELECT c.id, c.user_id, u.name, u.email, COALESCE(c.document,''), c.status,
-		       c.credit_limit_cents, c.current_exposure_cents, c.approved_at,
-		       (u.email_verified_at IS NOT NULL)
-		FROM customers c
-		JOIN users u ON u.id = c.user_id
-		ORDER BY c.created_at DESC
-	`)
+	rows, err := s.pool.Query(ctx, customerSelectSQL+` ORDER BY c.created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []Customer
 	for rows.Next() {
-		var c Customer
-		if err := rows.Scan(&c.ID, &c.UserID, &c.Name, &c.Email, &c.Document, &c.Status,
-			&c.CreditLimitCents, &c.CurrentExposureCents, &c.ApprovedAt, &c.EmailVerified); err != nil {
+		c, err := scanCustomer(rows)
+		if err != nil {
 			return nil, err
 		}
-		out = append(out, c)
+		out = append(out, *c)
 	}
 	return out, rows.Err()
 }
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Customer, error) {
-	row := s.pool.QueryRow(ctx, `
-		SELECT c.id, c.user_id, u.name, u.email, COALESCE(c.document,''), c.status,
-		       c.credit_limit_cents, c.current_exposure_cents, c.approved_at,
-		       (u.email_verified_at IS NOT NULL)
-		FROM customers c
-		JOIN users u ON u.id = c.user_id
-		WHERE c.id = $1
-	`, id)
-	var c Customer
-	err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Email, &c.Document, &c.Status,
-		&c.CreditLimitCents, &c.CurrentExposureCents, &c.ApprovedAt, &c.EmailVerified)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &c, nil
+	row := s.pool.QueryRow(ctx, customerSelectSQL+` WHERE c.id = $1`, id)
+	return scanCustomer(row)
 }
 
 func (s *Service) Approve(ctx context.Context, customerID, managerID uuid.UUID, limitCents int64) error {
@@ -207,4 +186,20 @@ func ErrNotApproved() error {
 
 func ErrInsufficientLimit() error {
 	return &AppError{Code: platformerrors.CodeInsufficientLimit, Message: "Limite de crédito insuficiente", Status: 422}
+}
+
+func ErrNotFound() error {
+	return &AppError{Code: platformerrors.CodeNotFound, Message: "Não encontrado", Status: 404}
+}
+
+func ErrInvalidCollaboratorCategory() error {
+	return &AppError{Code: platformerrors.CodeValidation, Message: "Categoria de colaborador inválida ou inativa", Status: 400}
+}
+
+func AsAppError(err error) *AppError {
+	var ae *AppError
+	if errors.As(err, &ae) {
+		return ae
+	}
+	return nil
 }

@@ -47,6 +47,9 @@ func (m *mfaRepo) ListUserRoles(ctx context.Context, userID uuid.UUID) ([]string
 func (m *mfaRepo) FindCustomerIDByUser(ctx context.Context, userID uuid.UUID) (*uuid.UUID, error) {
 	return nil, nil
 }
+func (m *mfaRepo) IsCustomerBlocked(ctx context.Context, userID uuid.UUID) (bool, error) {
+	return false, nil
+}
 func (m *mfaRepo) UpdateMFA(ctx context.Context, userID uuid.UUID, secret string, enabled bool) error {
 	m.user.MFASecret = secret
 	m.user.MFAEnabled = enabled

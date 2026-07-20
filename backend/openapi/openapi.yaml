@@ -184,14 +184,168 @@ paths:
       responses:
         '200':
           description: Clientes
+  /admin/customers/{id}:
+    get:
+      tags: [admin]
+      summary: Detalhe do cliente
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Cliente
+        '404':
+          description: Não encontrado
+    patch:
+      tags: [admin]
+      summary: Atualizar cliente
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                phone: { type: string }
+                document: { type: string }
+                collaborator_category_id: { type: string, format: uuid, nullable: true }
+      responses:
+        '200':
+          description: Cliente atualizado
   /admin/customers/{id}/approve:
     patch:
       tags: [admin]
       summary: Aprovar cliente
       security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credit_limit_cents]
+              properties:
+                credit_limit_cents: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Aprovado
+  /admin/customers/{id}/credit-limit:
+    patch:
+      tags: [admin]
+      summary: Alterar limite de crédito
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credit_limit_cents]
+              properties:
+                credit_limit_cents: { type: integer, format: int64 }
+                reason: { type: string }
+      responses:
+        '204':
+          description: Limite atualizado
+  /admin/customers/{id}/block:
+    patch:
+      tags: [admin]
+      summary: Bloquear cliente
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '204':
+          description: Bloqueado
+  /admin/customers/{id}/unblock:
+    patch:
+      tags: [admin]
+      summary: Desbloquear cliente
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Desbloqueado
+  /admin/collaborator-categories:
+    get:
+      tags: [admin]
+      summary: Listar categorias de colaborador
+      security: [{ cookieAuth: [] }]
       responses:
         '200':
-          description: Aprovado
+          description: Lista de categorias
+    post:
+      tags: [admin]
+      summary: Criar categoria de colaborador
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, margin_percent]
+              properties:
+                name: { type: string }
+                slug: { type: string }
+                margin_percent: { type: number }
+      responses:
+        '201':
+          description: Categoria criada
+  /admin/collaborator-categories/{id}:
+    patch:
+      tags: [admin]
+      summary: Atualizar categoria de colaborador
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                margin_percent: { type: number }
+                active: { type: boolean }
+      responses:
+        '200':
+          description: Categoria atualizada
+        '404':
+          description: Não encontrada
   /admin/inventory/entries:
     post:
       tags: [admin]

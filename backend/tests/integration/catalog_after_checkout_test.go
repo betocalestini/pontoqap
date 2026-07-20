@@ -6,6 +6,7 @@ import (
 
 	"github.com/store-platform/store/internal/billing"
 	"github.com/store-platform/store/internal/catalog"
+	"github.com/store-platform/store/internal/customers"
 	"github.com/store-platform/store/internal/inventory"
 	"github.com/store-platform/store/internal/sales"
 	"github.com/store-platform/store/tests/testdb"
@@ -25,7 +26,7 @@ func TestCatalogListAfterCheckout(t *testing.T) {
 	inv := inventory.NewService(pool)
 	_ = inv.RegisterEntry(ctx, prod.SKUID, 20, mgr.UserID, "entrada", 0)
 	cat := catalog.NewService(pool)
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), cat)
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), cat, customers.NewService(pool, nil))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 3)
 	if _, err := salesSvc.Checkout(ctx, cust.ID, "key-1", cust.UserID); err != nil {
 		t.Fatal(err)

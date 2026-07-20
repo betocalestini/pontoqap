@@ -6,6 +6,7 @@ import (
 
 	"github.com/store-platform/store/internal/billing"
 	"github.com/store-platform/store/internal/catalog"
+	"github.com/store-platform/store/internal/customers"
 	"github.com/store-platform/store/internal/inventory"
 	"github.com/store-platform/store/internal/sales"
 	"github.com/store-platform/store/tests/testdb"
@@ -44,7 +45,7 @@ func TestCheckoutPromoSplitPricing(t *testing.T) {
 		t.Fatalf("promo price want 1100 got %d", promoPrice)
 	}
 	regular := catalog.SalePriceFromCost(1000, 50)
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), cat)
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), cat, customers.NewService(pool, nil))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 5)
 	order, err := salesSvc.Checkout(ctx, cust.ID, "promo-split-key", cust.UserID)
 	if err != nil {
