@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -68,8 +69,14 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"mfa_required": true})
 		return
 	}
-	setSessionCookie(w, h.cookieName(req.Audience), res.SessionToken, h.cookieTTL(req.Audience), h.secure.CookieSecure)
+	if req.Audience != "admin" {
+		setSessionCookie(w, h.cookieName(req.Audience), res.SessionToken, h.cookieTTL(req.Audience), h.secure.CookieSecure)
+	}
 	payload := mapUser(res.User)
+	if req.Audience == "admin" {
+		payload["access_token"] = res.AccessToken
+		payload["expires_at"] = res.ExpiresAt.UTC().Format(time.RFC3339)
+	}
 	if req.Audience == "admin" && h.secure.AdminMFARequired && !res.User.User.MFAEnabled {
 		payload["mfa_setup_required"] = true
 	}
@@ -78,6 +85,14 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	aud := audienceFromHeader(r)
+	if aud == "admin" {
+		if bearer := bearerToken(r); bearer != "" {
+			_ = h.svc.LogoutAdminBearer(r.Context(), bearer)
+		}
+		clearSessionCookie(w, h.cookieName(aud), h.secure.CookieSecure)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	token := readSessionCookie(r, h.cookieName(aud))
 	if token != "" {
 		_ = h.svc.Logout(r.Context(), token)
@@ -234,10 +249,19 @@ func AuthMiddleware(svc *identity.Service, sessionCfg config.SessionConfig) func
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			aud := audienceFromHeader(r)
-			cookieName := sessionCfg.StoreCookie
 			if aud == "admin" {
-				cookieName = sessionCfg.AdminCookie
+				if bearer := bearerToken(r); bearer != "" {
+					user, err := svc.AuthenticateAdminBearer(r.Context(), bearer)
+					if err == nil {
+						ctx := context.WithValue(r.Context(), userCtxKey, user)
+						next.ServeHTTP(w, r.WithContext(ctx))
+						return
+					}
+				}
+				next.ServeHTTP(w, r)
+				return
 			}
+			cookieName := sessionCfg.StoreCookie
 			token := readSessionCookie(r, cookieName)
 			if token == "" {
 				next.ServeHTTP(w, r)
@@ -347,4 +371,13 @@ func readSessionCookie(r *http.Request, name string) string {
 		return ""
 	}
 	return c.Value
+}
+
+func bearerToken(r *http.Request) string {
+	const prefix = "Bearer "
+	h := r.Header.Get("Authorization")
+	if !strings.HasPrefix(h, prefix) {
+		return ""
+	}
+	return strings.TrimSpace(h[len(prefix):])
 }

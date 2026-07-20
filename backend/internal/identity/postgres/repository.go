@@ -127,6 +127,22 @@ func (r *Repository) FindSessionByTokenHash(ctx context.Context, tokenHash strin
 	return &s, nil
 }
 
+func (r *Repository) FindSessionByID(ctx context.Context, sessionID uuid.UUID) (*identity.Session, error) {
+	row := r.pool.QueryRow(ctx, `
+		SELECT id, user_id, token_hash, audience, expires_at, revoked_at
+		FROM sessions WHERE id = $1
+	`, sessionID)
+	var s identity.Session
+	err := row.Scan(&s.ID, &s.UserID, &s.TokenHash, &s.Audience, &s.ExpiresAt, &s.RevokedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
 func (r *Repository) RevokeSession(ctx context.Context, sessionID uuid.UUID) error {
 	_, err := r.pool.Exec(ctx, `UPDATE sessions SET revoked_at = NOW() WHERE id = $1`, sessionID)
 	return err

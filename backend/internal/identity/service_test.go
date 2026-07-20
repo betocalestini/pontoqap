@@ -56,6 +56,15 @@ func (m *mockRepo) FindSessionByTokenHash(ctx context.Context, tokenHash string)
 	}
 	return nil, nil
 }
+func (m *mockRepo) FindSessionByID(ctx context.Context, sessionID uuid.UUID) (*identity.Session, error) {
+	for i := range m.sessions {
+		if m.sessions[i].ID == sessionID && m.sessions[i].RevokedAt == nil {
+			s := m.sessions[i]
+			return &s, nil
+		}
+	}
+	return nil, nil
+}
 func (m *mockRepo) RevokeSession(ctx context.Context, sessionID uuid.UUID) error { return nil }
 func (m *mockRepo) RevokeUserSessions(ctx context.Context, userID uuid.UUID, audience string) error {
 	return nil
@@ -81,7 +90,7 @@ func TestLoginSuccessStore(t *testing.T) {
 		},
 		roles: []string{"customer"},
 	}
-	svc := identity.NewService(repo, time.Hour, time.Hour)
+	svc := identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16")
 	res, err := svc.Login(context.Background(), identity.LoginInput{
 		Email: "c@test.local", Password: "secret", Audience: "store",
 	})
@@ -97,7 +106,7 @@ func TestLoginInvalidPasswordIncrementsFailures(t *testing.T) {
 			ID: uuid.New(), Email: "c@test.local", PasswordHash: hash, Status: "active",
 		},
 	}
-	svc := identity.NewService(repo, time.Hour, time.Hour)
+	svc := identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16")
 	_, err := svc.Login(context.Background(), identity.LoginInput{
 		Email: "c@test.local", Password: "wrong", Audience: "store",
 	})
@@ -121,12 +130,35 @@ func TestLoginAdminRequiresManagerRole(t *testing.T) {
 		},
 		roles: []string{"customer"},
 	}
-	svc := identity.NewService(repo, time.Hour, time.Hour)
+	svc := identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16")
 	_, err := svc.Login(context.Background(), identity.LoginInput{
 		Email: "c@test.local", Password: "secret", Audience: "admin",
 	})
 	ae := identity.AsAppError(err)
 	if ae == nil || ae.Code != platformerrors.CodeForbidden {
 		t.Fatalf("expected forbidden, got %v", err)
+	}
+}
+
+func TestAdminLoginReturnsAccessTokenAndBearerAuth(t *testing.T) {
+	hash, _ := security.HashPassword("secret")
+	userID := uuid.New()
+	repo := &mockRepo{
+		user: &identity.User{
+			ID: userID, Email: "m@test.local", PasswordHash: hash, Status: "active",
+		},
+		roles: []string{"manager"},
+		perms: []string{"products.read"},
+	}
+	svc := identity.NewService(repo, time.Hour, 8*time.Hour, "test-session-secret-min-16")
+	res, err := svc.Login(context.Background(), identity.LoginInput{
+		Email: "m@test.local", Password: "secret", Audience: "admin",
+	})
+	if err != nil || res.AccessToken == "" {
+		t.Fatalf("login: %v token=%q", err, res.AccessToken)
+	}
+	auth, err := svc.AuthenticateAdminBearer(context.Background(), res.AccessToken)
+	if err != nil || auth.User.ID != userID {
+		t.Fatalf("bearer auth: %v %+v", err, auth)
 	}
 }

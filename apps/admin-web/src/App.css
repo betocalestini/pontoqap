@@ -3,6 +3,32 @@
   max-width: none;
 }
 
+.app-shell--bare .app-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 0;
+  max-width: none;
+  padding: var(--space-md);
+  padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+}
+
+.app-shell--bare .login-page {
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+.app-shell--bare .login-page h1 {
+  text-align: center;
+}
+
+.app-shell--bare .login-page .form button[type='submit'] {
+  width: 100%;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -14,14 +40,13 @@
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-md);
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
 }
 
 .app-shell--bare .content-section {
   width: 100%;
-  max-width: 24rem;
 }
 
 .app-top {

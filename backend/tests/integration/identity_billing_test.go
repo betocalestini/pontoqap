@@ -34,7 +34,7 @@ func TestIdentityLoginCreatesSession(t *testing.T) {
 	_, _ = pool.Exec(ctx, `INSERT INTO user_roles (user_id, role_id) VALUES ($1,'a0000000-0000-4000-8000-000000000003')`, userID)
 
 	repo := postgres.NewRepository(pool)
-	svc := identity.NewService(repo, time.Hour, time.Hour)
+	svc := identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16")
 	res, err := svc.Login(ctx, identity.LoginInput{Email: email, Password: "pass", Audience: "store"})
 	if err != nil || res.SessionToken == "" {
 		t.Fatalf("login: %v", err)

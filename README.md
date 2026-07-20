@@ -77,6 +77,7 @@ Após a primeira subida da API, é criado um gerente de demonstração:
 - **E-mail:** `gerente@loja.local`
 - **Senha:** `ChangeMe123!`
 - **Audience no login:** enviar `X-App-Audience: admin` ou `"audience": "admin"` no corpo
+- **Painel admin:** após o login, a API devolve um JWT (`access_token`) com validade fixa definida por `SESSION_TTL_ADMIN` (padrão 8h). O navegador envia `Authorization: Bearer …` nas requisições; sem token válido o painel redireciona para `/login`.
 
 ### Clientes (cadastro e e-mail)
 

@@ -45,6 +45,7 @@ type Repository interface {
 	ListUserRoles(ctx context.Context, userID uuid.UUID) ([]string, error)
 	CreateSession(ctx context.Context, s Session, ip, userAgent string) error
 	FindSessionByTokenHash(ctx context.Context, tokenHash string) (*Session, error)
+	FindSessionByID(ctx context.Context, sessionID uuid.UUID) (*Session, error)
 	RevokeSession(ctx context.Context, sessionID uuid.UUID) error
 	RevokeUserSessions(ctx context.Context, userID uuid.UUID, audience string) error
 	UpdateMFA(ctx context.Context, userID uuid.UUID, secret string, enabled bool) error

@@ -34,6 +34,9 @@ func (m *mfaRepo) CreateSession(ctx context.Context, s identity.Session, ip, ua 
 func (m *mfaRepo) FindSessionByTokenHash(ctx context.Context, hash string) (*identity.Session, error) {
 	return nil, nil
 }
+func (m *mfaRepo) FindSessionByID(ctx context.Context, sessionID uuid.UUID) (*identity.Session, error) {
+	return nil, nil
+}
 func (m *mfaRepo) RevokeSession(ctx context.Context, id uuid.UUID) error { return nil }
 func (m *mfaRepo) ListUserPermissions(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	return []string{"products.read"}, nil
@@ -64,7 +67,7 @@ func TestAdminLoginRequiresMFACodeWhenEnabled(t *testing.T) {
 		PasswordHash: hash,
 		MFAEnabled:   true, MFASecret: secret,
 	}}
-	svc := identity.NewService(repo, time.Hour, time.Hour)
+	svc := identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16")
 	ctx := context.Background()
 
 	res, err := svc.Login(ctx, identity.LoginInput{Email: "m@test.local", Password: "pass", Audience: "admin"})

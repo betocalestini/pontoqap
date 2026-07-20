@@ -1,7 +1,9 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
 export function MfaSetupPage() {
+  const navigate = useNavigate();
   const [secret, setSecret] = useState('');
   const [uri, setUri] = useState('');
   const [code, setCode] = useState('');
@@ -23,7 +25,7 @@ export function MfaSetupPage() {
     try {
       await api.mfaVerify(code);
       setDone(true);
-      window.location.href = '/';
+      navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Código inválido');
     }

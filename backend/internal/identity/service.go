@@ -18,13 +18,14 @@ const maxFailedAttempts = 5
 const lockDuration = 15 * time.Minute
 
 type Service struct {
-	repo       Repository
-	storeTTL   time.Duration
-	adminTTL   time.Duration
+	repo          Repository
+	storeTTL      time.Duration
+	adminTTL      time.Duration
+	sessionSecret string
 }
 
-func NewService(repo Repository, storeTTL, adminTTL time.Duration) *Service {
-	return &Service{repo: repo, storeTTL: storeTTL, adminTTL: adminTTL}
+func NewService(repo Repository, storeTTL, adminTTL time.Duration, sessionSecret string) *Service {
+	return &Service{repo: repo, storeTTL: storeTTL, adminTTL: adminTTL, sessionSecret: sessionSecret}
 }
 
 type LoginInput struct {
@@ -38,6 +39,8 @@ type LoginInput struct {
 
 type LoginResult struct {
 	SessionToken string
+	AccessToken  string
+	ExpiresAt    time.Time
 	User         AuthUser
 	MFARequired  bool
 }
@@ -115,7 +118,15 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 	if err != nil {
 		return nil, err
 	}
-	return &LoginResult{SessionToken: token, User: authUser}, nil
+	out := &LoginResult{SessionToken: token, User: authUser, ExpiresAt: sess.ExpiresAt}
+	if in.Audience == "admin" {
+		jwtRaw, err := security.IssueAdminToken(s.sessionSecret, user.ID, sess.ID, sess.ExpiresAt)
+		if err != nil {
+			return nil, err
+		}
+		out.AccessToken = jwtRaw
+	}
+	return out, nil
 }
 
 func (s *Service) AuthenticateSession(ctx context.Context, token, expectedAudience string) (*AuthUser, error) {
@@ -144,6 +155,32 @@ func (s *Service) AuthenticateSession(ctx context.Context, token, expectedAudien
 	return &authUser, nil
 }
 
+func (s *Service) AuthenticateAdminBearer(ctx context.Context, bearer string) (*AuthUser, error) {
+	userID, sessionID, err := security.ParseAdminToken(s.sessionSecret, bearer)
+	if err != nil {
+		return nil, errUnauthorized()
+	}
+	sess, err := s.repo.FindSessionByID(ctx, sessionID)
+	if err != nil || sess == nil {
+		return nil, errUnauthorized()
+	}
+	if sess.RevokedAt != nil || sess.ExpiresAt.Before(time.Now()) {
+		return nil, errUnauthorized()
+	}
+	if sess.Audience != "admin" || sess.UserID != userID {
+		return nil, errUnauthorized()
+	}
+	user, err := s.repo.FindUserByID(ctx, sess.UserID)
+	if err != nil || user == nil || user.Status != "active" {
+		return nil, errUnauthorized()
+	}
+	authUser, err := s.buildAuthUser(ctx, *user)
+	if err != nil {
+		return nil, err
+	}
+	return &authUser, nil
+}
+
 func (s *Service) Logout(ctx context.Context, token string) error {
 	hash := security.HashToken(token)
 	sess, err := s.repo.FindSessionByTokenHash(ctx, hash)
@@ -151,6 +188,14 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 		return nil
 	}
 	return s.repo.RevokeSession(ctx, sess.ID)
+}
+
+func (s *Service) LogoutAdminBearer(ctx context.Context, bearer string) error {
+	_, sessionID, err := security.ParseAdminToken(s.sessionSecret, bearer)
+	if err != nil {
+		return nil
+	}
+	return s.repo.RevokeSession(ctx, sessionID)
 }
 
 func (s *Service) SetupMFA(ctx context.Context, userID uuid.UUID) (secret string, uri string, err error) {

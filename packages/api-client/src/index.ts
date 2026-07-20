@@ -98,25 +98,43 @@ const defaultBase = 'http://localhost:8080/api/v1';
 
 type Audience = 'store' | 'admin';
 
-export function createApiClient(baseUrl = defaultBase) {
+export type ApiClientOptions = {
+  getAdminAccessToken?: () => string | null;
+  onAdminUnauthorized?: () => void;
+};
+
+export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions = {}) {
   async function request<T>(
     path: string,
     init: RequestInit = {},
     audience?: Audience,
   ): Promise<T> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...(init.headers as Record<string, string> | undefined),
     };
+    const hasBody = init.body != null && init.method !== 'GET' && init.method !== 'HEAD';
+    const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
+    if (hasBody && !isFormData && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
     if (audience) {
       headers['X-App-Audience'] = audience;
     }
+    if (audience === 'admin') {
+      const token = options.getAdminAccessToken?.();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
     const res = await fetch(`${baseUrl}${path}`, {
-      credentials: 'include',
+      credentials: audience === 'admin' ? 'omit' : 'include',
       headers,
       ...init,
     });
     if (!res.ok) {
+      if (res.status === 401 && audience === 'admin') {
+        options.onAdminUnauthorized?.();
+      }
       const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
       throw new ApiError({ code: body.code ?? 'ERROR', message: body.message ?? res.statusText });
     }
@@ -246,13 +264,21 @@ export function createApiClient(baseUrl = defaultBase) {
     adminUploadProductImage: async (productId: string, file: File) => {
       const form = new FormData();
       form.append('image', file);
+      const headers: Record<string, string> = { 'X-App-Audience': 'admin' };
+      const token = options.getAdminAccessToken?.();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
       const res = await fetch(`${baseUrl}/admin/products/${productId}/images`, {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'X-App-Audience': 'admin' },
+        credentials: 'omit',
+        headers,
         body: form,
       });
       if (!res.ok) {
+        if (res.status === 401) {
+          options.onAdminUnauthorized?.();
+        }
         const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
         throw new ApiError({ code: body.code ?? 'ERROR', message: body.message ?? res.statusText });
       }

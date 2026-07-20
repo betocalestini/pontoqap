@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { AppShell } from './layout/AppShell';
 import { LoginPage } from './pages/Login';
 import { MfaSetupPage } from './pages/MfaSetup';
@@ -10,29 +11,43 @@ import { InventoryPage } from './pages/Inventory';
 import { ReportsPage } from './pages/Reports';
 import './App.css';
 
-export default function App() {
-  const authed = sessionStorage.getItem('admin_authed') === '1';
+function AppRoutes() {
+  const { status } = useAuth();
 
-  const routes = (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/mfa" element={authed ? <MfaSetupPage /> : <Navigate to="/login" replace />} />
-      <Route path="/" element={authed ? <DashboardPage /> : <Navigate to="/login" replace />} />
-      <Route path="/clientes" element={authed ? <CustomersPage /> : <Navigate to="/login" replace />} />
-      <Route path="/faturamento" element={authed ? <BillingPage /> : <Navigate to="/login" replace />} />
-      <Route path="/produtos" element={authed ? <ProductsPage /> : <Navigate to="/login" replace />} />
-      <Route path="/estoque" element={authed ? <InventoryPage /> : <Navigate to="/login" replace />} />
-      <Route path="/relatorios" element={authed ? <ReportsPage /> : <Navigate to="/login" replace />} />
-    </Routes>
-  );
+  if (status === 'loading') {
+    return null;
+  }
 
-  if (authed) {
-    return <AppShell>{routes}</AppShell>;
+  if (status === 'unauthenticated') {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
   }
 
   return (
-    <div className="app-shell app-shell--bare">
-      <main className="app-main">{routes}</main>
-    </div>
+    <AppShell>
+      <Routes>
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/mfa" element={<MfaSetupPage />} />
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/clientes" element={<CustomersPage />} />
+        <Route path="/faturamento" element={<BillingPage />} />
+        <Route path="/produtos" element={<ProductsPage />} />
+        <Route path="/estoque" element={<InventoryPage />} />
+        <Route path="/relatorios" element={<ReportsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AppShell>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }

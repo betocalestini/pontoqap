@@ -39,7 +39,7 @@ func main() {
 	hash, _ := security.HashPassword("ChangeMe123!")
 	_ = idRepo.EnsureBootstrapManager(ctx, "gerente@loja.local", "Gerente Demo", hash)
 
-	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL)
+	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL, cfg.Security.SessionSecret)
 	verifySvc := identity.NewVerificationService(pool, jobs.NewRepository(pool), cfg.App, cfg.Customer)
 	handler := app.NewRouter(cfg, pool, idSvc, verifySvc, logger)
 

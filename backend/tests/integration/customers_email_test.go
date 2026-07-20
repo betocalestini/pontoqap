@@ -66,7 +66,7 @@ func TestCustomerRegisterVerifyAndLogin(t *testing.T) {
 		t.Fatalf("after verify: %+v err=%v", got, err)
 	}
 
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, time.Hour)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, time.Hour, "test-session-secret-min-16")
 	res, err := idSvc.Login(ctx, identity.LoginInput{Email: email, Password: "password123", Audience: "store"})
 	if err != nil || res == nil || res.SessionToken == "" {
 		t.Fatalf("login after verify: %v", err)
