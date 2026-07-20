@@ -1,0 +1,46 @@
+---
+description: Regras de negócio implementadas (deltas pós-requirements.md)
+alwaysApply: true
+---
+
+# Regras de negócio — estado atual do código
+
+Use isto junto com RF em `requirements.md`. Em conflito com código, **o código prevalece** até corrigir.
+
+## Preço e margem (catálogo / admin)
+
+- Preço de venda (varejo) derivado do **custo médio ponderado** dos lotes × `(1 + margin_percent/100)` do produto.
+- Margem padrão global: `store_settings.default_margin_percent` (admin: settings/pricing, reprice-all).
+- Entrada de estoque informa **custo unitário**; saldo em lotes (`inventory_lots`) para FIFO/custo médio.
+- Alteração manual de preço ainda passa por histórico onde aplicável (`ChangePrice`).
+
+## Promoção (produto)
+
+- Campos: `promo_active`, `promo_margin_percent`, `promo_quantity_total`, `promo_quantity_remaining`.
+- No checkout/carrinho: unidades consomem cota promo; preço promo = custo × `(1 + promo_margin/100)`.
+- UI loja pode exibir restante de promo; admin configura na ficha do produto.
+
+## Colaboradores (clientes)
+
+- Tabela `collaborator_categories` (margem % sobre custo).
+- Cliente `approved` com categoria **ativa** recebe preço colaborador = custo × `(1 + margem_categoria/100)`.
+- Preço efetivo por linha: **mínimo** entre varejo, promo (por unidade) e colaborador quando aplicável (`promo_pricing.go`, sales).
+- Admin: `customers.write`, categorias, PATCH cliente, block/unblock.
+- Bloqueio: login loja negado; rotas `/api/v1/me/*` com middleware de cliente ativo/não bloqueado.
+- Desbloqueio restaura `status_before_block` (migration `000002`).
+
+## Catálogo público (loja)
+
+- Listagem: produtos ativos/visíveis com **pelo menos um SKU com `available_quantity > 0`** (sem estoque não aparece na vitrine).
+
+## Clientes e limites
+
+- Cadastro loja → verificação de e-mail pode aprovar com limite padrão (`CustomerConfig`).
+- Aprovação manual: `PATCH .../approve` com `credit_limit_cents`.
+- Limite: `credit_limit_cents` vs `current_exposure_cents` no checkout (RF-CLI-013).
+- Histórico de limite em `customer_limit_history` ao mudar via `credit-limit`.
+
+## Autenticação (resumo)
+
+- **Loja:** sessão cookie (`store_session`).
+- **Admin:** JWT `access_token` + audience admin; MFA conforme config.

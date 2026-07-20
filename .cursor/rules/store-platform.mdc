@@ -1,0 +1,40 @@
+---
+description: Contexto do monorepo Store Platform e hierarquia de documentação
+alwaysApply: true
+---
+
+# Store Platform — contexto
+
+**Produto:** loja com vendas pós-pagas, faturamento mensal (5º dia útil), Pix, estoque e painel gerencial. **Arquitetura:** monólito modular Go + React (loja/admin) + PostgreSQL. **Fase:** pré-produção.
+
+## Onde está cada coisa
+
+| Caminho | Papel |
+| -------- | ----- |
+| `docs/requirements.md` | RF-*, RN, atores, escopo MVP |
+| `docs/architecture.md` | ER, agregados |
+| `docs/decisions.md` | Backlog técnico, §32 migrations, §42 critério MVP — **árvore de pastas é aspiracional** |
+| `docs/homologation.md` | Roteiro manual MVP |
+| `docs/deployment.md` | Deploy/ops |
+| `docs/Plano completo de criação do sistema.md` | Histórico/planejamento — não usar como spec sem cruzar com código e RF |
+| `backend/` | API (`cmd/api`), worker, migrate |
+| `apps/store-web`, `apps/admin-web` | Frontends |
+| `packages/api-client`, `packages/contracts`, `packages/shared-core` | HTTP tipado e contratos |
+
+## Hierarquia ao implementar
+
+1. Requisito **RF/RN** em `requirements.md` → respeitar ou documentar lacuna.
+2. **Código e testes** → comportamento operacional (router, services, migrations).
+3. `decisions.md` / `architecture.md` → orientação; não recriar estrutura CQRS/`domain/application` só porque o doc lista.
+4. Commits: ver regra `git-commits.mdc`.
+
+## Desenvolvimento (sempre na raiz do repo)
+
+- Stack completa: `make dev-up` ou `./scripts/dev-up.sh` (zera volumes por padrão).
+- Migrations: `make migrate-up`; após mudança na baseline consolidada, usar `docker compose down -v`.
+- API/worker: `make api`, `make worker`; front: `pnpm dev:store`, `pnpm dev:admin`.
+- Contratos: `make openapi-gen` após alterar `backend/openapi/openapi.yaml`.
+
+## Comunicação
+
+Responder ao usuário em **português**, com mudanças focadas e convenções existentes do repositório.

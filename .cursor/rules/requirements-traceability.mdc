@@ -1,0 +1,33 @@
+---
+description: Rastreabilidade RF-* e lacunas conhecidas vs código
+alwaysApply: true
+---
+
+# Requisitos e rastreabilidade
+
+## Como consultar
+
+- Identificadores: `RF-<módulo>-<nnn>` e `RN-*` em [`docs/requirements.md`](docs/requirements.md).
+- Antes de implementar feature de negócio: `grep` pelo prefixo (ex. `RF-CLI`, `RF-VEN`) no arquivo.
+- Atores: AT-001 Visitante, AT-002 Cliente, AT-003 Gerente, AT-004 Administrador, AT-005 Worker, AT-006 PSP.
+- Critério de fim de MVP: `docs/decisions.md` §42 e `docs/homologation.md`.
+
+## Lacunas conhecidas (não assumir como feito)
+
+| RF / tema | Situação no código atual |
+| --------- | ------------------------ |
+| RF-CLI-003 | Rejeitar cadastro — sem endpoint/fluxo `reject` dedicado |
+| RF-CLI-002 | Cadastro de cliente pelo gerente — registro é `POST /customers/register` (loja) |
+| RF-CLI-014 | Bloqueio automático por inadimplência — não ligado a billing/jobs |
+| RF-AUD (bloqueio) | `Block` de cliente sem auditoria estruturada em todos os caminhos |
+| Admin UI RBAC | Backend com `RequirePermission`; admin-web não oculta ações por permissão |
+| OpenAPI | Pode estar atrás de rotas novas — atualizar yaml + `make openapi-gen` |
+
+## Evoluções fora do `requirements.md`
+
+Regras de preço, promoção, colaboradores, lotes e catálogo sem estoque estão em **`business-rules-current.mdc`**, não nos RF originais.
+
+## Ao fechar uma lacuna
+
+- Atualizar `docs/requirements.md` (nova linha ou nota) **ou** breve nota em `docs/decisions.md`.
+- Adicionar/ajustar teste de integração ou e2e quando o RF for crítico para o MVP.
