@@ -496,3 +496,20 @@
     align-items: center;
   }
 }
+
+.auth-guest-prompt {
+  margin: var(--space-md) 0 var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  text-align: left;
+}
+
+.auth-guest-prompt__links {
+  margin: var(--space-sm) 0 0;
+}
+
+.auth-guest-prompt__sep {
+  color: var(--color-text-muted);
+}

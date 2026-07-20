@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatMoney } from '@store/shared-core';
-import { ApiError } from '@store/api-client';
 import { api } from '../api';
+import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
+import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
 type OpenPeriod = {
   billing_period_id: string;
@@ -43,10 +44,12 @@ export function InvoicesPage() {
   const [current, setCurrent] = useState<OpenPeriod | null>(null);
   const [items, setItems] = useState<Invoice[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
+    setNeedsAuth(false);
     api
       .listMyInvoices()
       .then((res) => {
@@ -55,8 +58,9 @@ export function InvoicesPage() {
         setItems(data.items ?? []);
       })
       .catch((e: Error) => {
-        if (e instanceof ApiError && e.code === 'FORBIDDEN') {
-          setError('Entre na loja para ver suas faturas.');
+        if (isGuestAuthError(e)) {
+          setNeedsAuth(true);
+          setError(null);
         } else {
           setError(e.message);
         }
@@ -71,8 +75,9 @@ export function InvoicesPage() {
     <section className="content-section invoices-page">
       <h1>Minhas faturas</h1>
       {loading && <p>Carregando…</p>}
+      {needsAuth && <AuthGuestPrompt message={guestAuthMessage('invoices')} />}
       {error && <p className="error">{error}</p>}
-      {!loading && !error && (
+      {!loading && !error && !needsAuth && (
         <>
           <h2>Competência atual</h2>
           {hasCurrent ? (
@@ -126,11 +131,6 @@ export function InvoicesPage() {
             <p>Faça compras na loja para ver valores na competência atual.</p>
           )}
         </>
-      )}
-      {error?.includes('Entre') && (
-        <p>
-          <Link to="/login">Entrar</Link>
-        </p>
       )}
     </section>
   );

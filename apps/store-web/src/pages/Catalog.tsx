@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatMoney } from '@store/shared-core';
 import { api } from '../api';
+import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
+import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
 type Product = {
   id: string;
@@ -29,6 +31,7 @@ export function CatalogPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [guestAuth, setGuestAuth] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,11 +58,17 @@ export function CatalogPage() {
 
   async function add(skuId: string) {
     setMsg(null);
+    setGuestAuth(false);
+    setError(null);
     try {
       await api.addToCart(skuId, 1);
       setMsg('Item adicionado ao carrinho.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro');
+      if (isGuestAuthError(e)) {
+        setGuestAuth(true);
+      } else {
+        setError(e instanceof Error ? e.message : 'Erro');
+      }
     }
   }
 
@@ -102,6 +111,7 @@ export function CatalogPage() {
 
       {loading && <p>Carregando produtos…</p>}
       {error && <p className="error">{error}</p>}
+      {guestAuth && <AuthGuestPrompt message={guestAuthMessage('catalog')} />}
       {msg && <p className="ok">{msg}</p>}
       {showEmptyCatalog && (
         <p>Nenhum produto disponível. Cadastre itens no painel admin ou rode as migrations (seed de demo).</p>
