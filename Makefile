@@ -1,10 +1,10 @@
 GO ?= go
 PNPM ?= pnpm
 
-.PHONY: help deps migrate-up api worker test lint docker-up docker-down
+.PHONY: help deps migrate-up api worker test lint docker-up docker-down openapi-gen
 
 help:
-	@echo "Targets: deps, migrate-up, api, worker, test, docker-up"
+	@echo "Targets: deps, migrate-up, api, worker, test, docker-up, openapi-gen"
 
 deps:
 	cd backend && $(GO) mod download
@@ -30,3 +30,6 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+openapi-gen:
+	$(PNPM) --filter @store/contracts generate

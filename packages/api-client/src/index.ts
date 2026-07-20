@@ -2,14 +2,24 @@ export type ApiErrorBody = { code: string; message: string };
 
 const defaultBase = 'http://localhost:8080/api/v1';
 
+type Audience = 'store' | 'admin';
+
 export function createApiClient(baseUrl = defaultBase) {
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  async function request<T>(
+    path: string,
+    init: RequestInit = {},
+    audience?: Audience,
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(init.headers as Record<string, string> | undefined),
+    };
+    if (audience) {
+      headers['X-App-Audience'] = audience;
+    }
     const res = await fetch(`${baseUrl}${path}`, {
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init.headers ?? {}),
-      },
+      headers,
       ...init,
     });
     if (!res.ok) {
@@ -23,15 +33,59 @@ export function createApiClient(baseUrl = defaultBase) {
   }
 
   return {
-    login: (email: string, password: string, audience: 'store' | 'admin') =>
+    login: (email: string, password: string, audience: Audience) =>
       request('/auth/login', {
         method: 'POST',
-        headers: { 'X-App-Audience': audience },
         body: JSON.stringify({ email, password, audience }),
-      }),
-    me: () => request('/auth/me'),
+      }, audience),
+    logout: (audience: Audience) =>
+      request('/auth/logout', { method: 'POST' }, audience),
+    me: (audience: Audience) => request('/auth/me', {}, audience),
+
     listProducts: () => request<{ items: unknown[]; total: number }>('/catalog/products'),
     registerCustomer: (body: Record<string, string>) =>
       request('/customers/register', { method: 'POST', body: JSON.stringify(body) }),
+
+    getCart: () => request('/me/cart', {}, 'store'),
+    addToCart: (skuId: string, quantity: number) =>
+      request('/me/cart/items', {
+        method: 'POST',
+        body: JSON.stringify({ sku_id: skuId, quantity }),
+      }, 'store'),
+    checkout: () => request('/me/cart/checkout', { method: 'POST' }, 'store'),
+
+    listMyInvoices: () => request<{ items: unknown[] }>('/me/invoices', {}, 'store'),
+    getMyInvoice: (id: string) => request(`/me/invoices/${id}`, {}, 'store'),
+    createPixCharge: (invoiceId: string) =>
+      request(`/me/invoices/${invoiceId}/pix-charge`, { method: 'POST' }, 'store'),
+    simulatePixPayment: (chargeId: string) =>
+      request(`/dev/pix/simulate/${chargeId}`, { method: 'POST' }),
+
+    adminListCustomers: () => request<{ items: unknown[] }>('/admin/customers', {}, 'admin'),
+    adminApproveCustomer: (id: string) =>
+      request(`/admin/customers/${id}/approve`, { method: 'PATCH' }, 'admin'),
+    adminInventoryEntry: (body: { sku_id: string; quantity: number; note?: string }) =>
+      request('/admin/inventory/entries', { method: 'POST', body: JSON.stringify(body) }, 'admin'),
+    adminCloseBilling: (body?: { year?: number; month?: number }) =>
+      request('/admin/billing/close', { method: 'POST', body: JSON.stringify(body ?? {}) }, 'admin'),
+    adminListInvoices: () => request<{ items: unknown[] }>('/admin/billing/invoices', {}, 'admin'),
+    adminDashboard: (year?: number, month?: number) => {
+      const q = new URLSearchParams();
+      if (year) q.set('year', String(year));
+      if (month) q.set('month', String(month));
+      const suffix = q.toString() ? `?${q}` : '';
+      return request(`/admin/reports/dashboard${suffix}`, {}, 'admin');
+    },
+    adminTopProducts: (year?: number, month?: number) => {
+      const q = new URLSearchParams();
+      if (year) q.set('year', String(year));
+      if (month) q.set('month', String(month));
+      const suffix = q.toString() ? `?${q}` : '';
+      return request(`/admin/reports/top-products${suffix}`, {}, 'admin');
+    },
+    adminInventoryReport: () => request('/admin/reports/inventory', {}, 'admin'),
+    adminForecast: () => request('/admin/reports/forecast', {}, 'admin'),
+    adminGenerateForecast: () =>
+      request('/admin/reports/forecast/generate', { method: 'POST' }, 'admin'),
   };
 }

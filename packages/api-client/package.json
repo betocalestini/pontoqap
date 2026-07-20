@@ -9,6 +9,9 @@
     "lint": "eslint src",
     "test": "echo \"no tests yet\""
   },
+  "dependencies": {
+    "@store/contracts": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.7.2"
   }

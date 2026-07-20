@@ -1,0 +1,16 @@
+{
+  "name": "@store/contracts",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./schema": "./src/schema.d.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ../../backend/openapi/openapi.yaml -o ./src/schema.d.ts",
+    "build": "pnpm run generate"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.6.1"
+  }
+}

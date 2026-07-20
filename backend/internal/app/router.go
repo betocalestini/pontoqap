@@ -12,29 +12,43 @@ import (
 
 	"github.com/store-platform/store/internal/audit"
 	"github.com/store-platform/store/internal/billing"
+	billinghttp "github.com/store-platform/store/internal/billing/transport/http"
 	"github.com/store-platform/store/internal/catalog"
 	cataloghttp "github.com/store-platform/store/internal/catalog/transport/http"
 	"github.com/store-platform/store/internal/customers"
 	customershttp "github.com/store-platform/store/internal/customers/transport/http"
+	"github.com/store-platform/store/internal/forecasting"
 	"github.com/store-platform/store/internal/identity"
 	identityhttp "github.com/store-platform/store/internal/identity/transport/http"
 	"github.com/store-platform/store/internal/inventory"
 	inventoryhttp "github.com/store-platform/store/internal/inventory/transport/http"
+	"github.com/store-platform/store/internal/payments"
+	paymentshttp "github.com/store-platform/store/internal/payments/transport/http"
 	"github.com/store-platform/store/internal/platform/config"
 	"github.com/store-platform/store/internal/platform/database"
 	"github.com/store-platform/store/internal/platform/httpx"
+	"github.com/store-platform/store/internal/reports"
+	reportshttp "github.com/store-platform/store/internal/reports/transport/http"
 	"github.com/store-platform/store/internal/sales"
 	saleshttp "github.com/store-platform/store/internal/sales/transport/http"
 )
 
 // NewRouter monta o roteador HTTP da API (usado por cmd/api e testes E2E).
 func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, logger *slog.Logger) http.Handler {
+	billSvc := billing.NewService(pool)
 	catalogHandler := cataloghttp.NewHandler(catalog.NewService(pool))
 	customersHandler := customershttp.NewHandler(customers.NewService(pool))
 	invSvc := inventory.NewService(pool)
 	invHandler := inventoryhttp.NewHandler(invSvc)
-	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billing.NewService(pool)))
+	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc))
 	idHandler := identityhttp.NewHandler(idSvc, cfg.Session, cfg.Security)
+
+	gateway := payments.NewSandboxGateway(cfg.Payments.WebhookSecret)
+	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments.WebhookSecret)
+	payHandler := paymentshttp.NewHandler(paySvc)
+	billHandler := billinghttp.NewHandler(billSvc)
+	reportsHandler := reportshttp.NewReportsHandler(reports.NewService(pool))
+	forecastHandler := reportshttp.NewForecastHandler(forecasting.NewService(pool))
 
 	_ = audit.NewService(pool)
 
@@ -51,7 +65,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, l
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.HTTP.CORSOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-App-Audience", "Idempotency-Key", "X-Request-ID"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-App-Audience", "Idempotency-Key", "X-Request-ID", "X-Webhook-Signature"},
 		AllowCredentials: true,
 	}))
 
@@ -67,11 +81,16 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, l
 		api.Route("/auth", idHandler.Routes)
 		api.Route("/catalog", catalogHandler.PublicRoutes)
 		api.Route("/customers", customersHandler.StoreRoutes)
+		api.Route("/webhooks", payHandler.WebhookRoutes)
 
 		api.Group(func(me chi.Router) {
 			me.Use(storeAuth)
 			me.Use(identityhttp.RequireAuth)
-			me.Route("/me", salesHandler.MeRoutes)
+			me.Route("/me", func(m chi.Router) {
+				salesHandler.MeRoutes(m)
+				billHandler.MeRoutes(m)
+				payHandler.MeRoutes(m)
+			})
 		})
 
 		api.Route("/admin", func(admin chi.Router) {
@@ -89,8 +108,26 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, l
 					cr.With(identityhttp.RequirePermission("customers.change_limit")).Patch("/{id}/credit-limit", customersHandler.ChangeLimit)
 				})
 				priv.With(identityhttp.RequirePermission("inventory.adjust")).Post("/inventory/entries", invHandler.RegisterEntry)
+				priv.Route("/billing", func(br chi.Router) {
+					br.With(identityhttp.RequirePermission("billing.read")).Get("/calendar", billHandler.ListCalendar)
+					br.With(identityhttp.RequirePermission("settings.write")).Put("/calendar", billHandler.UpsertCalendar)
+					br.With(identityhttp.RequirePermission("billing.close")).Post("/close", billHandler.ClosePeriods)
+					br.With(identityhttp.RequirePermission("billing.read")).Get("/invoices", billHandler.ListAllInvoices)
+				})
+				priv.With(identityhttp.RequirePermission("payments.read")).Post("/invoices/{id}/pix-charge", payHandler.CreatePixCharge)
+				priv.Route("/reports", func(rr chi.Router) {
+					rr.With(identityhttp.RequirePermission("reports.read")).Get("/dashboard", reportsHandler.Dashboard)
+					rr.With(identityhttp.RequirePermission("reports.read")).Get("/top-products", reportsHandler.TopProducts)
+					rr.With(identityhttp.RequirePermission("reports.read")).Get("/inventory", reportsHandler.Inventory)
+					rr.With(identityhttp.RequirePermission("reports.read")).Get("/forecast", forecastHandler.List)
+					rr.With(identityhttp.RequirePermission("reports.read")).Post("/forecast/generate", forecastHandler.Generate)
+				})
 			})
 		})
+
+		if cfg.AppEnv == "development" {
+			api.Post("/dev/pix/simulate/{chargeId}", payHandler.DevSimulate)
+		}
 	})
 
 	return r

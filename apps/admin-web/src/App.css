@@ -40,3 +40,9 @@
 .read-the-docs {
   color: #888;
 }
+
+.page { text-align: left; }
+.page .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; }
+.page .topbar nav a { margin-left: 1rem; }
+.error { color: #b00020; }
+.form label { display: block; margin-bottom: 0.5rem; }

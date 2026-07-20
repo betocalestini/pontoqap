@@ -2,31 +2,277 @@ openapi: 3.1.0
 info:
   title: Store Platform API
   version: 1.0.0
-  description: API REST da plataforma de vendas pós-pagas (MVP)
+  description: API REST da plataforma de vendas pós-pagas
 servers:
   - url: http://localhost:8080/api/v1
+tags:
+  - name: auth
+  - name: catalog
+  - name: customers
+  - name: sales
+  - name: billing
+  - name: payments
+  - name: reports
+  - name: admin
 paths:
   /health:
     get:
-      summary: Health check (raiz do serviço)
+      summary: Health check (serviço raiz em /health)
+      servers:
+        - url: http://localhost:8080
   /auth/login:
     post:
-      summary: Autenticar usuário
+      tags: [auth]
+      summary: Autenticar
+      parameters:
+        - name: X-App-Audience
+          in: header
+          schema:
+            type: string
+            enum: [store, admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, audience]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                audience: { type: string, enum: [store, admin] }
+      responses:
+        '200':
+          description: Sessão criada (cookie)
   /auth/logout:
     post:
+      tags: [auth]
       summary: Encerrar sessão
+      responses:
+        '204':
+          description: OK
   /auth/me:
     get:
+      tags: [auth]
       summary: Usuário autenticado
+      responses:
+        '200':
+          description: Perfil
   /catalog/products:
     get:
-      summary: Catálogo público de produtos
+      tags: [catalog]
+      summary: Catálogo público
+      responses:
+        '200':
+          description: Lista de produtos
   /customers/register:
     post:
-      summary: Solicitar cadastro de cliente
+      tags: [customers]
+      summary: Solicitar cadastro
+      responses:
+        '201':
+          description: Cadastro recebido
   /me/cart:
     get:
-      summary: Carrinho do cliente
+      tags: [sales]
+      summary: Carrinho
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Carrinho atual
+  /me/cart/items:
+    post:
+      tags: [sales]
+      summary: Adicionar item
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Carrinho atualizado
   /me/cart/checkout:
     post:
-      summary: Confirmar compra
+      tags: [sales]
+      summary: Finalizar compra
+      security: [{ cookieAuth: [] }]
+      responses:
+        '201':
+          description: Pedido criado
+  /me/invoices:
+    get:
+      tags: [billing]
+      summary: Minhas faturas
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Lista de faturas
+  /me/invoices/{id}:
+    get:
+      tags: [billing]
+      summary: Detalhe da fatura
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Fatura
+  /me/invoices/{id}/pix-charge:
+    post:
+      tags: [payments]
+      summary: Gerar cobrança Pix
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Cobrança Pix
+  /webhooks/pix:
+    post:
+      tags: [payments]
+      summary: Webhook Pix (HMAC)
+      parameters:
+        - name: X-Webhook-Signature
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Processado
+  /admin/customers:
+    get:
+      tags: [admin]
+      summary: Listar clientes
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Clientes
+  /admin/customers/{id}/approve:
+    patch:
+      tags: [admin]
+      summary: Aprovar cliente
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Aprovado
+  /admin/inventory/entries:
+    post:
+      tags: [admin]
+      summary: Entrada de estoque
+      security: [{ cookieAuth: [] }]
+      responses:
+        '201':
+          description: Movimentação registrada
+  /admin/billing/close:
+    post:
+      tags: [billing]
+      summary: Fechar períodos em aberto (competência)
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                year: { type: integer }
+                month: { type: integer }
+      responses:
+        '200':
+          description: Resultado do fechamento
+  /admin/billing/invoices:
+    get:
+      tags: [billing]
+      summary: Todas as faturas
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Faturas
+  /admin/billing/calendar:
+    get:
+      tags: [billing]
+      summary: Calendário de dias úteis
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Entradas do calendário
+    put:
+      tags: [billing]
+      summary: Atualizar dia do calendário
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Salvo
+  /admin/reports/dashboard:
+    get:
+      tags: [reports]
+      summary: Dashboard mensal
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: year
+          in: query
+          schema: { type: integer }
+        - name: month
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: KPIs
+  /admin/reports/top-products:
+    get:
+      tags: [reports]
+      summary: Produtos mais vendidos
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Ranking
+  /admin/reports/inventory:
+    get:
+      tags: [reports]
+      summary: Posição de estoque
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Estoque
+  /admin/reports/forecast:
+    get:
+      tags: [reports]
+      summary: Previsões de compra
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Snapshots
+  /admin/reports/forecast/generate:
+    post:
+      tags: [reports]
+      summary: Gerar snapshots de previsão
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Contagem gerada
+  /dev/pix/simulate/{chargeId}:
+    post:
+      tags: [payments]
+      summary: Simular pagamento Pix (somente desenvolvimento)
+      parameters:
+        - name: chargeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Pagamento simulado
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: store_session

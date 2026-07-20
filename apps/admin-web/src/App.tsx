@@ -1,45 +1,34 @@
-import { type FormEvent, useState } from 'react';
-import { createApiClient } from '@store/api-client';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { LoginPage } from './pages/Login';
+import { DashboardPage } from './pages/Dashboard';
+import { CustomersPage } from './pages/Customers';
+import { BillingPage } from './pages/Billing';
+import { ReportsPage } from './pages/Reports';
 import './App.css';
 
-const api = createApiClient('/api/v1');
-
 export default function App() {
-  const [email, setEmail] = useState('gerente@loja.local');
-  const [password, setPassword] = useState('ChangeMe123!');
-  const [user, setUser] = useState<Record<string, unknown> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      const res = await api.login(email, password, 'admin');
-      setUser(res as Record<string, unknown>);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha no login');
-    }
-  }
+  const authed = sessionStorage.getItem('admin_authed') === '1';
 
   return (
     <div className="page">
-      <h1>Painel administrativo</h1>
-      {!user ? (
-        <form onSubmit={onSubmit} className="form">
-          <label>
-            E-mail
-            <input value={email} onChange={(e) => setEmail(e.target.value)} />
-          </label>
-          <label>
-            Senha
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </label>
-          {error && <p className="error">{error}</p>}
-          <button type="submit">Entrar</button>
-        </form>
-      ) : (
-        <pre>{JSON.stringify(user, null, 2)}</pre>
+      {authed && (
+        <header className="topbar">
+          <strong>Painel</strong>
+          <nav>
+            <Link to="/">Dashboard</Link>
+            <Link to="/clientes">Clientes</Link>
+            <Link to="/faturamento">Faturamento</Link>
+            <Link to="/relatorios">Relatórios</Link>
+          </nav>
+        </header>
       )}
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={authed ? <DashboardPage /> : <Navigate to="/login" replace />} />
+        <Route path="/clientes" element={authed ? <CustomersPage /> : <Navigate to="/login" replace />} />
+        <Route path="/faturamento" element={authed ? <BillingPage /> : <Navigate to="/login" replace />} />
+        <Route path="/relatorios" element={authed ? <ReportsPage /> : <Navigate to="/login" replace />} />
+      </Routes>
     </div>
   );
 }

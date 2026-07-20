@@ -44,6 +44,20 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: worker
+    environment:
+      DATABASE_URL: postgres://store:store@postgres:5432/store?sslmode=disable
+      WORKER_POLL_INTERVAL: 5s
+      WORKER_ID: worker-1
+      PAYMENT_WEBHOOK_SECRET: sandbox-webhook-secret
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   store-web:
     build:
       context: .

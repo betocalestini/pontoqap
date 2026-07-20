@@ -25,7 +25,14 @@ Monorepositório da **Store Platform**: vendas pós-pagas, estoque, faturamento 
 cp .env.example .env
 docker compose up postgres -d
 make migrate-up
-make api
+make api          # API HTTP
+make worker       # fila de jobs (fechamento, inadimplência)
+```
+
+Gerar tipos OpenAPI para TypeScript:
+
+```bash
+make openapi-gen
 ```
 
 Em outro terminal:

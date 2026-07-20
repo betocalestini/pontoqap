@@ -40,3 +40,12 @@
 .read-the-docs {
   color: #888;
 }
+
+.page { text-align: left; }
+.page .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.page .topbar nav a { margin-left: 1rem; }
+.error { color: #b00020; }
+.ok { color: #0a7; }
+.form label { display: block; margin-bottom: 0.5rem; }
+.pix code { display: block; word-break: break-all; font-size: 0.75rem; }
+.grid { list-style: none; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }

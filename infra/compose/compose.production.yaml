@@ -1,0 +1,90 @@
+# Compose de referência para produção (hardening básico).
+# Ajuste secrets, domínios e volumes antes do deploy.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-store}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-store}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [internal]
+
+  migrate:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+      target: api
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      HTTP_ADDR: ":8080"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      COOKIE_SECURE: "true"
+      SESSION_SECRET: ${SESSION_SECRET}
+      CSRF_SECRET: ${CSRF_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal, edge]
+
+  worker:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+      target: worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      WORKER_POLL_INTERVAL: ${WORKER_POLL_INTERVAL:-10s}
+      WORKER_ID: ${WORKER_ID:-worker-1}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+
+  store-web:
+    build:
+      context: ../..
+      dockerfile: apps/store-web/Dockerfile
+    restart: unless-stopped
+    networks: [edge]
+
+  admin-web:
+    build:
+      context: ../..
+      dockerfile: apps/admin-web/Dockerfile
+    restart: unless-stopped
+    networks: [edge]
+
+networks:
+  internal:
+    internal: true
+  edge:
+
+volumes:
+  postgres_data:
