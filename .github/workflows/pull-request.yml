@@ -32,7 +32,7 @@ jobs:
           DATABASE_URL: postgres://store:store@localhost:5432/store?sslmode=disable
         run: |
           go run ./cmd/migrate -direction up
-          go test ./...
+          go test -p 1 ./...
 
   frontend:
     runs-on: ubuntu-latest

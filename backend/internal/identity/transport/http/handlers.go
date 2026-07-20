@@ -184,6 +184,11 @@ func UserFromContext(ctx context.Context) *identity.AuthUser {
 	return nil
 }
 
+// ContextWithAuthUser injeta o usuário autenticado (útil em testes HTTP).
+func ContextWithAuthUser(ctx context.Context, user *identity.AuthUser) context.Context {
+	return context.WithValue(ctx, userCtxKey, user)
+}
+
 func AuthMiddleware(svc *identity.Service, sessionCfg config.SessionConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

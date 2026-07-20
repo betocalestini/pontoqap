@@ -20,7 +20,10 @@ worker:
 	cd backend && $(GO) run ./cmd/worker
 
 test:
-	cd backend && $(GO) test ./...
+	cd backend && $(GO) test -p 1 ./...
+
+test-integration:
+	cd backend && DATABASE_URL=$${DATABASE_URL:-postgres://store:store@localhost:5432/store?sslmode=disable} $(GO) test -p 1 ./tests/...
 
 docker-up:
 	docker compose up --build -d
