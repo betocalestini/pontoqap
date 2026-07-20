@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info:
+  title: Store Platform API
+  version: 1.0.0
+  description: API REST da plataforma de vendas pós-pagas (MVP)
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /health:
+    get:
+      summary: Health check (raiz do serviço)
+  /auth/login:
+    post:
+      summary: Autenticar usuário
+  /auth/logout:
+    post:
+      summary: Encerrar sessão
+  /auth/me:
+    get:
+      summary: Usuário autenticado
+  /catalog/products:
+    get:
+      summary: Catálogo público de produtos
+  /customers/register:
+    post:
+      summary: Solicitar cadastro de cliente
+  /me/cart:
+    get:
+      summary: Carrinho do cliente
+  /me/cart/checkout:
+    post:
+      summary: Confirmar compra

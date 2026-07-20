@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+build/
+*.exe
+*.test
+*.out
+backend/bin/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+
+# Logs
+*.log
+
+# Uploads (local dev)
+data/uploads/
+
+# Expo
+apps/mobile/.expo/
+apps/mobile/dist/
+
+# Test
+coverage/
+*.lcov
+
+# Generated (regenerate with make openapi)
+packages/contracts/src/generated/

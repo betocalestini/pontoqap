@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: store
+      POSTGRES_PASSWORD: store
+      POSTGRES_DB: store
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U store -d store"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: postgres://store:store@postgres:5432/store?sslmode=disable
+      MIGRATIONS_PATH: /migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: api
+    environment:
+      DATABASE_URL: postgres://store:store@postgres:5432/store?sslmode=disable
+      HTTP_ADDR: ":8080"
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:5174
+      COOKIE_SECURE: "false"
+      APP_ENV: development
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  store-web:
+    build:
+      context: .
+      dockerfile: apps/store-web/Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+  admin-web:
+    build:
+      context: .
+      dockerfile: apps/admin-web/Dockerfile
+    ports:
+      - "5174:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

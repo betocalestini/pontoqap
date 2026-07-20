@@ -1,0 +1,11 @@
+{
+  "name": "mobile",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "start": "echo \"Expo app — ver docs/decisions.md EP-13\"",
+    "build": "echo \"skip\"",
+    "lint": "echo \"skip\"",
+    "test": "echo \"skip\""
+  }
+}
