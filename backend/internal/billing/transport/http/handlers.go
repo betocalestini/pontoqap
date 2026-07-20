@@ -75,6 +75,14 @@ func (h *Handler) ClosePeriods(w http.ResponseWriter, r *http.Request) {
 	year, _ := strconv.Atoi(r.URL.Query().Get("year"))
 	month, _ := strconv.Atoi(r.URL.Query().Get("month"))
 	if year == 0 || month == 0 {
+		var body struct {
+			Year  int `json:"year"`
+			Month int `json:"month"`
+		}
+		_ = httpx.DecodeJSON(r, &body)
+		year, month = body.Year, body.Month
+	}
+	if year == 0 || month == 0 {
 		now := time.Now()
 		year, month = billing.PreviousMonth(now.Year(), int(now.Month()))
 	}

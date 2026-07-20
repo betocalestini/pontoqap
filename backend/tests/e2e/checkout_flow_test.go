@@ -14,7 +14,6 @@ import (
 	"github.com/store-platform/store/internal/app"
 	"github.com/store-platform/store/internal/identity"
 	identitypostgres "github.com/store-platform/store/internal/identity/postgres"
-	"github.com/store-platform/store/internal/inventory"
 	"github.com/store-platform/store/internal/platform/config"
 	"github.com/store-platform/store/tests/testdb"
 )
@@ -35,12 +34,10 @@ func TestHTTPCheckoutFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	inv := inventory.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 20, mgr.UserID, "entrada"); err != nil {
-		t.Fatal(err)
-	}
+	setupE2EInventory(t, ctx, pool, prod.SKUID, mgr.UserID)
 
 	cfg := config.Config{
+		AppEnv:   "development",
 		LogLevel: "error",
 		HTTP: config.HTTPConfig{
 			CORSOrigins: []string{"http://localhost"},
@@ -56,6 +53,9 @@ func TestHTTPCheckoutFlow(t *testing.T) {
 			StoreTTL:    time.Hour,
 			AdminTTL:    time.Hour,
 		},
+		Payments: config.PaymentsConfig{
+			WebhookSecret: "test-webhook-secret",
+		},
 	}
 	idRepo := identitypostgres.NewRepository(pool)
 	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL)
@@ -67,44 +67,10 @@ func TestHTTPCheckoutFlow(t *testing.T) {
 
 	// Admin: aprovar cliente após registro na loja
 	email := testdb.UniqueEmail(t, "cli")
-	regBody, _ := json.Marshal(map[string]string{
-		"name": "Cliente E2E", "email": email, "password": "password123",
-	})
-	regRes, err := client.Post(server.URL+"/api/v1/customers/register", "application/json", bytes.NewReader(regBody))
-	if err != nil || regRes.StatusCode != http.StatusCreated {
-		t.Fatalf("register: %v status=%d", err, regRes.StatusCode)
-	}
-	regRes.Body.Close()
-
-	var custList struct {
-		Items []struct {
-			ID    string `json:"id"`
-			Email string `json:"email"`
-		} `json:"items"`
-	}
+	registerStoreCustomer(t, client, server.URL, email)
 	adminCookie := login(t, client, server.URL, mgr.Email, "password123", "admin")
-	approveRes := doAdminJSON(t, client, http.MethodGet, server.URL+"/api/v1/admin/customers", adminCookie, nil)
-	if approveRes.StatusCode != http.StatusOK {
-		t.Fatalf("list customers: %d", approveRes.StatusCode)
-	}
-	_ = json.NewDecoder(approveRes.Body).Decode(&custList)
-	approveRes.Body.Close()
-	var customerID string
-	for _, c := range custList.Items {
-		if c.Email == email {
-			customerID = c.ID
-			break
-		}
-	}
-	if customerID == "" {
-		t.Fatal("customer not found in admin list")
-	}
-	apBody, _ := json.Marshal(map[string]int64{"credit_limit_cents": 100_000})
-	apRes := doAdminJSON(t, client, http.MethodPatch, server.URL+"/api/v1/admin/customers/"+customerID+"/approve", adminCookie, apBody)
-	if apRes.StatusCode != http.StatusNoContent {
-		t.Fatalf("approve: %d", apRes.StatusCode)
-	}
-	apRes.Body.Close()
+	customerID := findCustomerID(t, client, server.URL, adminCookie, email)
+	approveCustomer(t, client, server.URL, adminCookie, customerID, 100_000)
 
 	storeCookie := login(t, client, server.URL, email, "password123", "store")
 	cartBody, _ := json.Marshal(map[string]any{"sku_id": prod.SKUID.String(), "quantity": 3})

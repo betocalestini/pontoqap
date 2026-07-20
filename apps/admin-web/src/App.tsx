@@ -3,6 +3,7 @@ import { LoginPage } from './pages/Login';
 import { DashboardPage } from './pages/Dashboard';
 import { CustomersPage } from './pages/Customers';
 import { BillingPage } from './pages/Billing';
+import { ProductsPage } from './pages/Products';
 import { ReportsPage } from './pages/Reports';
 import './App.css';
 
@@ -18,6 +19,7 @@ export default function App() {
             <Link to="/">Dashboard</Link>
             <Link to="/clientes">Clientes</Link>
             <Link to="/faturamento">Faturamento</Link>
+            <Link to="/produtos">Produtos</Link>
             <Link to="/relatorios">Relatórios</Link>
           </nav>
         </header>
@@ -27,6 +29,7 @@ export default function App() {
         <Route path="/" element={authed ? <DashboardPage /> : <Navigate to="/login" replace />} />
         <Route path="/clientes" element={authed ? <CustomersPage /> : <Navigate to="/login" replace />} />
         <Route path="/faturamento" element={authed ? <BillingPage /> : <Navigate to="/login" replace />} />
+        <Route path="/produtos" element={authed ? <ProductsPage /> : <Navigate to="/login" replace />} />
         <Route path="/relatorios" element={authed ? <ReportsPage /> : <Navigate to="/login" replace />} />
       </Routes>
     </div>
