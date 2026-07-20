@@ -24,6 +24,7 @@ export type AdminCustomer = {
   collaborator_category_id?: string;
   collaborator_category_name?: string;
   blocked_reason?: string;
+  staff_roles?: string[];
 };
 
 export type AdminUpdateCustomerBody = {
@@ -127,6 +128,23 @@ export type AdminInventoryMovement = {
   unit_cost_cents?: number;
   created_by_email?: string;
   created_at: string;
+};
+
+export type AdminStaffUser = {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  roles: string[];
+  mfa_enabled: boolean;
+  last_login_at?: string;
+  created_at: string;
+};
+
+export type AdminStaffRole = {
+  id: string;
+  code: string;
+  name: string;
 };
 
 export class ApiError extends Error {
@@ -262,6 +280,8 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
         method: 'PATCH',
         body: JSON.stringify({ credit_limit_cents, reason }),
       }, 'admin'),
+    adminAssignCustomerStaffRole: (id: string, body: { role_id: string; password?: string; mfa_code?: string }) =>
+      request(`/admin/customers/${id}/staff-role`, { method: 'POST', body: JSON.stringify(body) }, 'admin'),
     adminBlockCustomer: (id: string, reason?: string) =>
       request(`/admin/customers/${id}/block`, {
         method: 'PATCH',
@@ -411,5 +431,25 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     adminForecast: () => request('/admin/reports/forecast', {}, 'admin'),
     adminGenerateForecast: () =>
       request('/admin/reports/forecast/generate', { method: 'POST' }, 'admin'),
+
+    acceptAdminInvitation: (body: { token: string; password: string; name?: string }) =>
+      request('/auth/accept-invitation', { method: 'POST', body: JSON.stringify(body) }),
+
+    adminListStaffUsers: () =>
+      request<{ items: AdminStaffUser[] }>('/admin/users', {}, 'admin'),
+    adminGetStaffUser: (id: string) =>
+      request<{ user: AdminStaffUser; permissions: string[] }>(`/admin/users/${id}`, {}, 'admin'),
+    adminListStaffRoles: () =>
+      request<{ items: AdminStaffRole[] }>('/admin/roles', {}, 'admin'),
+    adminCreateStaffInvitation: (body: { email: string; name: string; role_id: string }) =>
+      request('/admin/users/invitations', { method: 'POST', body: JSON.stringify(body) }, 'admin'),
+    adminRevokeStaffInvitation: (invitationId: string) =>
+      request(`/admin/users/invitations/${invitationId}/revoke`, { method: 'POST' }, 'admin'),
+    adminSetStaffUserRole: (id: string, body: { role_id: string; password?: string; mfa_code?: string }) =>
+      request(`/admin/users/${id}/role`, { method: 'PATCH', body: JSON.stringify(body) }, 'admin'),
+    adminSetStaffUserStatus: (id: string, body: { status: string; password?: string; mfa_code?: string }) =>
+      request(`/admin/users/${id}/status`, { method: 'PATCH', body: JSON.stringify(body) }, 'admin'),
+    adminRevokeStaffUserSessions: (id: string, body?: { password?: string; mfa_code?: string }) =>
+      request(`/admin/users/${id}/sessions/revoke`, { method: 'POST', body: JSON.stringify(body ?? {}) }, 'admin'),
   };
 }
