@@ -6,6 +6,35 @@ function formatBRL(cents: number) {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+function availableCreditCents(c: AdminCustomer) {
+  return Math.max(0, (c.credit_limit_cents ?? 0) - (c.current_exposure_cents ?? 0));
+}
+
+function limitUsagePercent(c: AdminCustomer) {
+  const limit = c.credit_limit_cents ?? 0;
+  const exposure = c.current_exposure_cents ?? 0;
+  if (limit <= 0) {
+    return exposure > 0 ? 100 : 0;
+  }
+  return Math.min(999, Math.round((exposure / limit) * 100));
+}
+
+type CustomerSortKey = 'exposure' | 'open_invoices';
+
+type ColumnFilters = {
+  search: string;
+  status: string;
+  collaborator: string;
+  billing: string;
+};
+
+const defaultColumnFilters = (): ColumnFilters => ({
+  search: '',
+  status: '',
+  collaborator: '',
+  billing: '',
+});
+
 const emptyCategoryForm = () => ({ name: '', margin_percent: '15', active: true });
 
 const statusLabels: Record<string, string> = {
@@ -71,22 +100,67 @@ function CustomerTableRow({
   onEdit: (c: AdminCustomer) => void;
   onUnblock: (id: string) => void;
 }) {
+  const usage = limitUsagePercent(customer);
+  const warn =
+    usage >= 80 || (customer.current_exposure_cents ?? 0) > (customer.credit_limit_cents ?? 0);
+  const overdue = customer.overdue_invoices_count ?? 0;
+  const open = customer.open_invoices_count ?? 0;
+
   return (
     <tr className={selected ? 'row--selected' : undefined}>
-      <td data-label="Nome">{customer.name}</td>
-      <td data-label="E-mail">
-        {customer.email}
-        {customer.email_verified === false && (
-          <span className="customer-email-hint">E-mail pendente</span>
-        )}
+      <td data-label="Cliente">
+        <div className="customer-cell-identity">
+          <span className="customer-cell-identity__name">{customer.name}</span>
+          <span className="customer-cell-identity__email">{customer.email}</span>
+          {customer.document?.trim() ? (
+            <span className="customer-cell-identity__meta">{customer.document}</span>
+          ) : null}
+          {customer.email_verified === false ? (
+            <span className="customer-email-hint">E-mail não confirmado</span>
+          ) : null}
+        </div>
       </td>
-      <td data-label="Status">
-        <CustomerStatus customer={customer} />
+      <td data-label="Situação">
+        <div className="customer-cell-stack">
+          <CustomerStatus customer={customer} />
+          {customer.collaborator_category_name ? (
+            <span className="customer-collab-tag">{customer.collaborator_category_name}</span>
+          ) : null}
+        </div>
       </td>
-      <td data-label="Colaborador">{customer.collaborator_category_name || '—'}</td>
-      <td data-label="Limite">{formatBRL(customer.credit_limit_cents ?? 0)}</td>
-      <td data-label="Exposição">{formatBRL(customer.current_exposure_cents ?? 0)}</td>
-      <td>
+      <td data-label="Crédito">
+        <dl className="customer-credit-grid">
+          <div>
+            <dt>Limite</dt>
+            <dd>{formatBRL(customer.credit_limit_cents ?? 0)}</dd>
+          </div>
+          <div>
+            <dt>Disponível</dt>
+            <dd>{formatBRL(availableCreditCents(customer))}</dd>
+          </div>
+          <div>
+            <dt>Exposição</dt>
+            <dd>{formatBRL(customer.current_exposure_cents ?? 0)}</dd>
+          </div>
+          <div>
+            <dt>Uso</dt>
+            <dd className={warn ? 'customer-credit--warn' : undefined}>{usage}%</dd>
+          </div>
+        </dl>
+      </td>
+      <td data-label="Faturas">
+        <dl className="customer-billing-grid">
+          <div>
+            <dt>Aberto</dt>
+            <dd>{open}</dd>
+          </div>
+          <div>
+            <dt>Atraso</dt>
+            <dd className={overdue > 0 ? 'customer-overdue--highlight' : undefined}>{overdue}</dd>
+          </div>
+        </dl>
+      </td>
+      <td className="customer-cell-actions">
         <CustomerActions customer={customer} onApprove={onApprove} onEdit={onEdit} onUnblock={onUnblock} />
       </td>
     </tr>
@@ -124,6 +198,26 @@ function CustomerCard({
           <dd>{customer.collaborator_category_name || '—'}</dd>
         </div>
         <div>
+          <dt>Documento</dt>
+          <dd>{customer.document?.trim() || '—'}</dd>
+        </div>
+        <div>
+          <dt>Disponível</dt>
+          <dd>{formatBRL(availableCreditCents(customer))}</dd>
+        </div>
+        <div>
+          <dt>Uso do limite</dt>
+          <dd>{limitUsagePercent(customer)}%</dd>
+        </div>
+        <div>
+          <dt>Meses em aberto</dt>
+          <dd>{customer.open_invoices_count ?? 0}</dd>
+        </div>
+        <div>
+          <dt>Em atraso</dt>
+          <dd>{customer.overdue_invoices_count ?? 0}</dd>
+        </div>
+        <div>
           <dt>Limite</dt>
           <dd>{formatBRL(customer.credit_limit_cents ?? 0)}</dd>
         </div>
@@ -157,19 +251,54 @@ export function CustomersPage() {
   const [catForm, setCatForm] = useState(emptyCategoryForm);
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [initialLimitCents, setInitialLimitCents] = useState(0);
-  const [approveLimitReais, setApproveLimitReais] = useState('1000');
-  const [clientFilter, setClientFilter] = useState('');
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>(defaultColumnFilters);
+  const [sortKey, setSortKey] = useState<CustomerSortKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const editPanelRef = useRef<HTMLDivElement>(null);
 
   const filteredItems = useMemo(() => {
-    const q = clientFilter.trim().toLowerCase();
-    if (!q) return items;
+    const q = columnFilters.search.trim().toLowerCase();
     return items.filter((c) => {
-      const name = (c.name ?? '').toLowerCase();
-      const email = (c.email ?? '').toLowerCase();
-      return name.includes(q) || email.includes(q);
+      if (columnFilters.status && c.status !== columnFilters.status) return false;
+      if (columnFilters.collaborator === '__none__') {
+        if (c.collaborator_category_id) return false;
+      } else if (columnFilters.collaborator && c.collaborator_category_id !== columnFilters.collaborator) {
+        return false;
+      }
+      const open = c.open_invoices_count ?? 0;
+      const overdue = c.overdue_invoices_count ?? 0;
+      if (columnFilters.billing === 'overdue' && overdue < 1) return false;
+      if (columnFilters.billing === 'open' && open < 1) return false;
+      if (columnFilters.billing === 'ok' && (open > 0 || overdue > 0)) return false;
+      if (!q) return true;
+      const hay = [c.name, c.email, c.document, c.collaborator_category_name]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
     });
-  }, [items, clientFilter]);
+  }, [items, columnFilters]);
+
+  const sortedItems = useMemo(() => {
+    if (!sortKey) return filteredItems;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...filteredItems].sort((a, b) => {
+      const av =
+        sortKey === 'exposure' ? (a.current_exposure_cents ?? 0) : (a.open_invoices_count ?? 0);
+      const bv =
+        sortKey === 'exposure' ? (b.current_exposure_cents ?? 0) : (b.open_invoices_count ?? 0);
+      return (av - bv) * dir;
+    });
+  }, [filteredItems, sortKey, sortDir]);
+
+  function toggleSort(key: CustomerSortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  }
 
   const load = useCallback(async () => {
     const [custRes, catRes, rolesRes] = await Promise.all([
@@ -188,7 +317,17 @@ export function CustomersPage() {
 
   async function approve(id: string) {
     setError(null);
-    const limitCents = Math.round(parseFloat(approveLimitReais.replace(',', '.')) * 100);
+    const existing = items.find((c) => c.id === id);
+    const defaultReais =
+      existing && (existing.credit_limit_cents ?? 0) > 0
+        ? String((existing.credit_limit_cents ?? 0) / 100)
+        : '1000';
+    const raw = window.prompt(
+      'Limite de crédito (R$) para aprovar este cadastro pendente.\nCadastros que confirmam o e-mail na loja costumam ser aprovados automaticamente.',
+      defaultReais,
+    );
+    if (raw === null) return;
+    const limitCents = Math.round(parseFloat(raw.replace(',', '.')) * 100);
     if (!Number.isFinite(limitCents) || limitCents < 0) {
       setError('Informe um limite válido para aprovação');
       return;
@@ -224,8 +363,13 @@ export function CustomersPage() {
       setForm((f) => ({ ...f, staff_role_id: match?.id ?? '' }));
     });
     requestAnimationFrame(() => {
-      editPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      editPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+  }
+
+  function closeEdit() {
+    setEditingId(null);
+    setEditingCustomer(null);
   }
 
   async function assignStaffRole() {
@@ -270,7 +414,7 @@ export function CustomersPage() {
     setError(null);
     try {
       await api.adminBlockCustomer(editingId, form.block_reason);
-      setEditingId(null);
+      closeEdit();
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro');
@@ -387,86 +531,15 @@ export function CustomersPage() {
         </ul>
       </details>
 
-      <div className="customers-layout">
-        <div className="customers-panel">
-          <div className="customers-toolbar">
-            <h2 className="customers-panel__title">Cadastros</h2>
-            <label className="customers-toolbar__limit">
-              Limite na aprovação (R$)
-              <input
-                value={approveLimitReais}
-                onChange={(e) => setApproveLimitReais(e.target.value)}
-                inputMode="decimal"
-                aria-label="Limite na aprovação em reais"
-              />
-            </label>
-            <label className="customers-toolbar__search">
-              Buscar cliente
-              <input
-                type="search"
-                value={clientFilter}
-                onChange={(e) => setClientFilter(e.target.value)}
-                placeholder="Nome ou e-mail"
-                aria-label="Filtrar por nome ou e-mail"
-              />
-            </label>
-          </div>
-
-          {filteredItems.length === 0 ? (
-            <p className="customers-panel__placeholder">
-              {items.length === 0
-                ? 'Nenhum cliente cadastrado.'
-                : 'Nenhum cliente corresponde à busca.'}
-            </p>
-          ) : (
-            <>
-          <div className="table-scroll customers-table-desktop">
-            <table className="customers-table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>E-mail</th>
-                  <th>Status</th>
-                  <th>Colaborador</th>
-                  <th>Limite</th>
-                  <th>Exposição</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {filteredItems.map((c) => (
-                  <CustomerTableRow
-                    key={c.id}
-                    customer={c}
-                    selected={editingId === c.id}
-                    onApprove={(id) => void approve(id)}
-                    onEdit={startEdit}
-                    onUnblock={(id) => void unblockCustomer(id)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <ul className="customers-cards" aria-label="Lista de clientes">
-            {filteredItems.map((c) => (
-              <CustomerCard
-                key={c.id}
-                customer={c}
-                selected={editingId === c.id}
-                onApprove={(id) => void approve(id)}
-                onEdit={startEdit}
-                onUnblock={(id) => void unblockCustomer(id)}
-              />
-            ))}
-          </ul>
-            </>
-          )}
-        </div>
-
-        <div ref={editPanelRef} className="customers-panel customers-panel--form">
-          <h2 className="customers-panel__title">Editar cliente</h2>
-          {editingId ? (
+      <div className="customers-main">
+        {editingId ? (
+          <div ref={editPanelRef} className="customers-edit-band">
+            <div className="customers-edit-band__header">
+              <h2>Editando: {form.name || editingCustomer?.name || 'Cliente'}</h2>
+              <button type="button" onClick={closeEdit}>
+                Fechar
+              </button>
+            </div>
             <form className="form form--wide customer-edit-form" onSubmit={saveCustomer}>
               <label>
                 Nome
@@ -532,7 +605,7 @@ export function CustomersPage() {
               </fieldset>
               <div className="form__actions form__full">
                 <button type="submit">Salvar</button>
-                <button type="button" onClick={() => setEditingId(null)}>
+                <button type="button" onClick={closeEdit}>
                   Cancelar
                 </button>
               </div>
@@ -547,10 +620,164 @@ export function CustomersPage() {
                 </button>
               </fieldset>
             </form>
-          ) : (
+          </div>
+        ) : null}
+
+        <div className="customers-panel customers-panel--cadastros">
+          <h2 className="customers-panel__title">Cadastros</h2>
+
+          <div className="customers-list-filters" role="search">
+            <label className="customers-list-filters__field customers-list-filters__field--search">
+              <span className="customers-list-filters__label">Buscar</span>
+              <input
+                type="search"
+                className="customers-filter-input"
+                placeholder="Nome, e-mail, documento…"
+                value={columnFilters.search}
+                onChange={(e) => setColumnFilters((f) => ({ ...f, search: e.target.value }))}
+              />
+            </label>
+            <label className="customers-list-filters__field">
+              <span className="customers-list-filters__label">Situação</span>
+              <select
+                className="customers-filter-input"
+                value={columnFilters.status}
+                onChange={(e) => setColumnFilters((f) => ({ ...f, status: e.target.value }))}
+              >
+                <option value="">Todas</option>
+                <option value="pending">Pendente</option>
+                <option value="approved">Aprovado</option>
+                <option value="blocked">Bloqueado</option>
+                <option value="rejected">Rejeitado</option>
+              </select>
+            </label>
+            <label className="customers-list-filters__field">
+              <span className="customers-list-filters__label">Colaborador</span>
+              <select
+                className="customers-filter-input"
+                value={columnFilters.collaborator}
+                onChange={(e) => setColumnFilters((f) => ({ ...f, collaborator: e.target.value }))}
+              >
+                <option value="">Todos</option>
+                <option value="__none__">Sem categoria</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="customers-list-filters__field">
+              <span className="customers-list-filters__label">Faturas</span>
+              <select
+                className="customers-filter-input"
+                value={columnFilters.billing}
+                onChange={(e) => setColumnFilters((f) => ({ ...f, billing: e.target.value }))}
+              >
+                <option value="">Todas</option>
+                <option value="overdue">Com atraso</option>
+                <option value="open">Com meses em aberto</option>
+                <option value="ok">Em dia</option>
+              </select>
+            </label>
+          </div>
+
+          {sortedItems.length === 0 ? (
             <p className="customers-panel__placeholder">
-              Selecione <strong>Editar</strong> em um cliente da lista para alterar dados, limite ou bloqueio.
+              {items.length === 0
+                ? 'Nenhum cliente cadastrado.'
+                : 'Nenhum cliente corresponde à busca.'}
             </p>
+          ) : (
+            <>
+              <div className="customers-table-wrap">
+                <table className="customers-table customers-table--compact">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Situação</th>
+                      <th
+                        className="sortable"
+                        onClick={() => toggleSort('exposure')}
+                        title="Ordenar por exposição de crédito"
+                      >
+                        Crédito{sortKey === 'exposure' ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
+                      </th>
+                      <th
+                        className="sortable"
+                        onClick={() => toggleSort('open_invoices')}
+                        title="Ordenar por meses em aberto"
+                      >
+                        Faturas{sortKey === 'open_invoices' ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
+                      </th>
+                      <th className="customer-cell-actions">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedItems.map((c) => (
+                      <CustomerTableRow
+                        key={c.id}
+                        customer={c}
+                        selected={editingId === c.id}
+                        onApprove={(id) => void approve(id)}
+                        onEdit={startEdit}
+                        onUnblock={(id) => void unblockCustomer(id)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <ul className="customers-cards customers-cards--filters" aria-label="Filtros mobile">
+                <li className="customer-card customer-card--filters">
+                  <label>
+                    Buscar
+                    <input
+                      type="search"
+                      value={columnFilters.search}
+                      onChange={(e) => setColumnFilters((f) => ({ ...f, search: e.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Status
+                    <select
+                      value={columnFilters.status}
+                      onChange={(e) => setColumnFilters((f) => ({ ...f, status: e.target.value }))}
+                    >
+                      <option value="">Todos</option>
+                      <option value="pending">Pendente</option>
+                      <option value="approved">Aprovado</option>
+                      <option value="blocked">Bloqueado</option>
+                    </select>
+                  </label>
+                  <label>
+                    Faturas
+                    <select
+                      value={columnFilters.billing}
+                      onChange={(e) => setColumnFilters((f) => ({ ...f, billing: e.target.value }))}
+                    >
+                      <option value="">Todas</option>
+                      <option value="overdue">Com atraso</option>
+                      <option value="open">Em aberto</option>
+                      <option value="ok">Em dia</option>
+                    </select>
+                  </label>
+                </li>
+              </ul>
+
+              <ul className="customers-cards" aria-label="Lista de clientes">
+                {sortedItems.map((c) => (
+                  <CustomerCard
+                    key={c.id}
+                    customer={c}
+                    selected={editingId === c.id}
+                    onApprove={(id) => void approve(id)}
+                    onEdit={startEdit}
+                    onUnblock={(id) => void unblockCustomer(id)}
+                  />
+                ))}
+              </ul>
+            </>
           )}
         </div>
       </div>
