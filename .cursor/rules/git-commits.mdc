@@ -1,0 +1,13 @@
+---
+description: Commits Git atômicos e mensagens específicas por mudança
+alwaysApply: true
+---
+
+# Commits Git
+
+- **Um commit por mudança lógica**: não agrupar features distintas, refactors amplos, migrations, docs e testes no mesmo commit se puderem ser separados.
+- **Mensagem no estilo do repositório**: `tipo(escopo): resumo imperativo` (ex.: `feat(clientes): …`, `fix(migrate): …`, `test(sales): …`, `docs: …`).
+- **Corpo quando útil**: 1–2 frases explicando o *porquê*, não só o que mudou.
+- **Ordem sugerida** ao entregar várias mudanças: schema/migrations → backend → api-client/contracts → front → testes → docs.
+- **Só commitar quando o usuário pedir**; ao pedir commit, avaliar `git status` e **desdobrar em vários commits** se houver mais de um tema.
+- **Não reescrever histórico** (rebase/amend/split de commits antigos) salvo pedido explícito do usuário.
