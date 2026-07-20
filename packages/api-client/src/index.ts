@@ -84,7 +84,8 @@ export function createApiClient(baseUrl = defaultBase) {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       }, 'store'),
 
-    listMyInvoices: () => request<{ items: unknown[] }>('/me/invoices', {}, 'store'),
+    listMyInvoices: () =>
+      request<{ current_period: unknown; items: unknown[] }>('/me/invoices', {}, 'store'),
     getMyInvoice: (id: string) => request(`/me/invoices/${id}`, {}, 'store'),
     createPixCharge: (invoiceId: string) =>
       request(`/me/invoices/${invoiceId}/pix-charge`, { method: 'POST' }, 'store'),

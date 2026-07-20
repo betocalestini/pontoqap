@@ -39,12 +39,20 @@ func (h *Handler) ListMyInvoices(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Cliente necessário")
 		return
 	}
-	items, err := h.svc.ListInvoicesByCustomer(r.Context(), *user.CustomerID)
+	items, err := h.svc.ListInvoicesByCustomerLimit(r.Context(), *user.CustomerID, 3)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao listar faturas")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+	current, err := h.svc.GetOpenPeriodSummary(r.Context(), *user.CustomerID)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao carregar competência atual")
+		return
+	}
+	if items == nil {
+		items = []billing.Invoice{}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"current_period": current, "items": items})
 }
 
 func (h *Handler) GetMyInvoice(w http.ResponseWriter, r *http.Request) {

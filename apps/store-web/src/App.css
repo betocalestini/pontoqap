@@ -62,3 +62,22 @@
 .cart-line-qty { display: flex; align-items: center; gap: 0.5rem; }
 .cart-line-qty button { min-width: 2rem; padding: 0.25rem 0.5rem; }
 .cart-total { margin: 1rem 0; }
+.invoices-page h2 { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; text-align: left; }
+.invoice-list { list-style: none; padding: 0; margin: 0; text-align: left; }
+.invoice-card {
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 8px;
+  text-align: left;
+}
+.invoice-card--current { border-color: rgba(100, 108, 255, 0.5); }
+.invoice-card-meta { font-size: 0.9rem; opacity: 0.85; margin: 0.35rem 0 0; }
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(128, 128, 128, 0.25);
+  margin-left: 0.25rem;
+}
