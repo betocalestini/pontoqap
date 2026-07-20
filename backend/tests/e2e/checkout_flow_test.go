@@ -102,7 +102,8 @@ func TestHTTPCheckoutFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	if pubRes.StatusCode != http.StatusOK {
-		t.Fatalf("catalog: %d", pubRes.StatusCode)
+		body, _ := io.ReadAll(pubRes.Body)
+		t.Fatalf("catalog: %d %s", pubRes.StatusCode, body)
 	}
 	pubRes.Body.Close()
 }

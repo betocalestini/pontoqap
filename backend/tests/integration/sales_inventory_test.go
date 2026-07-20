@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/store-platform/store/internal/billing"
+	"github.com/store-platform/store/internal/catalog"
 	"github.com/store-platform/store/internal/inventory"
 	"github.com/store-platform/store/internal/sales"
 	"github.com/store-platform/store/tests/testdb"
@@ -30,7 +31,7 @@ func TestInventoryEntryAndNegativeStockBlocked(t *testing.T) {
 	}
 
 	inv := inventory.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada"); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -71,11 +72,11 @@ func TestCheckoutReducesStockAndCreatesBillingEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	inv := inventory.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "entrada"); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "entrada", 0); err != nil {
 		t.Fatal(err)
 	}
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catalog.NewService(pool))
 	if _, err := salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -131,9 +132,9 @@ func TestCheckoutIdempotency(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100_000)
 	prod, _ := testdb.SeedProduct(ctx, pool, "Sal", "SAL-1", 500)
 	inv := inventory.NewService(pool)
-	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada")
+	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0)
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catalog.NewService(pool))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
 
 	o1, err := salesSvc.Checkout(ctx, cust.ID, "same-key", cust.UserID)
@@ -167,9 +168,9 @@ func TestCheckoutInsufficientLimit(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100) // R$ 1,00
 	prod, _ := testdb.SeedProduct(ctx, pool, "Caro", "CAR-1", 5000)
 	inv := inventory.NewService(pool)
-	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada")
+	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0)
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catalog.NewService(pool))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
 	_, err := salesSvc.Checkout(ctx, cust.ID, "limit-key", cust.UserID)
 	if err == nil {

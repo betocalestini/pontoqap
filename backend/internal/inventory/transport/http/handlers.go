@@ -9,16 +9,18 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/store-platform/store/internal/inventory"
+	"github.com/store-platform/store/internal/catalog"
 	identityhttp "github.com/store-platform/store/internal/identity/transport/http"
 	"github.com/store-platform/store/internal/platform/httpx"
 )
 
 type Handler struct {
 	svc *inventory.Service
+	cat *catalog.Service
 }
 
-func NewHandler(svc *inventory.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *inventory.Service, cat *catalog.Service) *Handler {
+	return &Handler{svc: svc, cat: cat}
 }
 
 func (h *Handler) ListBalances(w http.ResponseWriter, r *http.Request) {
@@ -56,19 +58,34 @@ func (h *Handler) listBalances(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
-func (h *Handler) listMovements(w http.ResponseWriter, r *http.Request) {
-	var skuID *uuid.UUID
+func parseMovementFilter(r *http.Request) (inventory.MovementFilter, error) {
+	var f inventory.MovementFilter
 	if s := r.URL.Query().Get("sku_id"); s != "" {
 		id, err := uuid.Parse(s)
 		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "SKU inválido")
-			return
+			return f, err
 		}
-		skuID = &id
+		f.SKUID = &id
 	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-	items, err := h.svc.ListMovements(r.Context(), skuID, limit, offset)
+	if s := r.URL.Query().Get("product_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			return f, err
+		}
+		f.ProductID = &id
+	}
+	f.Limit, _ = strconv.Atoi(r.URL.Query().Get("limit"))
+	f.Offset, _ = strconv.Atoi(r.URL.Query().Get("offset"))
+	return f, nil
+}
+
+func (h *Handler) listMovements(w http.ResponseWriter, r *http.Request) {
+	filter, err := parseMovementFilter(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Filtro inválido")
+		return
+	}
+	items, total, err := h.svc.ListMovements(r.Context(), filter)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao listar movimentações")
 		return
@@ -76,7 +93,16 @@ func (h *Handler) listMovements(w http.ResponseWriter, r *http.Request) {
 	if items == nil {
 		items = []inventory.Movement{}
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+	limit := filter.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"items":  items,
+		"total":  total,
+		"limit":  limit,
+		"offset": filter.Offset,
+	})
 }
 
 func (h *Handler) createMovement(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +117,7 @@ func (h *Handler) createMovement(w http.ResponseWriter, r *http.Request) {
 		Quantity      int    `json:"quantity"`
 		PhysicalCount *int   `json:"physical_count"`
 		Reason        string `json:"reason"`
+		UnitCostCents *int64 `json:"unit_cost_cents"`
 	}
 	if err := httpx.DecodeJSON(r, &body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
@@ -113,7 +140,11 @@ func (h *Handler) createMovement(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Quantidade e motivo obrigatórios")
 			return
 		}
-		err = h.svc.RegisterEntry(r.Context(), skuID, body.Quantity, user.User.ID, body.Reason)
+		if body.UnitCostCents == nil || *body.UnitCostCents < 0 {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Informe o custo unitário da entrada (centavos)")
+			return
+		}
+		err = h.svc.RegisterEntry(r.Context(), skuID, body.Quantity, user.User.ID, body.Reason, *body.UnitCostCents)
 	case "loss", "damage":
 		if !identityhttp.HasPermission(r.Context(), "inventory.loss") &&
 			!identityhttp.HasPermission(r.Context(), "inventory.adjust") {
@@ -148,6 +179,18 @@ func (h *Handler) createMovement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+	h.maybeRecalcSKU(r, skuID)
+}
+
+func (h *Handler) maybeRecalcSKU(r *http.Request, skuID uuid.UUID) {
+	if h.cat == nil {
+		return
+	}
+	user := identityhttp.UserFromContext(r.Context())
+	if user == nil {
+		return
+	}
+	_, _ = h.cat.RecalculateSKU(r.Context(), skuID, user.User.ID, "auto:entrada", h.svc.WeightedAverageCostCents)
 }
 
 func (h *Handler) registerEntry(w http.ResponseWriter, r *http.Request) {
@@ -157,10 +200,11 @@ func (h *Handler) registerEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		SKUID    string `json:"sku_id"`
-		Quantity int    `json:"quantity"`
-		Reason   string `json:"reason"`
-		Note     string `json:"note"`
+		SKUID         string `json:"sku_id"`
+		Quantity      int    `json:"quantity"`
+		Reason        string `json:"reason"`
+		Note          string `json:"note"`
+		UnitCostCents *int64 `json:"unit_cost_cents"`
 	}
 	if err := httpx.DecodeJSON(r, &body); err != nil || body.Quantity <= 0 {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
@@ -175,9 +219,14 @@ func (h *Handler) registerEntry(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "SKU inválido")
 		return
 	}
-	if err := h.svc.RegisterEntry(r.Context(), skuID, body.Quantity, user.User.ID, reason); err != nil {
+	unitCost := int64(0)
+	if body.UnitCostCents != nil {
+		unitCost = *body.UnitCostCents
+	}
+	if err := h.svc.RegisterEntry(r.Context(), skuID, body.Quantity, user.User.ID, reason, unitCost); err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao registrar entrada")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+	h.maybeRecalcSKU(r, skuID)
 }

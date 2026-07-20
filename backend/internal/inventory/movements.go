@@ -32,6 +32,7 @@ type Movement struct {
 	ReferenceType    *string    `json:"reference_type,omitempty"`
 	ReferenceID      *uuid.UUID `json:"reference_id,omitempty"`
 	Reason           *string    `json:"reason,omitempty"`
+	UnitCostCents    *int64     `json:"unit_cost_cents,omitempty"`
 	CreatedBy        *uuid.UUID `json:"created_by,omitempty"`
 	CreatedByEmail   *string    `json:"created_by_email,omitempty"`
 	CreatedAt        time.Time  `json:"created_at"`
@@ -53,23 +54,35 @@ type movementApply struct {
 	refType       string
 	refID         *uuid.UUID
 	createdBy     uuid.UUID
+	unitCostCents *int64
 }
 
-func (s *Service) RegisterEntry(ctx context.Context, skuID uuid.UUID, quantity int, createdBy uuid.UUID, reason string) error {
+func (s *Service) RegisterEntry(ctx context.Context, skuID uuid.UUID, quantity int, createdBy uuid.UUID, reason string, unitCostCents int64) error {
+	if unitCostCents < 0 {
+		return fmt.Errorf("invalid unit cost")
+	}
+	cost := unitCostCents
 	return s.applyMovement(ctx, skuID, movementApply{
 		movementType:  MovementEntry,
 		quantityDelta: quantity,
 		reason:        reason,
 		createdBy:     createdBy,
+		unitCostCents: &cost,
 	})
 }
 
-func (s *Service) RegisterInitialStock(ctx context.Context, skuID uuid.UUID, quantity int, createdBy uuid.UUID) error {
+func (s *Service) RegisterInitialStock(ctx context.Context, skuID uuid.UUID, quantity int, createdBy uuid.UUID, unitCostCents int64) error {
+	var cost *int64
+	if unitCostCents >= 0 {
+		c := unitCostCents
+		cost = &c
+	}
 	return s.applyMovement(ctx, skuID, movementApply{
 		movementType:  MovementInitialStock,
 		quantityDelta: quantity,
 		reason:        "Estoque inicial",
 		createdBy:     createdBy,
+		unitCostCents: cost,
 	})
 }
 
@@ -142,6 +155,16 @@ func (s *Service) applyMovementTx(ctx context.Context, tx pgx.Tx, locID, skuID u
 	if in.quantityDelta == 0 {
 		return fmt.Errorf("invalid quantity")
 	}
+	qtyRecorded := in.quantityDelta
+	if qtyRecorded < 0 {
+		qtyRecorded = -qtyRecorded
+	}
+	if in.quantityDelta < 0 {
+		if err := s.consumeLotsFIFOtx(ctx, tx, locID, skuID, qtyRecorded); err != nil {
+			return err
+		}
+	}
+
 	balanceID, prev, version, err := s.lockBalance(ctx, tx, locID, skuID)
 	if err != nil {
 		return err
@@ -149,10 +172,6 @@ func (s *Service) applyMovementTx(ctx context.Context, tx pgx.Tx, locID, skuID u
 	newBal := prev + in.quantityDelta
 	if newBal < 0 {
 		return ErrInsufficientStock()
-	}
-	qtyRecorded := in.quantityDelta
-	if qtyRecorded < 0 {
-		qtyRecorded = -qtyRecorded
 	}
 	res, err := tx.Exec(ctx, `
 		UPDATE inventory_balances SET available_quantity = $3, version = version + 1, updated_at = NOW()
@@ -172,11 +191,52 @@ func (s *Service) applyMovementTx(ctx context.Context, tx pgx.Tx, locID, skuID u
 	if in.reason != "" {
 		reason = &in.reason
 	}
-	_, err = tx.Exec(ctx, `
-		INSERT INTO stock_movements (location_id, sku_id, movement_type, quantity, previous_balance, new_balance, reference_type, reference_id, reason, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-	`, locID, skuID, in.movementType, qtyRecorded, prev, newBal, refType, in.refID, reason, in.createdBy)
-	return err
+	var movementID uuid.UUID
+	err = tx.QueryRow(ctx, `
+		INSERT INTO stock_movements (location_id, sku_id, movement_type, quantity, previous_balance, new_balance, reference_type, reference_id, reason, created_by, unit_cost_cents)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id
+	`, locID, skuID, in.movementType, qtyRecorded, prev, newBal, refType, in.refID, reason, in.createdBy, in.unitCostCents).Scan(&movementID)
+	if err != nil {
+		return err
+	}
+	if in.movementType == MovementEntry && in.unitCostCents != nil {
+		_, err = tx.Exec(ctx, `
+			UPDATE skus SET cost_price_cents = $2, updated_at = NOW() WHERE id = $1
+		`, skuID, *in.unitCostCents)
+		if err != nil {
+			return err
+		}
+	}
+	if in.quantityDelta > 0 {
+		unitCost := int64(0)
+		switch in.movementType {
+		case MovementEntry:
+			if in.unitCostCents != nil {
+				unitCost = *in.unitCostCents
+			}
+		case MovementInitialStock:
+			if in.unitCostCents != nil {
+				unitCost = *in.unitCostCents
+			} else {
+				unitCost = s.skuFallbackCostTx(ctx, tx, skuID)
+			}
+		case MovementAdjustment:
+			if avg, ok, err := s.weightedAverageCostTx(ctx, tx, locID, skuID); err != nil {
+				return err
+			} else if ok {
+				unitCost = avg
+			} else {
+				unitCost = s.skuFallbackCostTx(ctx, tx, skuID)
+			}
+		default:
+			unitCost = s.skuFallbackCostTx(ctx, tx, skuID)
+		}
+		if err := s.createLotTx(ctx, tx, locID, skuID, qtyRecorded, unitCost, &movementID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) lockBalance(ctx context.Context, tx pgx.Tx, locID, skuID uuid.UUID) (balanceID uuid.UUID, prev, version int, err error) {
@@ -232,37 +292,54 @@ func (s *Service) ListBalances(ctx context.Context) ([]BalanceRow, error) {
 	return out, rows.Err()
 }
 
-func (s *Service) ListMovements(ctx context.Context, skuID *uuid.UUID, limit, offset int) ([]Movement, error) {
+func (s *Service) ListMovements(ctx context.Context, filter MovementFilter) ([]Movement, int, error) {
+	limit := filter.Limit
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
+	offset := filter.Offset
 	if offset < 0 {
 		offset = 0
 	}
 	locID, _ := uuid.Parse(DefaultLocationID)
+	where := "WHERE sm.location_id = $1"
+	args := []any{locID}
+	arg := 2
+	if filter.SKUID != nil {
+		where += fmt.Sprintf(" AND sm.sku_id = $%d", arg)
+		args = append(args, *filter.SKUID)
+		arg++
+	}
+	if filter.ProductID != nil {
+		where += fmt.Sprintf(" AND s.product_id = $%d", arg)
+		args = append(args, *filter.ProductID)
+		arg++
+	}
+
+	var total int
+	countQ := `
+		SELECT COUNT(*) FROM stock_movements sm
+		JOIN skus s ON s.id = sm.sku_id
+	` + where
+	if err := s.pool.QueryRow(ctx, countQ, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	q := `
 		SELECT sm.id, sm.sku_id, p.name, s.code, sm.movement_type, sm.quantity,
 		       sm.previous_balance, sm.new_balance, sm.reference_type, sm.reference_id,
-		       sm.reason, sm.created_by, u.email, sm.created_at
+		       sm.reason, sm.created_by, u.email, sm.created_at, sm.unit_cost_cents
 		FROM stock_movements sm
 		JOIN skus s ON s.id = sm.sku_id
 		JOIN products p ON p.id = s.product_id
 		LEFT JOIN users u ON u.id = sm.created_by
-		WHERE sm.location_id = $1
-	`
-	args := []any{locID}
-	arg := 2
-	if skuID != nil {
-		q += fmt.Sprintf(" AND sm.sku_id = $%d", arg)
-		args = append(args, *skuID)
-		arg++
-	}
+	` + where
 	q += fmt.Sprintf(" ORDER BY sm.created_at DESC LIMIT $%d OFFSET $%d", arg, arg+1)
 	args = append(args, limit, offset)
 
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 	var out []Movement
@@ -271,11 +348,18 @@ func (s *Service) ListMovements(ctx context.Context, skuID *uuid.UUID, limit, of
 		if err := rows.Scan(
 			&m.ID, &m.SKUID, &m.ProductName, &m.SKUCode, &m.MovementType, &m.Quantity,
 			&m.PreviousBalance, &m.NewBalance, &m.ReferenceType, &m.ReferenceID,
-			&m.Reason, &m.CreatedBy, &m.CreatedByEmail, &m.CreatedAt,
+			&m.Reason, &m.CreatedBy, &m.CreatedByEmail, &m.CreatedAt, &m.UnitCostCents,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		out = append(out, m)
 	}
-	return out, rows.Err()
+	return out, total, rows.Err()
+}
+
+type MovementFilter struct {
+	SKUID     *uuid.UUID
+	ProductID *uuid.UUID
+	Limit     int
+	Offset    int
 }

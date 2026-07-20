@@ -44,6 +44,9 @@ func (h *Handler) AdminRoutes(r chi.Router) {
 	r.Delete("/products/{id}/images/{imageId}", h.DeleteProductImage)
 	r.Patch("/skus/{skuId}", h.UpdateSKU)
 	r.Patch("/skus/{skuId}/price", h.ChangePrice)
+	r.Get("/settings/pricing", h.getPricingSettings)
+	r.Patch("/settings/pricing", h.patchPricingSettings)
+	r.Post("/products/reprice-all", h.repriceAllProducts)
 }
 
 func (h *Handler) ListCategoriesAdmin(w http.ResponseWriter, r *http.Request) {
@@ -84,6 +87,18 @@ func (h *Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) DeleteProductImage(w http.ResponseWriter, r *http.Request) {
 	h.deleteProductImage(w, r)
+}
+
+func (h *Handler) GetPricingSettings(w http.ResponseWriter, r *http.Request) {
+	h.getPricingSettings(w, r)
+}
+
+func (h *Handler) PatchPricingSettings(w http.ResponseWriter, r *http.Request) {
+	h.patchPricingSettings(w, r)
+}
+
+func (h *Handler) RepriceAllProducts(w http.ResponseWriter, r *http.Request) {
+	h.repriceAllProducts(w, r)
 }
 
 func (h *Handler) serveProductImage(w http.ResponseWriter, r *http.Request) {

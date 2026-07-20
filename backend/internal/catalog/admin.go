@@ -14,6 +14,7 @@ type UpdateProductInput struct {
 	ClearCategory bool
 	Active        *bool
 	Visible       *bool
+	MarginPercent *float64
 }
 
 type UpdateSKUInput struct {
@@ -36,6 +37,7 @@ func (s *Service) UpdateProduct(ctx context.Context, id uuid.UUID, in UpdateProd
 	catID := p.CategoryID
 	active := p.Active
 	visible := p.Visible
+	margin := p.MarginPercent
 	if in.Name != nil {
 		name = *in.Name
 	}
@@ -53,10 +55,13 @@ func (s *Service) UpdateProduct(ctx context.Context, id uuid.UUID, in UpdateProd
 	if in.Visible != nil {
 		visible = *in.Visible
 	}
+	if in.MarginPercent != nil {
+		margin = *in.MarginPercent
+	}
 	_, err = s.pool.Exec(ctx, `
-		UPDATE products SET name = $2, description = $3, category_id = $4, active = $5, visible = $6, updated_at = NOW()
+		UPDATE products SET name = $2, description = $3, category_id = $4, active = $5, visible = $6, margin_percent = $7, updated_at = NOW()
 		WHERE id = $1
-	`, id, name, desc, catID, active, visible)
+	`, id, name, desc, catID, active, visible, margin)
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/store-platform/store/internal/billing"
+	"github.com/store-platform/store/internal/catalog"
 	"github.com/store-platform/store/internal/customers"
 	"github.com/store-platform/store/internal/inventory"
 )
@@ -19,10 +20,11 @@ type Service struct {
 	pool      *pgxpool.Pool
 	inventory *inventory.Service
 	billing   *billing.Service
+	catalog   *catalog.Service
 }
 
-func NewService(pool *pgxpool.Pool, inv *inventory.Service, bill *billing.Service) *Service {
-	return &Service{pool: pool, inventory: inv, billing: bill}
+func NewService(pool *pgxpool.Pool, inv *inventory.Service, bill *billing.Service, cat *catalog.Service) *Service {
+	return &Service{pool: pool, inventory: inv, billing: bill, catalog: cat}
 }
 
 type CartItem struct {
@@ -249,6 +251,16 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
+	}
+	if s.catalog != nil && s.inventory != nil {
+		seen := make(map[uuid.UUID]struct{})
+		for _, l := range lines {
+			if _, ok := seen[l.skuID]; ok {
+				continue
+			}
+			seen[l.skuID] = struct{}{}
+			_, _ = s.catalog.RecalculateSKU(ctx, l.skuID, actorUserID, "auto:venda", s.inventory.WeightedAverageCostCents)
+		}
 	}
 	return &Order{ID: orderID, OrderNumber: orderNumber, TotalCents: total, Status: "confirmed"}, nil
 }

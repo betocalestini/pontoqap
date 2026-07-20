@@ -557,3 +557,193 @@ td {
   font-size: 0.8rem;
   max-width: 100%;
 }
+
+/* —— Estoque —— */
+.inventory-page h1 {
+  margin-bottom: var(--space-lg);
+}
+
+.inventory-page h2 {
+  font-size: 1.125rem;
+  margin: 0 0 var(--space-md);
+}
+
+.inventory-layout {
+  display: grid;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+
+.inventory-panel {
+  min-width: 0;
+}
+
+.inventory-panel--form {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.inventory-page .inventory-form {
+  max-width: none;
+  margin-bottom: 0;
+}
+
+.inventory-balances-cards {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.inventory-balance-card {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.inventory-balance-card__title {
+  margin: 0 0 var(--space-xs);
+  font-weight: 600;
+}
+
+.inventory-balance-card__meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+tr.row--warning td {
+  color: var(--color-danger);
+}
+
+.inventory-history-table {
+  min-width: 56rem;
+}
+
+.products-pricing-bar {
+  display: grid;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+@media (min-width: 640px) {
+  .products-pricing-bar {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+}
+
+.products-pricing-bar label {
+  margin: 0;
+}
+
+.products-pricing-bar button {
+  min-height: var(--touch-min);
+}
+
+.inventory-filter-bar {
+  display: grid;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+@media (min-width: 768px) {
+  .inventory-filter-bar {
+    grid-template-columns: 1fr 1fr auto;
+    align-items: end;
+  }
+}
+
+.inventory-filter-bar__field {
+  margin: 0;
+  min-width: 0;
+}
+
+.inventory-filter-bar__clear {
+  align-self: end;
+  white-space: nowrap;
+}
+
+.inventory-history-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.inventory-history-header h2 {
+  margin: 0;
+}
+
+.inventory-history-meta {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.inventory-load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-md);
+}
+
+.inventory-load-more button {
+  min-width: 12rem;
+}
+
+@media (min-width: 1024px) {
+  .inventory-layout {
+    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 22rem);
+    align-items: start;
+    gap: var(--space-lg);
+  }
+
+  .inventory-panel--form {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-md));
+  }
+
+  .inventory-form.form--wide {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1280px) {
+  .inventory-layout {
+    grid-template-columns: minmax(0, 1.75fr) minmax(20rem, 24rem);
+  }
+}
+
+@media (max-width: 767px) {
+  .inventory-balances-table {
+    display: none;
+  }
+
+  .inventory-balances-cards {
+    display: flex;
+  }
+
+  .inventory-panel--form {
+    padding: var(--space-md) 0;
+    border: none;
+    background: transparent;
+  }
+}

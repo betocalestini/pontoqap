@@ -60,7 +60,7 @@ func newE2EServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, *http.Cli
 func setupE2EInventory(t *testing.T, ctx context.Context, pool *pgxpool.Pool, skuID uuid.UUID, managerID uuid.UUID) {
 	t.Helper()
 	inv := inventory.NewService(pool)
-	if err := inv.RegisterEntry(ctx, skuID, 20, managerID, "entrada"); err != nil {
+	if err := inv.RegisterEntry(ctx, skuID, 20, managerID, "entrada", 0); err != nil {
 		t.Fatal(err)
 	}
 }

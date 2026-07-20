@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/store-platform/store/internal/inventory"
 )
 
 type Service struct {
@@ -27,26 +29,28 @@ type Category struct {
 }
 
 type SKU struct {
-	ID             uuid.UUID `json:"id"`
-	Code           string    `json:"code"`
-	Barcode        string    `json:"barcode,omitempty"`
-	Unit           string    `json:"unit"`
-	SalePriceCents int64     `json:"sale_price_cents"`
-	CostPriceCents *int64    `json:"cost_price_cents,omitempty"`
-	MinimumStock   int       `json:"minimum_stock"`
-	Active         bool      `json:"active"`
-	AvailableQty   *int      `json:"available_quantity,omitempty"`
+	ID                uuid.UUID `json:"id"`
+	Code              string    `json:"code"`
+	Barcode           string    `json:"barcode,omitempty"`
+	Unit              string    `json:"unit"`
+	SalePriceCents    int64     `json:"sale_price_cents"`
+	CostPriceCents    *int64    `json:"cost_price_cents,omitempty"`
+	AverageCostCents  *int64    `json:"average_cost_cents,omitempty"`
+	MinimumStock      int       `json:"minimum_stock"`
+	Active            bool      `json:"active"`
+	AvailableQty      *int      `json:"available_quantity,omitempty"`
 }
 
 type Product struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Slug        string    `json:"slug"`
-	Description string    `json:"description,omitempty"`
-	CategoryID  *uuid.UUID `json:"category_id,omitempty"`
-	Active      bool      `json:"active"`
-	Visible     bool      `json:"visible"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	Slug          string    `json:"slug"`
+	Description   string    `json:"description,omitempty"`
+	CategoryID    *uuid.UUID `json:"category_id,omitempty"`
+	MarginPercent float64   `json:"margin_percent"`
+	Active        bool      `json:"active"`
+	Visible       bool      `json:"visible"`
+	UpdatedAt     time.Time `json:"updated_at"`
 	ImageURL    string    `json:"image_url,omitempty"`
 	ImageAlt    string    `json:"image_alt,omitempty"`
 	Images      []ProductImage `json:"images,omitempty"`
@@ -124,7 +128,7 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 
 	args = append(args, f.PageSize, offset)
 	q := `
-		SELECT p.id, p.name, p.slug, COALESCE(p.description,''), p.category_id, p.active, p.visible, p.updated_at
+		SELECT p.id, p.name, p.slug, COALESCE(p.description,''), p.category_id, p.margin_percent, p.active, p.visible, p.updated_at
 		FROM products p
 		LEFT JOIN categories c ON c.id = p.category_id
 		WHERE ` + whereSQL + `
@@ -141,7 +145,7 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 	var ids []uuid.UUID
 	for rows.Next() {
 		var p Product
-		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.Active, &p.Visible, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.MarginPercent, &p.Active, &p.Visible, &p.UpdatedAt); err != nil {
 			return nil, 0, err
 		}
 		products = append(products, p)
@@ -181,11 +185,11 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 
 func (s *Service) GetProduct(ctx context.Context, id uuid.UUID, publicOnly bool) (*Product, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, name, slug, COALESCE(description,''), category_id, active, visible, updated_at
+		SELECT id, name, slug, COALESCE(description,''), category_id, margin_percent, active, visible, updated_at
 		FROM products WHERE id = $1
 	`, id)
 	var p Product
-	if err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.Active, &p.Visible, &p.UpdatedAt); err != nil {
+	if err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.MarginPercent, &p.Active, &p.Visible, &p.UpdatedAt); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
@@ -224,18 +228,28 @@ func (s *Service) GetProduct(ctx context.Context, id uuid.UUID, publicOnly bool)
 }
 
 func (s *Service) loadSKUs(ctx context.Context, productIDs []uuid.UUID, activeOnly bool) (map[uuid.UUID][]SKU, error) {
+	locID, _ := uuid.Parse(inventory.DefaultLocationID)
 	q := `
 		SELECT s.id, s.product_id, s.code, COALESCE(s.barcode,''), s.unit, s.sale_price_cents,
 		       s.cost_price_cents, s.minimum_stock, s.active,
-		       COALESCE(ib.available_quantity, 0)
+		       COALESCE(ib.available_quantity, 0),
+		       CASE WHEN COALESCE(SUM(il.quantity_remaining), 0) > 0 THEN
+		         (
+		           (COALESCE(SUM(il.quantity_remaining::bigint * il.unit_cost_cents), 0)::bigint
+		             + COALESCE(SUM(il.quantity_remaining), 0)::bigint / 2)
+		           / COALESCE(SUM(il.quantity_remaining), 1)::bigint
+		         )
+		       ELSE NULL END
 		FROM skus s
-		LEFT JOIN inventory_balances ib ON ib.sku_id = s.id
+		LEFT JOIN inventory_balances ib ON ib.sku_id = s.id AND ib.location_id = $2
+		LEFT JOIN inventory_lots il ON il.sku_id = s.id AND il.location_id = $2 AND il.quantity_remaining > 0
 		WHERE s.product_id = ANY($1)
 	`
 	if activeOnly {
 		q += ` AND s.active = TRUE`
 	}
-	rows, err := s.pool.Query(ctx, q, productIDs)
+	q += ` GROUP BY s.id, s.product_id, s.code, s.barcode, s.unit, s.sale_price_cents, s.cost_price_cents, s.minimum_stock, s.active, ib.available_quantity`
+	rows, err := s.pool.Query(ctx, q, productIDs, locID)
 	if err != nil {
 		return nil, err
 	}
@@ -245,10 +259,12 @@ func (s *Service) loadSKUs(ctx context.Context, productIDs []uuid.UUID, activeOn
 		var sku SKU
 		var productID uuid.UUID
 		var qty int
+		var avgCost *int64
 		if err := rows.Scan(&sku.ID, &productID, &sku.Code, &sku.Barcode, &sku.Unit, &sku.SalePriceCents,
-			&sku.CostPriceCents, &sku.MinimumStock, &sku.Active, &qty); err != nil {
+			&sku.CostPriceCents, &sku.MinimumStock, &sku.Active, &qty, &avgCost); err != nil {
 			return nil, err
 		}
+		sku.AverageCostCents = avgCost
 		sku.AvailableQty = &qty
 		out[productID] = append(out[productID], sku)
 	}
@@ -350,13 +366,17 @@ func (s *Service) CreateProduct(ctx context.Context, in CreateProductInput) (*Pr
 	}
 	defer tx.Rollback(ctx)
 
+	margin, err := s.GetDefaultMarginPercent(ctx)
+	if err != nil {
+		margin = 30
+	}
 	var p Product
 	err = tx.QueryRow(ctx, `
-		INSERT INTO products (name, slug, description, category_id, active, visible)
-		VALUES ($1, $2, $3, $4, TRUE, TRUE)
-		RETURNING id, name, slug, COALESCE(description,''), category_id, active, visible
-	`, in.Name, in.Slug, in.Description, in.CategoryID).Scan(
-		&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.Active, &p.Visible,
+		INSERT INTO products (name, slug, description, category_id, margin_percent, active, visible)
+		VALUES ($1, $2, $3, $4, $5, TRUE, TRUE)
+		RETURNING id, name, slug, COALESCE(description,''), category_id, margin_percent, active, visible
+	`, in.Name, in.Slug, in.Description, in.CategoryID, margin).Scan(
+		&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.MarginPercent, &p.Active, &p.Visible,
 	)
 	if err != nil {
 		return nil, err

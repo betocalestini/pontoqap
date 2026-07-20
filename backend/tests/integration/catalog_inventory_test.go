@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/store-platform/store/internal/billing"
+	"github.com/store-platform/store/internal/catalog"
 	"github.com/store-platform/store/internal/inventory"
 	"github.com/store-platform/store/internal/sales"
 	"github.com/store-platform/store/tests/testdb"
@@ -26,7 +27,7 @@ func TestRegisterAdjustmentUpdatesBalance(t *testing.T) {
 		t.Fatal(err)
 	}
 	inv := inventory.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "entrada teste"); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "entrada teste", 500); err != nil {
 		t.Fatal(err)
 	}
 	if err := inv.RegisterAdjustment(ctx, prod.SKUID, 7, "contagem", mgr.UserID); err != nil {
@@ -57,7 +58,7 @@ func TestRegisterInitialStock(t *testing.T) {
 		t.Fatal(err)
 	}
 	inv := inventory.NewService(pool)
-	if err := inv.RegisterInitialStock(ctx, prod.SKUID, 15, mgr.UserID); err != nil {
+	if err := inv.RegisterInitialStock(ctx, prod.SKUID, 15, mgr.UserID, 500); err != nil {
 		t.Fatal(err)
 	}
 	var qty int
@@ -90,9 +91,9 @@ func TestCheckoutCreatesSaleMovement(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100_000)
 	prod, _ := testdb.SeedProduct(ctx, pool, "Café", "CAF-1", 1500)
 	inv := inventory.NewService(pool)
-	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada")
+	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0)
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catalog.NewService(pool))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
 	order, err := salesSvc.Checkout(ctx, cust.ID, "sale-mov-key", cust.UserID)
 	if err != nil {

@@ -37,11 +37,12 @@ func (h *Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Name        *string `json:"name"`
-		Description *string `json:"description"`
-		CategoryID  *string `json:"category_id"`
-		Active      *bool   `json:"active"`
-		Visible     *bool   `json:"visible"`
+		Name          *string  `json:"name"`
+		Description   *string  `json:"description"`
+		CategoryID    *string  `json:"category_id"`
+		Active        *bool    `json:"active"`
+		Visible       *bool    `json:"visible"`
+		MarginPercent *float64 `json:"margin_percent"`
 	}
 	if err := httpx.DecodeJSON(r, &body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
@@ -49,6 +50,7 @@ func (h *Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	in := catalog.UpdateProductInput{
 		Name: body.Name, Description: body.Description, Active: body.Active, Visible: body.Visible,
+		MarginPercent: body.MarginPercent,
 	}
 	if body.CategoryID != nil {
 		if strings.TrimSpace(*body.CategoryID) == "" {
@@ -66,6 +68,10 @@ func (h *Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao atualizar produto")
 		return
+	}
+	if user := identityhttp.UserFromContext(r.Context()); user != nil && body.MarginPercent != nil {
+		h.recalculateProductSKUs(r.Context(), id, user.User.ID, "auto:margem")
+		p, _ = h.svc.GetProduct(r.Context(), id, false)
 	}
 	httpx.WriteJSON(w, http.StatusOK, p)
 }
@@ -97,11 +103,15 @@ func (h *Handler) updateSKU(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.svc.UpdateSKU(r.Context(), skuID, catalog.UpdateSKUInput{
 		Code: body.Code, Barcode: body.Barcode, Unit: body.Unit,
-		SalePriceCents: body.SalePriceCents, CostPriceCents: body.CostPriceCents,
+		CostPriceCents: body.CostPriceCents,
 		MinimumStock: body.MinimumStock, Active: body.Active,
 	}, user.User.ID, body.PriceReason); err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao atualizar SKU")
 		return
+	}
+	if body.CostPriceCents != nil && h.inv != nil && *body.CostPriceCents > 0 {
+		_ = h.inv.SetRemainingLotsUnitCost(r.Context(), skuID, *body.CostPriceCents)
+		_, _ = h.svc.RecalculateSKU(r.Context(), skuID, user.User.ID, "auto:custo", h.inv.WeightedAverageCostCents)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -144,10 +154,15 @@ func (h *Handler) createProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.InitialStock > 0 && h.inv != nil && user != nil && len(p.SKUs) > 0 {
-		if err := h.inv.RegisterInitialStock(r.Context(), p.SKUs[0].ID, body.InitialStock, user.User.ID); err != nil {
+		unitCost := int64(0)
+		if body.CostPrice != nil {
+			unitCost = *body.CostPrice
+		}
+		if err := h.inv.RegisterInitialStock(r.Context(), p.SKUs[0].ID, body.InitialStock, user.User.ID, unitCost); err != nil {
 			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
+		h.recalculateProductSKUs(r.Context(), p.ID, user.User.ID, "auto:entrada")
 		p, _ = h.svc.GetProduct(r.Context(), p.ID, false)
 	}
 	httpx.WriteJSON(w, http.StatusCreated, p)

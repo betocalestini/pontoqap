@@ -23,7 +23,7 @@ const emptyForm = () => ({
   sku_code: '',
   barcode: '',
   unit: 'UN',
-  sale_price_cents: '',
+  margin_percent: '30',
   cost_price_cents: '',
   minimum_stock: '0',
   initial_stock: '',
@@ -53,6 +53,9 @@ export function ProductsPage() {
   const [imageEditorKey, setImageEditorKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
+  const [defaultMargin, setDefaultMargin] = useState('30');
+  const [bulkMargin, setBulkMargin] = useState('30');
+  const [repriceBusy, setRepriceBusy] = useState(false);
 
   const clearImageSelection = useCallback(() => {
     setImageFile(null);
@@ -76,7 +79,36 @@ export function ProductsPage() {
 
   useEffect(() => {
     load().catch((e: Error) => setError(e.message));
+    api.adminGetPricingSettings()
+      .then((s) => {
+        const m = String(s.default_margin_percent);
+        setDefaultMargin(m);
+        setBulkMargin(m);
+      })
+      .catch(() => {});
   }, [load]);
+
+  async function applyMarginToAll() {
+    const margin = parseFloat(bulkMargin.replace(',', '.'));
+    if (!Number.isFinite(margin) || margin < 0) {
+      setError('Informe uma margem válida');
+      return;
+    }
+    const msg = `Definir margem de ${margin}% em todos os ${items.length} produtos e recalcular os preços de venda com base no custo médio dos lotes em estoque?`;
+    if (!window.confirm(msg)) return;
+    setRepriceBusy(true);
+    setError(null);
+    try {
+      await api.adminRepriceAllProducts(margin);
+      setDefaultMargin(String(margin));
+      setNotice('Margem aplicada e preços recalculados.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao aplicar margem');
+    } finally {
+      setRepriceBusy(false);
+    }
+  }
 
   function onImageFileChange(file: File | null) {
     setImageFile(file);
@@ -109,8 +141,13 @@ export function ProductsPage() {
         sku_code: sku?.code ?? '',
         barcode: sku?.barcode ?? '',
         unit: sku?.unit ?? 'UN',
-        sale_price_cents: sku ? String(sku.sale_price_cents / 100) : '',
-        cost_price_cents: sku?.cost_price_cents != null ? String(sku.cost_price_cents / 100) : '',
+        margin_percent: String(p.margin_percent ?? 30),
+        cost_price_cents:
+          sku?.average_cost_cents != null && sku.average_cost_cents > 0
+            ? String(sku.average_cost_cents / 100)
+            : sku?.cost_price_cents != null
+              ? String(sku.cost_price_cents / 100)
+              : '',
         minimum_stock: String(sku?.minimum_stock ?? 0),
         initial_stock: '',
         active: p.active,
@@ -164,7 +201,10 @@ export function ProductsPage() {
       return;
     }
     try {
-      const saleCents = Math.round(parseFloat(form.sale_price_cents.replace(',', '.')) * 100);
+      const margin = parseFloat(form.margin_percent.replace(',', '.'));
+      if (!Number.isFinite(margin) || margin < 0) {
+        throw new Error('Margem inválida');
+      }
       const costCents = form.cost_price_cents.trim()
         ? Math.round(parseFloat(form.cost_price_cents.replace(',', '.')) * 100)
         : undefined;
@@ -172,6 +212,9 @@ export function ProductsPage() {
 
       if (editingId === 'new') {
         const initial = form.initial_stock.trim() ? parseInt(form.initial_stock, 10) : 0;
+        if (initial > 0 && costCents == null) {
+          throw new Error('Informe o custo unitário para estoque inicial (ou registre entrada depois em Estoque)');
+        }
         const created = await api.adminCreateProduct({
           name: form.name,
           slug: form.slug || slugify(form.name),
@@ -179,12 +222,13 @@ export function ProductsPage() {
           category_id: form.category_id || undefined,
           sku_code: form.sku_code,
           barcode: form.barcode || undefined,
-          sale_price_cents: saleCents,
+          sale_price_cents: 0,
           cost_price_cents: costCents,
           minimum_stock: minStock,
           unit: form.unit,
           initial_stock: initial > 0 ? initial : undefined,
         });
+        await api.adminUpdateProduct(created.id, { margin_percent: margin });
         const uploadOk = fileToUpload
           ? await uploadImageForProduct(created.id, fileToUpload)
           : true;
@@ -195,26 +239,25 @@ export function ProductsPage() {
       }
 
       if (editingId) {
-        await api.adminUpdateProduct(editingId, {
-          name: form.name,
-          description: form.description,
-          category_id: form.category_id,
-          active: form.active,
-          visible: form.visible,
-        });
         const sku = (await api.adminGetProduct(editingId)).skus?.[0];
         if (sku) {
           await api.adminUpdateSku(sku.id, {
             code: form.sku_code,
             barcode: form.barcode,
             unit: form.unit,
-            sale_price_cents: saleCents,
             cost_price_cents: costCents ?? null,
             minimum_stock: minStock,
             active: form.active,
-            price_reason: 'Alteração no painel',
           });
         }
+        await api.adminUpdateProduct(editingId, {
+          name: form.name,
+          description: form.description,
+          category_id: form.category_id,
+          active: form.active,
+          visible: form.visible,
+          margin_percent: margin,
+        });
         const uploadOk = fileToUpload
           ? await uploadImageForProduct(editingId, fileToUpload)
           : true;
@@ -258,6 +301,23 @@ export function ProductsPage() {
       </div>
       {error && <p className="error">{error}</p>}
       {notice && <p className="ok">{notice}</p>}
+
+      {!editingId && (
+        <div className="products-pricing-bar">
+          <label>
+            Margem padrão (%)
+            <input
+              value={bulkMargin}
+              onChange={(e) => setBulkMargin(e.target.value)}
+              inputMode="decimal"
+            />
+            <small>Padrão atual do sistema: {defaultMargin}%</small>
+          </label>
+          <button type="button" disabled={repriceBusy} onClick={() => void applyMarginToAll()}>
+            {repriceBusy ? 'Aplicando…' : 'Aplicar a todos os produtos'}
+          </button>
+        </div>
+      )}
 
       {editingId && (
         <form id="product-edit-form" onSubmit={save} className="form form--wide product-form">
@@ -312,13 +372,21 @@ export function ProductsPage() {
             <input value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} />
           </label>
           <label>
-            Preço de venda (R$)
-            <input value={form.sale_price_cents} onChange={(e) => setForm((f) => ({ ...f, sale_price_cents: e.target.value }))} required />
+            Margem de lucro (%)
+            <input
+              value={form.margin_percent}
+              onChange={(e) => setForm((f) => ({ ...f, margin_percent: e.target.value }))}
+              inputMode="decimal"
+              required
+            />
+            <small>Preço de venda = custo médio dos lotes × (1 + margem/100)</small>
           </label>
           <label>
-            Custo (R$)
+            Custo unitário (R$) — base do preço (lotes em estoque)
             <input value={form.cost_price_cents} onChange={(e) => setForm((f) => ({ ...f, cost_price_cents: e.target.value }))} />
+            <small>Entradas de estoque com preço pago atualizam o custo médio automaticamente.</small>
           </label>
+          <ProductSalePreview editingId={editingId} form={form} />
           <label>
             Estoque mínimo
             <input
@@ -397,7 +465,9 @@ export function ProductsPage() {
             <tr>
               <th />
               <th>Nome</th>
-              <th>Preço</th>
+              <th>Margem</th>
+              <th>Custo médio</th>
+              <th>Preço venda</th>
               <th>Estoque</th>
               <th>Status</th>
               <th />
@@ -456,6 +526,8 @@ function ProductTableRow({
         )}
       </td>
       <td>{p.name}</td>
+      <td>{p.margin_percent != null ? `${p.margin_percent}%` : '—'}</td>
+      <td>{sku?.average_cost_cents != null ? formatBRL(sku.average_cost_cents) : '—'}</td>
       <td>{sku ? formatBRL(sku.sale_price_cents) : '—'}</td>
       <td className={low ? 'error' : undefined}>{qty}</td>
       <td>
@@ -468,8 +540,8 @@ function ProductTableRow({
           {loadingEditId === p.id ? 'Carregando…' : 'Editar'}
         </button>
         {sku && (
-          <Link to={`/estoque?sku_id=${sku.id}`} className="table-actions__link">
-            Histórico
+          <Link to={`/estoque?product_id=${p.id}`} className="table-actions__link">
+            Estoque
           </Link>
         )}
       </td>
@@ -502,7 +574,12 @@ function ProductCard({
         <div>
           <strong>{p.name}</strong>
           <p className="product-card__meta">
-            {sku ? formatBRL(sku.sale_price_cents) : '—'} · Estoque: <span className={low ? 'error' : undefined}>{qty}</span>
+            Margem {p.margin_percent ?? '—'}% · Custo médio{' '}
+            {sku?.average_cost_cents != null ? formatBRL(sku.average_cost_cents) : '—'} · Venda{' '}
+            {sku ? formatBRL(sku.sale_price_cents) : '—'}
+          </p>
+          <p className="product-card__meta">
+            Estoque: <span className={low ? 'error' : undefined}>{qty}</span>
           </p>
           <p className="product-card__meta">
             {!p.active && 'Inativo '}
@@ -515,9 +592,51 @@ function ProductCard({
         <button type="button" onClick={() => void onEdit(p.id)} disabled={loadingEditId === p.id}>
           {loadingEditId === p.id ? 'Carregando…' : 'Editar'}
         </button>
-        {sku && <Link to={`/estoque?sku_id=${sku.id}`}>Histórico</Link>}
+        {sku && <Link to={`/estoque?product_id=${p.id}`}>Estoque</Link>}
       </div>
     </li>
+  );
+}
+
+function salePriceFromCostCents(costCents: number, marginPercent: number): number {
+  return Math.round(costCents * (1 + marginPercent / 100));
+}
+
+function ProductSalePreview({
+  editingId,
+  form,
+}: {
+  editingId: string;
+  form: ReturnType<typeof emptyForm>;
+}) {
+  const [preview, setPreview] = useState<string>('—');
+  useEffect(() => {
+    const m = parseFloat(form.margin_percent.replace(',', '.'));
+    const costFromForm = form.cost_price_cents.trim()
+      ? Math.round(parseFloat(form.cost_price_cents.replace(',', '.')) * 100)
+      : null;
+    if (costFromForm != null && costFromForm > 0 && Number.isFinite(m)) {
+      setPreview(formatBRL(salePriceFromCostCents(costFromForm, m)));
+      return;
+    }
+    if (editingId === 'new') {
+      setPreview('Informe custo e margem, ou registre entrada em Estoque');
+      return;
+    }
+    api.adminGetProduct(editingId).then((p) => {
+      const sku = p.skus?.[0];
+      const cost = sku?.average_cost_cents;
+      if (sku && cost != null && cost > 0 && Number.isFinite(m)) {
+        setPreview(formatBRL(salePriceFromCostCents(cost, m)));
+      } else if (sku) {
+        setPreview(formatBRL(sku.sale_price_cents));
+      }
+    });
+  }, [editingId, form.margin_percent, form.cost_price_cents]);
+  return (
+    <p className="form__full">
+      Preço de venda (calculado): <strong>{preview}</strong>
+    </p>
   );
 }
 

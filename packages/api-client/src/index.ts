@@ -9,6 +9,7 @@ export type AdminSku = {
   unit: string;
   sale_price_cents: number;
   cost_price_cents?: number;
+  average_cost_cents?: number;
   minimum_stock: number;
   active: boolean;
   available_quantity?: number;
@@ -20,6 +21,7 @@ export type AdminProduct = {
   slug: string;
   description?: string;
   category_id?: string;
+  margin_percent?: number;
   active: boolean;
   visible: boolean;
   image_url?: string;
@@ -48,6 +50,7 @@ export type AdminUpdateProductBody = {
   category_id?: string | null;
   active?: boolean;
   visible?: boolean;
+  margin_percent?: number;
 };
 
 export type AdminUpdateSkuBody = {
@@ -82,6 +85,7 @@ export type AdminInventoryMovement = {
   reference_type?: string;
   reference_id?: string;
   reason?: string;
+  unit_cost_cents?: number;
   created_by_email?: string;
   created_at: string;
 };
@@ -208,24 +212,37 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     adminListCustomers: () => request<{ items: unknown[] }>('/admin/customers', {}, 'admin'),
     adminApproveCustomer: (id: string) =>
       request(`/admin/customers/${id}/approve`, { method: 'PATCH' }, 'admin'),
-    adminInventoryEntry: (body: { sku_id: string; quantity: number; reason?: string; note?: string }) =>
+    adminInventoryEntry: (body: {
+      sku_id: string;
+      quantity: number;
+      reason?: string;
+      note?: string;
+      unit_cost_cents?: number;
+    }) =>
       request('/admin/inventory/entries', {
         method: 'POST',
         body: JSON.stringify({
           sku_id: body.sku_id,
           quantity: body.quantity,
           reason: body.reason ?? body.note ?? '',
+          ...(body.unit_cost_cents != null ? { unit_cost_cents: body.unit_cost_cents } : {}),
         }),
       }, 'admin'),
     adminInventoryBalances: () =>
       request<{ items: AdminInventoryBalance[] }>('/admin/inventory/balances', {}, 'admin'),
-    adminInventoryMovements: (params?: { sku_id?: string; limit?: number; offset?: number }) => {
+    adminInventoryMovements: (params?: {
+      sku_id?: string;
+      product_id?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
       const q = new URLSearchParams();
       if (params?.sku_id) q.set('sku_id', params.sku_id);
+      if (params?.product_id) q.set('product_id', params.product_id);
       if (params?.limit != null) q.set('limit', String(params.limit));
       if (params?.offset != null) q.set('offset', String(params.offset));
       const qs = q.toString();
-      return request<{ items: AdminInventoryMovement[] }>(
+      return request<{ items: AdminInventoryMovement[]; total: number; limit: number; offset: number }>(
         `/admin/inventory/movements${qs ? `?${qs}` : ''}`,
         {},
         'admin',
@@ -237,6 +254,7 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       quantity?: number;
       physical_count?: number;
       reason: string;
+      unit_cost_cents?: number;
     }) =>
       request('/admin/inventory/movements', { method: 'POST', body: JSON.stringify(body) }, 'admin'),
 
@@ -286,6 +304,19 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     },
     adminDeleteProductImage: (productId: string, imageId: string) =>
       request(`/admin/products/${productId}/images/${imageId}`, { method: 'DELETE' }, 'admin'),
+
+    adminGetPricingSettings: () =>
+      request<{ default_margin_percent: number }>('/admin/settings/pricing', {}, 'admin'),
+    adminPatchPricingSettings: (default_margin_percent: number) =>
+      request('/admin/settings/pricing', {
+        method: 'PATCH',
+        body: JSON.stringify({ default_margin_percent }),
+      }, 'admin'),
+    adminRepriceAllProducts: (margin_percent: number) =>
+      request<{ products_updated: number }>('/admin/products/reprice-all', {
+        method: 'POST',
+        body: JSON.stringify({ margin_percent }),
+      }, 'admin'),
 
     adminCloseBilling: (body?: { year?: number; month?: number }) =>
       request('/admin/billing/close', { method: 'POST', body: JSON.stringify(body ?? {}) }, 'admin'),
