@@ -11,7 +11,7 @@ export function DashboardPage() {
   }, []);
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Dashboard</h1>
       {error && <p className="error">{error}</p>}
       {data && (

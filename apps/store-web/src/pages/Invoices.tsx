@@ -68,7 +68,7 @@ export function InvoicesPage() {
   const hasHistory = items.length > 0;
 
   return (
-    <section className="invoices-page">
+    <section className="content-section invoices-page">
       <h1>Minhas faturas</h1>
       {loading && <p>Carregando…</p>}
       {error && <p className="error">{error}</p>}

@@ -27,7 +27,7 @@ export function VerifyEmailPage() {
   }, [params]);
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Confirmação de e-mail</h1>
       {status === 'loading' && <p>Validando…</p>}
       {status !== 'loading' && <p className={status === 'ok' ? 'ok' : 'error'}>{message}</p>}

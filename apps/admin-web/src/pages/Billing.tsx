@@ -36,12 +36,12 @@ export function BillingPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Faturamento</h1>
       <button type="button" onClick={closePeriods}>Fechar competência</button>
-      {closeMsg && <pre>{closeMsg}</pre>}
+      {closeMsg && <pre className="code-block">{closeMsg}</pre>}
       {error && <p className="error">{error}</p>}
-      <ul>
+      <ul className="data-list">
         {items.map((inv) => (
           <li key={inv.id}>
             {inv.invoice_number} — {inv.status} — {formatMoney(inv.total_cents)}

@@ -7,7 +7,6 @@ type CartItem = {
   sku_id: string;
   quantity: number;
   product_name: string;
-  sku_code?: string;
   unit_price_cents: number;
   line_total_cents: number;
 };
@@ -59,7 +58,7 @@ export function CartPage() {
   const totalCents = items.reduce((sum, it) => sum + it.line_total_cents, 0);
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Carrinho</h1>
       {error && <p className="error">{error}</p>}
       {orderId && <p className="ok">Pedido confirmado: {orderId}</p>}
@@ -69,42 +68,48 @@ export function CartPage() {
           <li key={it.id}>
             <div className="cart-line-main">
               <strong>{it.product_name}</strong>
-              <span className="cart-line-meta">
-                {formatMoney(it.unit_price_cents)} cada
-                {it.sku_code ? ` · ${it.sku_code}` : ''}
-              </span>
+              <span className="cart-line-meta">{formatMoney(it.unit_price_cents)} cada</span>
             </div>
-            <div className="cart-line-qty">
-              <button
-                type="button"
-                aria-label="Diminuir"
-                disabled={busy}
-                onClick={() => changeQty(it.sku_id, it.quantity - 1)}
-              >
-                −
-              </button>
-              <span>{it.quantity}</span>
-              <button
-                type="button"
-                aria-label="Aumentar"
-                disabled={busy}
-                onClick={() => changeQty(it.sku_id, it.quantity + 1)}
-              >
-                +
-              </button>
+            <div className="cart-line-row">
+              <div className="cart-line-qty">
+                <button
+                  type="button"
+                  aria-label="Diminuir"
+                  disabled={busy}
+                  onClick={() => changeQty(it.sku_id, it.quantity - 1)}
+                >
+                  −
+                </button>
+                <span>{it.quantity}</span>
+                <button
+                  type="button"
+                  aria-label="Aumentar"
+                  disabled={busy}
+                  onClick={() => changeQty(it.sku_id, it.quantity + 1)}
+                >
+                  +
+                </button>
+              </div>
+              <div className="cart-line-total">{formatMoney(it.line_total_cents)}</div>
             </div>
-            <div className="cart-line-total">{formatMoney(it.line_total_cents)}</div>
           </li>
         ))}
       </ul>
       {items.length > 0 && (
-        <p className="cart-total">
-          <strong>Total: {formatMoney(totalCents)}</strong>
-        </p>
+        <div className="cart-actions">
+          <p className="cart-total">
+            <strong>Total: {formatMoney(totalCents)}</strong>
+          </p>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={checkout}
+            disabled={!items.length || busy || !!orderId}
+          >
+            Finalizar compra
+          </button>
+        </div>
       )}
-      <button type="button" onClick={checkout} disabled={!items.length || busy || !!orderId}>
-        Finalizar compra
-      </button>
     </section>
   );
 }

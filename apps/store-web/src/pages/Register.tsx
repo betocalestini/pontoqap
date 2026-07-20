@@ -19,7 +19,7 @@ export function RegisterPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Cadastro</h1>
       <form
         className="form"
@@ -47,7 +47,7 @@ export function RegisterPage() {
         </label>
         {error && <p className="error">{error}</p>}
         {msg && <p className="ok">{msg}</p>}
-        <button type="submit">Enviar</button>
+        <button type="submit" className="btn-block btn-block--sm-auto">Enviar</button>
       </form>
       <p>
         Já tem conta? <Link to="/login">Entrar</Link>

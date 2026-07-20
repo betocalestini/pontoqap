@@ -34,7 +34,7 @@ export function CatalogPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Catálogo</h1>
       {loading && <p>Carregando produtos…</p>}
       {error && <p className="error">{error}</p>}
@@ -42,11 +42,11 @@ export function CatalogPage() {
       {!loading && !error && products.length === 0 && (
         <p>Nenhum produto disponível. Cadastre itens no painel admin ou rode as migrations (seed de demo).</p>
       )}
-      <ul className="grid">
+      <ul className="product-grid">
         {products.map((p) => {
           const sku = p.skus?.[0];
           return (
-            <li key={p.id}>
+            <li key={p.id} className="product-card">
               <strong>{p.name}</strong>
               {sku && (
                 <>

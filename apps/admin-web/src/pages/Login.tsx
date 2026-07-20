@@ -33,7 +33,7 @@ export function LoginPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Painel administrativo</h1>
       <form onSubmit={onSubmit} className="form">
         {!needsMfa ? (

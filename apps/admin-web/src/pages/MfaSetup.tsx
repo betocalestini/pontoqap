@@ -30,7 +30,7 @@ export function MfaSetupPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Configurar MFA</h1>
       <p>Escaneie no aplicativo autenticador (Google Authenticator, etc.).</p>
       {secret && (

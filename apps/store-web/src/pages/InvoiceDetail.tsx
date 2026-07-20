@@ -38,13 +38,13 @@ export function InvoiceDetailPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Fatura</h1>
       {error && <p className="error">{error}</p>}
-      {inv && (
-        <pre>{JSON.stringify(inv, null, 2)}</pre>
-      )}
-      <button type="button" onClick={payPix}>Gerar Pix</button>
+      {inv && <pre className="invoice-pre">{JSON.stringify(inv, null, 2)}</pre>}
+      <div className="stack-sm stack-sm--row">
+        <button type="button" onClick={payPix}>Gerar Pix</button>
+      </div>
       {charge && (
         <div className="pix">
           <p>Valor: {formatMoney(charge.amount_cents)}</p>

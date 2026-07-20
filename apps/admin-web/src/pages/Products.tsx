@@ -37,7 +37,7 @@ export function ProductsPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Produtos</h1>
       {error && <p className="error">{error}</p>}
       <form onSubmit={create} className="form">
@@ -47,7 +47,7 @@ export function ProductsPage() {
         </label>
         <button type="submit">Criar produto (MVP)</button>
       </form>
-      <ul>
+      <ul className="data-list">
         {items.map((p) => (
           <li key={p.id}>{p.name}</li>
         ))}

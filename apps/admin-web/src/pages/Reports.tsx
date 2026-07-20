@@ -24,16 +24,16 @@ export function ReportsPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Relatórios</h1>
       {error && <p className="error">{error}</p>}
       <h2>Top produtos</h2>
-      <pre>{JSON.stringify(top, null, 2)}</pre>
+      <pre className="code-block">{JSON.stringify(top, null, 2)}</pre>
       <h2>Estoque</h2>
-      <pre>{JSON.stringify(inventory, null, 2)}</pre>
+      <pre className="code-block">{JSON.stringify(inventory, null, 2)}</pre>
       <h2>Previsão</h2>
       <button type="button" onClick={generate}>Gerar previsão</button>
-      <pre>{JSON.stringify(forecast, null, 2)}</pre>
+      <pre className="code-block">{JSON.stringify(forecast, null, 2)}</pre>
     </section>
   );
 }

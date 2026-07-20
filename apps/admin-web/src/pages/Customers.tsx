@@ -27,10 +27,10 @@ export function CustomersPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Clientes</h1>
       {error && <p className="error">{error}</p>}
-      <ul>
+      <ul className="data-list">
         {items.map((c) => (
           <li key={c.id}>
             {c.email ?? c.id} — {c.status}

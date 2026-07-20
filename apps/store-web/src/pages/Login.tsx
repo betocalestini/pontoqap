@@ -38,7 +38,7 @@ export function LoginPage() {
   }
 
   return (
-    <section>
+    <section className="content-section">
       <h1>Entrar</h1>
       <form onSubmit={onSubmit} className="form">
         <label>
@@ -56,7 +56,7 @@ export function LoginPage() {
           </p>
         )}
         {resent && <p className="ok">Se o e-mail existir, enviamos um novo link.</p>}
-        <button type="submit">Entrar</button>
+        <button type="submit" className="btn-block btn-block--sm-auto">Entrar</button>
       </form>
       <p>
         Ainda não tem conta? <Link to="/cadastro">Criar conta</Link>
