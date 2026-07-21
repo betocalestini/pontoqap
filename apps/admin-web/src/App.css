@@ -77,6 +77,13 @@
   flex-shrink: 0;
 }
 
+.app-top__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
 .app-main {
   flex: 1;
   width: 100%;
