@@ -150,6 +150,16 @@ paths:
       responses:
         '200':
           description: Lista de faturas
+  /me/billing/close-cycle:
+    post:
+      tags: [billing]
+      summary: Fechar ciclo atual e gerar fatura (parcial)
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Fatura gerada
+        '400':
+          description: Sem lançamentos no ciclo
   /me/invoices/{id}:
     get:
       tags: [billing]
@@ -430,20 +440,85 @@ paths:
           application/json:
             schema:
               type: object
+              required: [reason]
               properties:
                 year: { type: integer }
                 month: { type: integer }
+                reason: { type: string, minLength: 10 }
       responses:
         '200':
           description: Resultado do fechamento
+  /admin/billing/summary:
+    get:
+      tags: [billing]
+      summary: Resumo de faturamento
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: KPIs de faturamento
   /admin/billing/invoices:
     get:
       tags: [billing]
       summary: Todas as faturas
       security: [{ cookieAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: year
+          in: query
+          schema: { type: integer }
+        - name: month
+          in: query
+          schema: { type: integer }
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer }
+        - name: offset
+          in: query
+          schema: { type: integer }
       responses:
         '200':
-          description: Faturas
+          description: Faturas paginadas
+  /admin/billing/invoices/{id}:
+    get:
+      tags: [billing]
+      summary: Detalhe da fatura
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Fatura com itens e ajustes
+  /admin/billing/invoices/{id}/adjustments:
+    post:
+      tags: [billing]
+      summary: Lançar ajuste na fatura
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [adjustment_type, amount_cents, reason]
+              properties:
+                adjustment_type: { type: string, enum: [credit, debit] }
+                amount_cents: { type: integer, format: int64 }
+                reason: { type: string }
+      responses:
+        '200':
+          description: Fatura atualizada
   /admin/billing/calendar:
     get:
       tags: [billing]
