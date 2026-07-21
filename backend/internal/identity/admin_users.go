@@ -359,6 +359,9 @@ func (s *AdminUsersService) SetUserRole(ctx context.Context, actor AuthUser, tar
 	if len(target.Roles) > 0 {
 		oldRole = target.Roles[0]
 	}
+	if targetID == actor.User.ID {
+		return errForbidden("Não é possível alterar o próprio papel")
+	}
 	if newRole == "system_admin" && oldRole != "system_admin" && !HasSystemAdminRole(actor.Roles) {
 		return errForbidden("Somente administradores podem promover a administrador")
 	}
