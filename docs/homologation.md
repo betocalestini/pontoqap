@@ -91,8 +91,10 @@ make test-backup-restore
 | ----- | ---- | ------------------ | --- | --------- |
 | 5.1 | Painel → **Faturamento** → Fechar competência (mês da compra) | Fatura gerada | ☐ | invoice_id: |
 | 5.2 | Worker processa outbox | E-mail da fatura no Mailpit / SMTP | ☐ | assunto: Fatura INV-… |
-| 5.3 | Loja → **Faturas** | Fatura listada com total correto | ☐ | |
-| 5.4 | (Opcional) Aguardar 5º dia útil com worker ativo | Fechamento automático do mês anterior | ☐ | log worker |
+| 5.3 | Loja → **Faturas** | Fatura listada com total correto; vencimento dia 10 | ☐ | |
+| 5.4 | Loja → **Fechar fatura e pagar** (com compras no ciclo) | Nova fatura + novo ciclo aberto; Pix disponível | ☐ | |
+| 5.5 | (Opcional) Dia 1 com worker ativo | Fechamento automático do mês anterior | ☐ | log worker |
+| 5.6 | (Opcional) Fatura fechada sem pagar após 48h/72h | E-mail lembrete / escalada `overdue` | ☐ | Mailpit |
 
 ---
 

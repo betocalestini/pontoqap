@@ -397,9 +397,9 @@ Sistema externo que:
 | RF-FAT-002 | Compras deverão ser associadas ao mês da compra                   |
 | RF-FAT-003 | O sistema deverá manter calendário de dias úteis                  |
 | RF-FAT-004 | O gerente deverá poder cadastrar feriados locais                  |
-| RF-FAT-005 | O worker deverá identificar o quinto dia útil                     |
-| RF-FAT-006 | O worker deverá fechar o mês anterior                             |
-| RF-FAT-007 | Cada cliente deverá receber no máximo uma fatura por competência  |
+| RF-FAT-005 | O worker deverá identificar o **dia 1** do mês (America/Sao_Paulo) para fechamento automático |
+| RF-FAT-006 | O worker deverá fechar o mês anterior                                             |
+| RF-FAT-007 | Cada **ciclo** (período) gera no máximo uma fatura; vários ciclos por competência são permitidos após fechamento parcial |
 | RF-FAT-008 | O fechamento deverá ser idempotente                               |
 | RF-FAT-009 | O sistema deverá calcular subtotal, créditos e ajustes            |
 | RF-FAT-010 | O sistema deverá gerar número único de fatura                     |
@@ -412,7 +412,7 @@ Sistema externo que:
 | RF-FAT-017 | O sistema deverá permitir reprocessamento de fechamento com falha |
 | RF-FAT-018 | O sistema deverá registrar auditoria do fechamento                |
 | RF-FAT-019 | O sistema deverá permitir fechamento manual autorizado            |
-| RF-FAT-020 | O fechamento manual deverá utilizar a mesma regra do worker       |
+| RF-FAT-020 | O fechamento manual deverá utilizar a mesma regra de geração de fatura do worker (exceto `close_type` administrativo) |
 
 ## 9.8. Pagamento Pix
 
@@ -558,13 +558,13 @@ limite aprovado
 
 A compra pertence ao mês em que foi confirmada.
 
-## RN-009 — Fechamento subsequente
+## RN-009 — Fechamento mensal e vencimento
 
-O período será fechado no quinto dia útil do mês seguinte.
+O worker fecha automaticamente no **dia 1** (fuso America/Sao_Paulo) todos os períodos abertos da **competência do mês anterior**. O vencimento da fatura é o **dia 10** do mês seguinte à competência. O cliente pode solicitar **fechamento parcial** no mês (nova fatura + novo ciclo). Faturas fechadas e não pagas recebem lembrete no 2º dia após o fechamento e escalada (status `overdue`) no 3º dia.
 
-## RN-010 — Fatura única
+## RN-010 — Fatura por ciclo
 
-Só poderá existir uma fatura por cliente e competência.
+Cada período de faturamento (`billing_period` / ciclo) gera no máximo uma fatura; pode haver vários ciclos na mesma competência civil após fechamentos parciais.
 
 ## RN-011 — Idempotência
 
