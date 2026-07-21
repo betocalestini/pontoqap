@@ -132,6 +132,102 @@ export type AdminInventoryMovement = {
   created_at: string;
 };
 
+export type AdminBillingSummary = {
+  open_receivables_cents: number;
+  overdue_invoices_count: number;
+  open_periods_count: number;
+  open_periods_total_cents: number;
+  scheduled_closing_today: boolean;
+  scheduled_monthly_close_today?: boolean;
+};
+
+export type MyInvoiceListItem = {
+  id: string;
+  invoice_number: string;
+  status: string;
+  total_cents: number;
+  paid_cents: number;
+  due_at?: string;
+  close_type?: string;
+  reference_year?: number;
+  reference_month?: number;
+  cycle_number?: number;
+};
+
+export type OpenBillingPeriod = {
+  billing_period_id: string;
+  reference_year: number;
+  reference_month: number;
+  cycle_number?: number;
+  status: string;
+  total_cents: number;
+  entry_count: number;
+};
+
+export type AdminInvoiceListItem = {
+  id: string;
+  invoice_number: string;
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  reference_year: number;
+  reference_month: number;
+  status: string;
+  total_cents: number;
+  paid_cents: number;
+  remaining_cents: number;
+  due_at?: string;
+  closed_at?: string;
+};
+
+export type InvoiceDetailItem = {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price_cents: number;
+  total_cents: number;
+};
+
+export type InvoiceDetailAdjustment = {
+  id: string;
+  adjustment_type: string;
+  amount_cents: number;
+  reason: string;
+  created_at: string;
+};
+
+export type AdminInvoiceDetail = {
+  id: string;
+  invoice_number: string;
+  customer_id: string;
+  customer_name?: string;
+  customer_email?: string;
+  billing_period_id: string;
+  reference_year: number;
+  reference_month: number;
+  cycle_number?: number;
+  close_type?: string;
+  status: string;
+  subtotal_cents: number;
+  credit_cents: number;
+  adjustment_cents: number;
+  total_cents: number;
+  paid_cents: number;
+  remaining_cents: number;
+  due_at?: string;
+  closed_at?: string;
+  paid_at?: string;
+  items: InvoiceDetailItem[];
+  adjustments: InvoiceDetailAdjustment[];
+};
+
+export type BillingCalendarEntry = {
+  date: string;
+  name: string;
+  scope: string;
+  is_business_day: boolean;
+};
+
 export type AdminStaffUser = {
   id: string;
   name: string;
@@ -261,8 +357,14 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       }, 'store'),
 
     listMyInvoices: () =>
-      request<{ current_period: unknown; items: unknown[] }>('/me/invoices', {}, 'store'),
-    getMyInvoice: (id: string) => request(`/me/invoices/${id}`, {}, 'store'),
+      request<{ current_period: OpenBillingPeriod | null; items: MyInvoiceListItem[] }>(
+        '/me/invoices',
+        {},
+        'store',
+      ),
+    closeMyBillingCycle: () =>
+      request<MyInvoiceListItem>('/me/billing/close-cycle', { method: 'POST' }, 'store'),
+    getMyInvoice: (id: string) => request<AdminInvoiceDetail>(`/me/invoices/${id}`, {}, 'store'),
     createPixCharge: (invoiceId: string) =>
       request(`/me/invoices/${invoiceId}/pix-charge`, { method: 'POST' }, 'store'),
     simulatePixPayment: (chargeId: string) =>
@@ -311,6 +413,8 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       quantity: number;
       reason?: string;
       note?: string;
+      total_paid_cents?: number;
+      other_expenses_cents?: number;
       unit_cost_cents?: number;
     }) =>
       request('/admin/inventory/entries', {
@@ -319,6 +423,8 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
           sku_id: body.sku_id,
           quantity: body.quantity,
           reason: body.reason ?? body.note ?? '',
+          ...(body.total_paid_cents != null ? { total_paid_cents: body.total_paid_cents } : {}),
+          ...(body.other_expenses_cents != null ? { other_expenses_cents: body.other_expenses_cents } : {}),
           ...(body.unit_cost_cents != null ? { unit_cost_cents: body.unit_cost_cents } : {}),
         }),
       }, 'admin'),
@@ -348,6 +454,8 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       quantity?: number;
       physical_count?: number;
       reason: string;
+      total_paid_cents?: number;
+      other_expenses_cents?: number;
       unit_cost_cents?: number;
     }) =>
       request('/admin/inventory/movements', { method: 'POST', body: JSON.stringify(body) }, 'admin'),
@@ -412,9 +520,62 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
         body: JSON.stringify({ margin_percent }),
       }, 'admin'),
 
-    adminCloseBilling: (body?: { year?: number; month?: number }) =>
-      request('/admin/billing/close', { method: 'POST', body: JSON.stringify(body ?? {}) }, 'admin'),
-    adminListInvoices: () => request<{ items: unknown[] }>('/admin/billing/invoices', {}, 'admin'),
+    adminCloseBilling: (body: { year?: number; month?: number; reason: string }) =>
+      request<{ closed_periods: number; year: number; month: number }>(
+        '/admin/billing/close',
+        { method: 'POST', body: JSON.stringify(body) },
+        'admin',
+      ),
+    adminBillingSummary: () => request<AdminBillingSummary>('/admin/billing/summary', {}, 'admin'),
+    adminListInvoices: (params?: {
+      status?: string;
+      year?: number;
+      month?: number;
+      search?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const q = new URLSearchParams();
+      if (params?.status) q.set('status', params.status);
+      if (params?.year != null) q.set('year', String(params.year));
+      if (params?.month != null) q.set('month', String(params.month));
+      if (params?.search?.trim()) q.set('search', params.search.trim());
+      if (params?.limit != null) q.set('limit', String(params.limit));
+      if (params?.offset != null) q.set('offset', String(params.offset));
+      const qs = q.toString();
+      return request<{ items: AdminInvoiceListItem[]; total: number; limit: number; offset: number }>(
+        `/admin/billing/invoices${qs ? `?${qs}` : ''}`,
+        {},
+        'admin',
+      );
+    },
+    adminGetInvoice: (id: string) => request<AdminInvoiceDetail>(`/admin/billing/invoices/${id}`, {}, 'admin'),
+    adminAddInvoiceAdjustment: (
+      id: string,
+      body: { adjustment_type: 'credit' | 'debit'; amount_cents: number; reason: string },
+    ) =>
+      request<AdminInvoiceDetail>(`/admin/billing/invoices/${id}/adjustments`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }, 'admin'),
+    adminBillingCalendar: (params?: { from?: string; to?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.from) q.set('from', params.from);
+      if (params?.to) q.set('to', params.to);
+      const qs = q.toString();
+      return request<{ items: BillingCalendarEntry[] }>(
+        `/admin/billing/calendar${qs ? `?${qs}` : ''}`,
+        {},
+        'admin',
+      );
+    },
+    adminUpsertBillingCalendar: (body: {
+      date: string;
+      name: string;
+      scope?: string;
+      is_business_day: boolean;
+    }) =>
+      request('/admin/billing/calendar', { method: 'PUT', body: JSON.stringify(body) }, 'admin'),
     adminDashboard: (year?: number, month?: number) => {
       const q = new URLSearchParams();
       if (year) q.set('year', String(year));

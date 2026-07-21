@@ -467,6 +467,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/billing/close-cycle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fechar ciclo atual e gerar fatura (parcial) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Fatura gerada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Sem lançamentos no ciclo */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/invoices/{id}": {
         parameters: {
             query?: never;
@@ -1165,6 +1206,7 @@ export interface paths {
                     "application/json": {
                         year?: number;
                         month?: number;
+                        reason: string;
                     };
                 };
             };
@@ -1184,14 +1226,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/billing/invoices": {
+    "/admin/billing/summary": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Todas as faturas */
+        /** Resumo de faturamento */
         get: {
             parameters: {
                 query?: never;
@@ -1201,7 +1243,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Faturas */
+                /** @description KPIs de faturamento */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1212,6 +1254,129 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Todas as faturas */
+        get: {
+            parameters: {
+                query?: {
+                    status?: string;
+                    year?: number;
+                    month?: number;
+                    search?: string;
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Faturas paginadas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/billing/invoices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalhe da fatura */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Fatura com itens e ajustes */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/billing/invoices/{id}/adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lançar ajuste na fatura */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        adjustment_type: "credit" | "debit";
+                        /** Format: int64 */
+                        amount_cents: number;
+                        reason: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Fatura atualizada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
