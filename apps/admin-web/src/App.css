@@ -757,6 +757,50 @@ tr.row--warning td {
   background: var(--color-surface);
 }
 
+.orders-row--expanded td {
+  border-bottom: none;
+}
+
+.orders-detail-row td {
+  padding: 0 var(--space-md) var(--space-md);
+  vertical-align: top;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.orders-detail-row__loading {
+  margin: var(--space-sm) 0;
+  color: var(--color-text-muted);
+}
+
+.orders-detail-panel {
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface));
+}
+
+.orders-detail-panel__title {
+  margin: 0 0 var(--space-sm);
+  font-size: 1rem;
+}
+
+.orders-detail-panel__meta {
+  margin: 0 0 var(--space-sm);
+}
+
+.orders-detail-panel__items {
+  margin: 0 0 var(--space-md);
+  padding-left: 1.25rem;
+}
+
+.orders-detail-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
 .customers-panel__title {
   margin: 0 0 var(--space-md);
   font-size: 1.125rem;
