@@ -79,6 +79,10 @@ export function CartPage() {
     }
   }
 
+  async function removeItem(skuId: string) {
+    await changeQty(skuId, 0);
+  }
+
   const items = cart?.items ?? [];
   const totalCents = items.reduce((sum, it) => sum + it.line_total_cents, 0);
 
@@ -102,7 +106,7 @@ export function CartPage() {
                   <button
                     type="button"
                     aria-label="Diminuir"
-                    disabled={busy}
+                    disabled={busy || it.quantity <= 1}
                     onClick={() => changeQty(it.sku_id, it.quantity - 1)}
                   >
                     −
@@ -117,6 +121,15 @@ export function CartPage() {
                     +
                   </button>
                 </div>
+                <button
+                  type="button"
+                  className="cart-line-remove"
+                  aria-label={`Remover ${it.product_name}`}
+                  disabled={busy}
+                  onClick={() => void removeItem(it.sku_id)}
+                >
+                  Remover
+                </button>
                 <div className="cart-line-total">{formatMoney(it.line_total_cents)}</div>
               </div>
             </li>

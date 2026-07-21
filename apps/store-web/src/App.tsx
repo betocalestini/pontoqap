@@ -7,9 +7,12 @@ import { CartPage } from './pages/Cart';
 import { InvoicesPage } from './pages/Invoices';
 import { InvoiceDetailPage } from './pages/InvoiceDetail';
 import { VerifyEmailPage } from './pages/VerifyEmail';
+import { useClearCartOnReload } from './hooks/useClearCartOnReload';
 import './App.css';
 
 export default function App() {
+  useClearCartOnReload();
+
   return (
     <AppShell>
       <Routes>
