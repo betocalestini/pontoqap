@@ -24,7 +24,7 @@ func TestCatalogListAfterCheckout(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100_000)
 	prod, _ := testdb.SeedProduct(ctx, pool, "Macarrão", "MAC-1", 1200)
 	inv := inventory.NewService(pool)
-	_ = inv.RegisterEntry(ctx, prod.SKUID, 20, mgr.UserID, "entrada", 0)
+	_ = inv.RegisterEntry(ctx, prod.SKUID, 20, mgr.UserID, "entrada", 0, 0)
 	cat := catalog.NewService(pool)
 	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), cat, customers.NewService(pool, nil))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 3)

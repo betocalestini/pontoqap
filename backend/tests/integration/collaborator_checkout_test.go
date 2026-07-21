@@ -28,7 +28,7 @@ func TestCollaboratorCheckoutLowerPrice(t *testing.T) {
 	inv := inventory.NewService(pool)
 	cat := catalog.NewService(pool)
 	custSvc := customers.NewService(pool, nil)
-	_ = inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "e", 1000)
+	_ = inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "e", 10_000, 0)
 	_, _ = pool.Exec(ctx, `UPDATE products SET margin_percent = 50 WHERE id = $1`, prod.ProductID)
 	_, _ = cat.RecalculateSKU(ctx, prod.SKUID, mgr.UserID, "t", inv.WeightedAverageCostCents)
 	var catID uuid.UUID
@@ -54,7 +54,7 @@ func TestBlockedCustomerCheckout(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100_000)
 	prod, _ := testdb.SeedProduct(ctx, pool, "X", "X-1", 1000)
 	inv := inventory.NewService(pool)
-	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "e", 100)
+	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "e", 500, 0)
 	custSvc := customers.NewService(pool, nil)
 	_ = custSvc.Block(ctx, cust.ID, "teste")
 	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catalog.NewService(pool), custSvc)

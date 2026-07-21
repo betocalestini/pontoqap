@@ -29,6 +29,12 @@ function parseReaisToCents(value: string): number | null {
   return Math.round(n * 100);
 }
 
+function entryUnitCostCents(totalPaidCents: number, otherCents: number, quantity: number): number | null {
+  if (!quantity || quantity <= 0) return null;
+  if (totalPaidCents < 0 || otherCents < 0) return null;
+  return Math.round((totalPaidCents + otherCents) / quantity);
+}
+
 export function InventoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filterProductId = searchParams.get('product_id') ?? '';
@@ -45,7 +51,8 @@ export function InventoryPage() {
     kind: 'entry' as MovementKind,
     quantity: '',
     physical_count: '',
-    unit_cost_reais: '',
+    total_paid_reais: '',
+    other_expenses_reais: '',
     reason: '',
   });
   const [saving, setSaving] = useState(false);
@@ -139,14 +146,18 @@ export function InventoryPage() {
       } else if (form.kind === 'entry') {
         const qty = parseInt(form.quantity, 10);
         if (!qty || qty <= 0) throw new Error('Quantidade inválida');
-        const unitCostCents = parseReaisToCents(form.unit_cost_reais);
-        if (unitCostCents == null) throw new Error('Informe o preço unitário pago (R$)');
+        const totalPaidCents = parseReaisToCents(form.total_paid_reais);
+        if (totalPaidCents == null) throw new Error('Informe o valor total pago (R$)');
+        const otherRaw = form.other_expenses_reais.trim();
+        const otherCents = otherRaw ? parseReaisToCents(otherRaw) : 0;
+        if (otherCents == null) throw new Error('Outros gastos inválidos');
         await api.adminCreateInventoryMovement({
           kind: 'entry',
           sku_id: form.sku_id,
           quantity: qty,
           reason: form.reason.trim(),
-          unit_cost_cents: unitCostCents,
+          total_paid_cents: totalPaidCents,
+          other_expenses_cents: otherCents,
         });
       } else {
         const qty = parseInt(form.quantity, 10);
@@ -162,7 +173,8 @@ export function InventoryPage() {
         ...f,
         quantity: '',
         physical_count: '',
-        unit_cost_reais: '',
+        total_paid_reais: '',
+        other_expenses_reais: '',
         reason: '',
       }));
       await Promise.all([loadBalances(), loadMovements(0, false)]);
@@ -195,6 +207,19 @@ export function InventoryPage() {
   }, [movements]);
 
   const hasMoreMovements = movements.length < movementsTotal;
+
+  const entryUnitPreview = useMemo(() => {
+    if (form.kind !== 'entry') return null;
+    const qty = parseInt(form.quantity, 10);
+    if (!qty || qty <= 0) return null;
+    const totalPaid = parseReaisToCents(form.total_paid_reais);
+    if (totalPaid == null) return null;
+    const otherRaw = form.other_expenses_reais.trim();
+    const other = otherRaw ? parseReaisToCents(otherRaw) : 0;
+    if (other == null) return null;
+    const unit = entryUnitCostCents(totalPaid, other, qty);
+    return unit != null ? { unit, total: totalPaid + other } : null;
+  }, [form.kind, form.quantity, form.total_paid_reais, form.other_expenses_reais]);
 
   return (
     <section className="content-section inventory-page">
@@ -336,17 +361,37 @@ export function InventoryPage() {
               </label>
             )}
             {form.kind === 'entry' && (
-              <label className="form__full">
-                Preço unitário pago (R$)
-                <input
-                  inputMode="decimal"
-                  placeholder="Ex.: 12,50"
-                  value={form.unit_cost_reais}
-                  onChange={(e) => setForm((f) => ({ ...f, unit_cost_reais: e.target.value }))}
-                  required
-                />
-                <small>Usado no custo do SKU e no relatório financeiro de compras.</small>
-              </label>
+              <>
+                <label>
+                  Valor total pago (R$)
+                  <input
+                    inputMode="decimal"
+                    placeholder="Ex.: 1.250,00"
+                    value={form.total_paid_reais}
+                    onChange={(e) => setForm((f) => ({ ...f, total_paid_reais: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Outros gastos (R$)
+                  <input
+                    inputMode="decimal"
+                    placeholder="Frete, taxas… (opcional)"
+                    value={form.other_expenses_reais}
+                    onChange={(e) => setForm((f) => ({ ...f, other_expenses_reais: e.target.value }))}
+                  />
+                </label>
+                {entryUnitPreview != null && (
+                  <p className="form-hint form__full">
+                    Custo unitário calculado: <strong>{formatBRL(entryUnitPreview.unit)}</strong> (rateio de{' '}
+                    {formatBRL(entryUnitPreview.total)} em {form.quantity} un.)
+                  </p>
+                )}
+                <p className="form-hint form__full">
+                  O custo por unidade é (valor pago + outros gastos) ÷ quantidade. Usado no lote e na margem do
+                  produto.
+                </p>
+              </>
             )}
             <label className="form__full">
               Motivo

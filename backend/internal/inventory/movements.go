@@ -57,9 +57,10 @@ type movementApply struct {
 	unitCostCents *int64
 }
 
-func (s *Service) RegisterEntry(ctx context.Context, skuID uuid.UUID, quantity int, createdBy uuid.UUID, reason string, unitCostCents int64) error {
-	if unitCostCents < 0 {
-		return fmt.Errorf("invalid unit cost")
+func (s *Service) RegisterEntry(ctx context.Context, skuID uuid.UUID, quantity int, createdBy uuid.UUID, reason string, totalPaidCents, otherExpensesCents int64) error {
+	unitCostCents, err := EntryUnitCostCents(totalPaidCents, otherExpensesCents, quantity)
+	if err != nil {
+		return err
 	}
 	cost := unitCostCents
 	return s.applyMovement(ctx, skuID, movementApply{

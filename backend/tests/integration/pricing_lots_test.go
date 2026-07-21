@@ -28,7 +28,7 @@ func TestEntryCreatesLotAndRecalculatesPrice(t *testing.T) {
 
 	inv := inventory.NewService(pool)
 	cat := catalog.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "compra", 1000); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "compra", 10_000, 0); err != nil {
 		t.Fatal(err)
 	}
 	changed, err := cat.RecalculateSKU(ctx, prod.SKUID, mgr.UserID, "test", inv.WeightedAverageCostCents)
@@ -61,7 +61,7 @@ func TestRepriceAllUpdatesMarginsAndPrices(t *testing.T) {
 	}
 	inv := inventory.NewService(pool)
 	cat := catalog.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "compra", 2000); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "compra", 10_000, 0); err != nil {
 		t.Fatal(err)
 	}
 	_, _ = cat.RecalculateSKU(ctx, prod.SKUID, mgr.UserID, "setup", inv.WeightedAverageCostCents)

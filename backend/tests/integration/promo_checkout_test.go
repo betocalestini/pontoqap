@@ -25,7 +25,7 @@ func TestCheckoutPromoSplitPricing(t *testing.T) {
 	prod, _ := testdb.SeedProduct(ctx, pool, "Promo Split", "PRM-1", 0)
 	inv := inventory.NewService(pool)
 	cat := catalog.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 20, mgr.UserID, "entrada", 1000); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 20, mgr.UserID, "entrada", 20_000, 0); err != nil {
 		t.Fatal(err)
 	}
 	_, _ = cat.RecalculateSKU(ctx, prod.SKUID, mgr.UserID, "setup", inv.WeightedAverageCostCents)
@@ -73,8 +73,8 @@ func TestListProductsPromoFirst(t *testing.T) {
 	inv := inventory.NewService(pool)
 	z, _ := testdb.SeedProduct(ctx, pool, "Zebra", "Z-1", 100)
 	p2, _ := testdb.SeedProduct(ctx, pool, "Abacaxi", "A-1", 100)
-	_ = inv.RegisterEntry(ctx, z.SKUID, 5, mgr.UserID, "e", 50)
-	_ = inv.RegisterEntry(ctx, p2.SKUID, 5, mgr.UserID, "e", 50)
+	_ = inv.RegisterEntry(ctx, z.SKUID, 5, mgr.UserID, "e", 250, 0)
+	_ = inv.RegisterEntry(ctx, p2.SKUID, 5, mgr.UserID, "e", 250, 0)
 	_, _ = pool.Exec(ctx, `
 		UPDATE products SET promo_active = TRUE, promo_margin_percent = 10,
 			promo_quantity_total = 5, promo_quantity_remaining = 5 WHERE id = $1

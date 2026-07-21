@@ -32,7 +32,7 @@ func TestInventoryEntryAndNegativeStockBlocked(t *testing.T) {
 	}
 
 	inv := inventory.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0, 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -73,7 +73,7 @@ func TestCheckoutReducesStockAndCreatesBillingEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	inv := inventory.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "entrada", 0); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "entrada", 0, 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -133,7 +133,7 @@ func TestCheckoutIdempotency(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100_000)
 	prod, _ := testdb.SeedProduct(ctx, pool, "Sal", "SAL-1", 500)
 	inv := inventory.NewService(pool)
-	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0)
+	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0, 0)
 
 	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catalog.NewService(pool), customers.NewService(pool, nil))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
@@ -169,7 +169,7 @@ func TestCheckoutInsufficientLimit(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100) // R$ 1,00
 	prod, _ := testdb.SeedProduct(ctx, pool, "Caro", "CAR-1", 5000)
 	inv := inventory.NewService(pool)
-	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0)
+	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0, 0)
 
 	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catalog.NewService(pool), customers.NewService(pool, nil))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)

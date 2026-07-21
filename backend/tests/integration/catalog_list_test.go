@@ -22,7 +22,7 @@ func TestListProductsAfterMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	inv := inventory.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 1, mgr.UserID, "entrada", 500); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 1, mgr.UserID, "entrada", 500, 0); err != nil {
 		t.Fatal(err)
 	}
 	svc := catalog.NewService(pool)

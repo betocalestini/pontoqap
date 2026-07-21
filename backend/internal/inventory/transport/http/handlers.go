@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -112,12 +113,14 @@ func (h *Handler) createMovement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Kind          string `json:"kind"`
-		SKUID         string `json:"sku_id"`
-		Quantity      int    `json:"quantity"`
-		PhysicalCount *int   `json:"physical_count"`
-		Reason        string `json:"reason"`
-		UnitCostCents *int64 `json:"unit_cost_cents"`
+		Kind               string `json:"kind"`
+		SKUID              string `json:"sku_id"`
+		Quantity           int    `json:"quantity"`
+		PhysicalCount      *int   `json:"physical_count"`
+		Reason             string `json:"reason"`
+		TotalPaidCents     *int64 `json:"total_paid_cents"`
+		OtherExpensesCents *int64 `json:"other_expenses_cents"`
+		UnitCostCents      *int64 `json:"unit_cost_cents"`
 	}
 	if err := httpx.DecodeJSON(r, &body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
@@ -140,11 +143,12 @@ func (h *Handler) createMovement(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Quantidade e motivo obrigatórios")
 			return
 		}
-		if body.UnitCostCents == nil || *body.UnitCostCents < 0 {
-			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Informe o custo unitário da entrada (centavos)")
+		totalPaid, otherExpenses, parseErr := parseEntryPurchaseCents(body.Quantity, body.TotalPaidCents, body.OtherExpensesCents, body.UnitCostCents)
+		if parseErr != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", parseErr.Error())
 			return
 		}
-		err = h.svc.RegisterEntry(r.Context(), skuID, body.Quantity, user.User.ID, body.Reason, *body.UnitCostCents)
+		err = h.svc.RegisterEntry(r.Context(), skuID, body.Quantity, user.User.ID, body.Reason, totalPaid, otherExpenses)
 	case "loss", "damage":
 		if !identityhttp.HasPermission(r.Context(), "inventory.loss") &&
 			!identityhttp.HasPermission(r.Context(), "inventory.adjust") {
@@ -182,6 +186,29 @@ func (h *Handler) createMovement(w http.ResponseWriter, r *http.Request) {
 	h.maybeRecalcSKU(r, skuID)
 }
 
+func parseEntryPurchaseCents(quantity int, totalPaid, otherExpenses, unitCostLegacy *int64) (int64, int64, error) {
+	if totalPaid != nil {
+		if *totalPaid < 0 {
+			return 0, 0, fmt.Errorf("valor total pago inválido")
+		}
+		var other int64
+		if otherExpenses != nil {
+			if *otherExpenses < 0 {
+				return 0, 0, fmt.Errorf("outros gastos inválidos")
+			}
+			other = *otherExpenses
+		}
+		return *totalPaid, other, nil
+	}
+	if unitCostLegacy != nil {
+		if *unitCostLegacy < 0 {
+			return 0, 0, fmt.Errorf("custo unitário inválido")
+		}
+		return *unitCostLegacy * int64(quantity), 0, nil
+	}
+	return 0, 0, fmt.Errorf("informe o valor total pago da entrada")
+}
+
 func (h *Handler) maybeRecalcSKU(r *http.Request, skuID uuid.UUID) {
 	if h.cat == nil {
 		return
@@ -200,11 +227,13 @@ func (h *Handler) registerEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		SKUID         string `json:"sku_id"`
-		Quantity      int    `json:"quantity"`
-		Reason        string `json:"reason"`
-		Note          string `json:"note"`
-		UnitCostCents *int64 `json:"unit_cost_cents"`
+		SKUID              string `json:"sku_id"`
+		Quantity           int    `json:"quantity"`
+		Reason             string `json:"reason"`
+		Note               string `json:"note"`
+		TotalPaidCents     *int64 `json:"total_paid_cents"`
+		OtherExpensesCents *int64 `json:"other_expenses_cents"`
+		UnitCostCents      *int64 `json:"unit_cost_cents"`
 	}
 	if err := httpx.DecodeJSON(r, &body); err != nil || body.Quantity <= 0 {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
@@ -219,11 +248,12 @@ func (h *Handler) registerEntry(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "SKU inválido")
 		return
 	}
-	unitCost := int64(0)
-	if body.UnitCostCents != nil {
-		unitCost = *body.UnitCostCents
+	totalPaid, otherExpenses, parseErr := parseEntryPurchaseCents(body.Quantity, body.TotalPaidCents, body.OtherExpensesCents, body.UnitCostCents)
+	if parseErr != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", parseErr.Error())
+		return
 	}
-	if err := h.svc.RegisterEntry(r.Context(), skuID, body.Quantity, user.User.ID, reason, unitCost); err != nil {
+	if err := h.svc.RegisterEntry(r.Context(), skuID, body.Quantity, user.User.ID, reason, totalPaid, otherExpenses); err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao registrar entrada")
 		return
 	}

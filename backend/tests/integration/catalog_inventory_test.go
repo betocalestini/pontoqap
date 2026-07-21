@@ -28,7 +28,7 @@ func TestRegisterAdjustmentUpdatesBalance(t *testing.T) {
 		t.Fatal(err)
 	}
 	inv := inventory.NewService(pool)
-	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "entrada teste", 500); err != nil {
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "entrada teste", 5000, 0); err != nil {
 		t.Fatal(err)
 	}
 	if err := inv.RegisterAdjustment(ctx, prod.SKUID, 7, "contagem", mgr.UserID); err != nil {
@@ -80,6 +80,36 @@ func TestRegisterInitialStock(t *testing.T) {
 	}
 }
 
+func TestRegisterEntryUnitCostFromPurchaseTotals(t *testing.T) {
+	testdb.MigrateUp(t)
+	pool := testdb.Pool(t)
+	ctx := context.Background()
+	if err := testdb.Reset(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	mgr, err := testdb.SeedManager(ctx, pool, testdb.UniqueEmail(t, "mgr"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	prod, err := testdb.SeedProduct(ctx, pool, "Feijão", "FEJ-1", 800)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv := inventory.NewService(pool)
+	if err := inv.RegisterEntry(ctx, prod.SKUID, 3, mgr.UserID, "compra", 100, 2); err != nil {
+		t.Fatal(err)
+	}
+	var unitCost int64
+	if err := pool.QueryRow(ctx, `
+		SELECT unit_cost_cents FROM stock_movements WHERE sku_id = $1 AND movement_type = 'entry' ORDER BY created_at DESC LIMIT 1
+	`, prod.SKUID).Scan(&unitCost); err != nil {
+		t.Fatal(err)
+	}
+	if unitCost != 34 {
+		t.Fatalf("expected unit cost 34, got %d", unitCost)
+	}
+}
+
 func TestCheckoutCreatesSaleMovement(t *testing.T) {
 	testdb.MigrateUp(t)
 	pool := testdb.Pool(t)
@@ -92,7 +122,7 @@ func TestCheckoutCreatesSaleMovement(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100_000)
 	prod, _ := testdb.SeedProduct(ctx, pool, "Café", "CAF-1", 1500)
 	inv := inventory.NewService(pool)
-	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0)
+	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0, 0)
 
 	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catalog.NewService(pool), customers.NewService(pool, nil))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
