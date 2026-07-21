@@ -228,6 +228,43 @@ export type BillingCalendarEntry = {
   is_business_day: boolean;
 };
 
+export type AdminOrderListItem = {
+  id: string;
+  order_number: string;
+  status: string;
+  total_cents: number;
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  confirmed_at?: string;
+  created_at: string;
+};
+
+export type AdminOrderDetail = AdminOrderListItem & {
+  items: {
+    id: string;
+    sku_id: string;
+    product_name: string;
+    sku_code: string;
+    unit_price_cents: number;
+    quantity: number;
+    total_cents: number;
+  }[];
+  cancelled_at?: string;
+};
+
+export type AuditLogEntry = {
+  id: string;
+  actor_user_id?: string;
+  actor_email?: string;
+  action: string;
+  entity_type: string;
+  entity_id?: string;
+  created_at: string;
+  old_values?: unknown;
+  new_values?: unknown;
+};
+
 export type AdminStaffUser = {
   id: string;
   name: string;
@@ -615,5 +652,35 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       request(`/admin/users/${id}/status`, { method: 'PATCH', body: JSON.stringify(body) }, 'admin'),
     adminRevokeStaffUserSessions: (id: string, body?: { password?: string; mfa_code?: string }) =>
       request(`/admin/users/${id}/sessions/revoke`, { method: 'POST', body: JSON.stringify(body ?? {}) }, 'admin'),
+
+    adminListOrders: (params?: { status?: string; search?: string; limit?: number; offset?: number }) => {
+      const q = new URLSearchParams();
+      if (params?.status) q.set('status', params.status);
+      if (params?.search) q.set('search', params.search);
+      if (params?.limit) q.set('limit', String(params.limit));
+      if (params?.offset) q.set('offset', String(params.offset));
+      const qs = q.toString();
+      return request<{ items: AdminOrderListItem[]; total: number }>(
+        `/admin/orders${qs ? `?${qs}` : ''}`,
+        {},
+        'admin',
+      );
+    },
+    adminGetOrder: (id: string) => request<AdminOrderDetail>(`/admin/orders/${id}`, {}, 'admin'),
+    adminCancelOrder: (id: string) =>
+      request<AdminOrderDetail>(`/admin/orders/${id}/cancel`, { method: 'POST' }, 'admin'),
+    adminListAuditLogs: (params?: { action?: string; entity_type?: string; limit?: number; offset?: number }) => {
+      const q = new URLSearchParams();
+      if (params?.action) q.set('action', params.action);
+      if (params?.entity_type) q.set('entity_type', params.entity_type);
+      if (params?.limit) q.set('limit', String(params.limit));
+      if (params?.offset) q.set('offset', String(params.offset));
+      const qs = q.toString();
+      return request<{ items: AuditLogEntry[]; total: number }>(
+        `/admin/audit/logs${qs ? `?${qs}` : ''}`,
+        {},
+        'admin',
+      );
+    },
   };
 }
