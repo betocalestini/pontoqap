@@ -20,6 +20,7 @@ func NewHandler(svc *sales.Service) *Handler {
 
 func (h *Handler) MeRoutes(r chi.Router) {
 	r.Get("/cart", h.getCart)
+	r.Delete("/cart", h.clearCart)
 	r.Post("/cart/items", h.addItem)
 	r.Patch("/cart/items/{skuId}", h.setItemQuantity)
 	r.Post("/cart/checkout", h.checkout)
@@ -38,6 +39,24 @@ func (h *Handler) getCart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao carregar carrinho")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, cart)
+}
+
+func (h *Handler) clearCart(w http.ResponseWriter, r *http.Request) {
+	user := identityhttp.UserFromContext(r.Context())
+	if user == nil || user.CustomerID == nil {
+		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Perfil de cliente necessário")
+		return
+	}
+	cart, err := h.svc.ClearCart(r.Context(), *user.CustomerID)
+	if err != nil {
+		if ae := sales.AsAppError(err); ae != nil {
+			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
+			return
+		}
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao esvaziar carrinho")
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, cart)

@@ -102,6 +102,19 @@ func (s *Service) SetCartItemQuantity(ctx context.Context, customerID, skuID uui
 	return s.loadCart(ctx, cart.ID, customerID)
 }
 
+// ClearCart remove todos os itens do carrinho ativo (idempotente).
+func (s *Service) ClearCart(ctx context.Context, customerID uuid.UUID) (*Cart, error) {
+	cart, err := s.GetOrCreateCart(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.pool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id = $1`, cart.ID)
+	if err != nil {
+		return nil, err
+	}
+	return s.loadCart(ctx, cart.ID, customerID)
+}
+
 func (s *Service) loadCart(ctx context.Context, cartID, customerID uuid.UUID) (*Cart, error) {
 	var collabMargin *float64
 	if s.customers != nil {
