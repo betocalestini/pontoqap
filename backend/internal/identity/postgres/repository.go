@@ -187,4 +187,33 @@ func (r *Repository) IsCustomerBlocked(ctx context.Context, userID uuid.UUID) (b
 	return status == "blocked", nil
 }
 
+func (r *Repository) UpdateUserProfile(ctx context.Context, userID uuid.UUID, name, phone string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE users SET name = $2, phone = NULLIF($3,''), updated_at = NOW() WHERE id = $1
+	`, userID, name, phone)
+	return err
+}
+
+func (r *Repository) GetCustomerDocument(ctx context.Context, customerID uuid.UUID) (string, error) {
+	var doc *string
+	err := r.pool.QueryRow(ctx, `SELECT document FROM customers WHERE id = $1`, customerID).Scan(&doc)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if doc == nil {
+		return "", nil
+	}
+	return *doc, nil
+}
+
+func (r *Repository) UpdateCustomerDocument(ctx context.Context, customerID uuid.UUID, document string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE customers SET document = NULLIF($2,''), updated_at = NOW() WHERE id = $1
+	`, customerID, document)
+	return err
+}
+
 var _ identity.Repository = (*Repository)(nil)

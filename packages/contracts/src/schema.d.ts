@@ -260,7 +260,33 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Atualizar dados pessoais */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        phone?: string;
+                        document?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Perfil atualizado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         trace?: never;
     };
     "/catalog/products": {

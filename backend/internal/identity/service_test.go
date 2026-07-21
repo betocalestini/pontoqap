@@ -78,6 +78,19 @@ func (m *mockRepo) FindCustomerIDByUser(ctx context.Context, userID uuid.UUID) (
 func (m *mockRepo) IsCustomerBlocked(ctx context.Context, userID uuid.UUID) (bool, error) {
 	return false, nil
 }
+func (m *mockRepo) UpdateUserProfile(ctx context.Context, userID uuid.UUID, name, phone string) error {
+	if m.user != nil && m.user.ID == userID {
+		m.user.Name = name
+		m.user.Phone = phone
+	}
+	return nil
+}
+func (m *mockRepo) GetCustomerDocument(ctx context.Context, customerID uuid.UUID) (string, error) {
+	return "", nil
+}
+func (m *mockRepo) UpdateCustomerDocument(ctx context.Context, customerID uuid.UUID, document string) error {
+	return nil
+}
 
 func TestLoginSuccessStore(t *testing.T) {
 	hash, _ := security.HashPassword("secret")

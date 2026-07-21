@@ -35,6 +35,7 @@ func (h *Handler) Routes(r chi.Router) {
 func (h *Handler) AuthenticatedRoutes(r chi.Router) {
 	r.Post("/logout", h.logout)
 	r.Get("/me", h.me)
+	r.Patch("/me", h.patchMe)
 	r.Post("/mfa/setup", h.mfaSetup)
 	r.Post("/mfa/verify", h.mfaVerify)
 }
@@ -109,7 +110,65 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, mapUser(*user))
+	payload, err := h.userPayload(r.Context(), *user)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao carregar perfil")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, payload)
+}
+
+func (h *Handler) patchMe(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	if user == nil {
+		httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+	var body struct {
+		Name     *string `json:"name"`
+		Phone    *string `json:"phone"`
+		Document *string `json:"document"`
+	}
+	if err := httpx.DecodeJSON(r, &body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
+		return
+	}
+	if body.Name == nil && body.Phone == nil && body.Document == nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Nenhum campo para atualizar")
+		return
+	}
+	if body.Document != nil && user.CustomerID == nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Documento só se aplica a clientes da loja")
+		return
+	}
+	updated, err := h.svc.UpdateProfile(r.Context(), *user, identity.UpdateProfileInput{
+		Name:     body.Name,
+		Phone:    body.Phone,
+		Document: body.Document,
+	})
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+	payload, err := h.userPayload(r.Context(), updated)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao carregar perfil")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, payload)
+}
+
+func (h *Handler) userPayload(ctx context.Context, u identity.AuthUser) (map[string]any, error) {
+	out := mapUser(u)
+	out["phone"] = u.User.Phone
+	if u.CustomerID != nil {
+		doc, err := h.svc.GetCustomerDocument(ctx, *u.CustomerID)
+		if err != nil {
+			return nil, err
+		}
+		out["document"] = doc
+	}
+	return out, nil
 }
 
 func (h *Handler) mfaSetup(w http.ResponseWriter, r *http.Request) {

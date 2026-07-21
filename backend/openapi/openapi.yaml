@@ -101,9 +101,26 @@ paths:
     get:
       tags: [auth]
       summary: Usuário autenticado
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         '200':
           description: Perfil
+    patch:
+      tags: [auth]
+      summary: Atualizar dados pessoais
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                phone: { type: string }
+                document: { type: string }
+      responses:
+        '200':
+          description: Perfil atualizado
   /catalog/products:
     get:
       tags: [catalog]

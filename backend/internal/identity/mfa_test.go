@@ -50,6 +50,15 @@ func (m *mfaRepo) FindCustomerIDByUser(ctx context.Context, userID uuid.UUID) (*
 func (m *mfaRepo) IsCustomerBlocked(ctx context.Context, userID uuid.UUID) (bool, error) {
 	return false, nil
 }
+func (m *mfaRepo) UpdateUserProfile(ctx context.Context, userID uuid.UUID, name, phone string) error {
+	return nil
+}
+func (m *mfaRepo) GetCustomerDocument(ctx context.Context, customerID uuid.UUID) (string, error) {
+	return "", nil
+}
+func (m *mfaRepo) UpdateCustomerDocument(ctx context.Context, customerID uuid.UUID, document string) error {
+	return nil
+}
 func (m *mfaRepo) UpdateMFA(ctx context.Context, userID uuid.UUID, secret string, enabled bool) error {
 	m.user.MFASecret = secret
 	m.user.MFAEnabled = enabled
