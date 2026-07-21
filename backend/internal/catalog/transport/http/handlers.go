@@ -36,6 +36,8 @@ func (h *Handler) PublicRoutes(r chi.Router) {
 func (h *Handler) AdminRoutes(r chi.Router) {
 	r.Get("/categories", h.ListCategoriesAdmin)
 	r.Post("/categories", h.CreateCategory)
+	r.Patch("/categories/{id}", h.UpdateCategory)
+	r.Delete("/categories/{id}", h.DeleteCategory)
 	r.Get("/products", h.ListProductsAdmin)
 	r.Get("/products/{id}", h.GetProductAdmin)
 	r.Post("/products", h.CreateProduct)
@@ -55,6 +57,14 @@ func (h *Handler) ListCategoriesAdmin(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	h.createCategory(w, r)
+}
+
+func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
+	h.updateCategory(w, r)
+}
+
+func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
+	h.deleteCategory(w, r)
 }
 
 func (h *Handler) ListProductsAdmin(w http.ResponseWriter, r *http.Request) {
@@ -203,6 +213,58 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, c)
+}
+
+func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
+		return
+	}
+	var body struct {
+		Name   *string `json:"name"`
+		Active *bool   `json:"active"`
+	}
+	if err := httpx.DecodeJSON(r, &body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
+		return
+	}
+	if body.Name == nil && body.Active == nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Nada para atualizar")
+		return
+	}
+	c, err := h.svc.UpdateCategory(r.Context(), id, catalog.UpdateCategoryInput{Name: body.Name, Active: body.Active})
+	if err != nil {
+		if strings.Contains(err.Error(), "não encontrada") {
+			httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
+			return
+		}
+		if strings.Contains(err.Error(), "obrigatório") {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+			return
+		}
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao atualizar categoria")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, c)
+}
+
+func (h *Handler) deleteCategory(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
+		return
+	}
+	res, err := h.svc.DeleteCategory(r.Context(), id)
+	if err != nil {
+		if strings.Contains(err.Error(), "não encontrada") {
+			httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
+			return
+		}
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao excluir categoria")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
 func (h *Handler) changePrice(w http.ResponseWriter, r *http.Request) {

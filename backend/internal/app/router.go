@@ -126,6 +126,8 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 				priv.Use(identityhttp.RequireAdminMFA(cfg.Security.AdminMFARequired))
 				priv.With(identityhttp.RequirePermission("products.read")).Get("/categories", catalogHandler.ListCategoriesAdmin)
 				priv.With(identityhttp.RequirePermission("products.write")).Post("/categories", catalogHandler.CreateCategory)
+				priv.With(identityhttp.RequirePermission("products.write")).Patch("/categories/{id}", catalogHandler.UpdateCategory)
+				priv.With(identityhttp.RequirePermission("products.write")).Delete("/categories/{id}", catalogHandler.DeleteCategory)
 				priv.With(identityhttp.RequirePermission("products.read")).Get("/products", catalogHandler.ListProductsAdmin)
 				priv.With(identityhttp.RequirePermission("products.read")).Get("/products/{id}", catalogHandler.GetProductAdmin)
 				priv.With(identityhttp.RequirePermission("products.write")).Post("/products", catalogHandler.CreateProduct)
