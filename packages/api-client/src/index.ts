@@ -548,6 +548,12 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
 
     adminListCategories: () =>
       request<{ items: AdminCategory[] }>('/admin/categories', {}, 'admin'),
+    adminCreateCategory: (body: { name: string; slug?: string }) =>
+      request<AdminCategory>('/admin/categories', { method: 'POST', body: JSON.stringify(body) }, 'admin'),
+    adminUpdateCategory: (id: string, body: { name?: string; active?: boolean }) =>
+      request<AdminCategory>(`/admin/categories/${id}`, { method: 'PATCH', body: JSON.stringify(body) }, 'admin'),
+    adminDeleteCategory: (id: string) =>
+      request<{ products_unlinked: number }>(`/admin/categories/${id}`, { method: 'DELETE' }, 'admin'),
     adminListProducts: (params?: { search?: string; page?: number; page_size?: number }) => {
       const q = new URLSearchParams();
       if (params?.search?.trim()) q.set('search', params.search.trim());
