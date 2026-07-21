@@ -186,7 +186,33 @@ export type InvoiceDetailItem = {
   quantity: number;
   unit_price_cents: number;
   total_cents: number;
+  products?: InvoiceProductLine[];
 };
+
+export type InvoiceProductLine = {
+  product_name: string;
+  sku_code: string;
+  quantity: number;
+  unit_price_cents: number;
+  total_cents: number;
+};
+
+export type BillingEntryView = {
+  id: string;
+  description: string;
+  amount_cents: number;
+  occurred_at: string;
+  order_number?: string;
+  products: InvoiceProductLine[];
+};
+
+export type OpenBillingPeriodDetail = {
+  period: OpenBillingPeriod;
+  entries: BillingEntryView[];
+};
+
+/** Detalhe de fatura na loja (mesmo formato do admin, sem campos sensíveis obrigatórios). */
+export type MyInvoiceDetail = AdminInvoiceDetail;
 
 export type InvoiceDetailAdjustment = {
   id: string;
@@ -402,7 +428,9 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       ),
     closeMyBillingCycle: () =>
       request<MyInvoiceListItem>('/me/billing/close-cycle', { method: 'POST' }, 'store'),
-    getMyInvoice: (id: string) => request<AdminInvoiceDetail>(`/me/invoices/${id}`, {}, 'store'),
+    getMyOpenBillingPeriod: () =>
+      request<OpenBillingPeriodDetail>('/me/billing/open-period', {}, 'store'),
+    getMyInvoice: (id: string) => request<MyInvoiceDetail>(`/me/invoices/${id}`, {}, 'store'),
     createPixCharge: (invoiceId: string) =>
       request(`/me/invoices/${invoiceId}/pix-charge`, { method: 'POST' }, 'store'),
     simulatePixPayment: (chargeId: string) =>
