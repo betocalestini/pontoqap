@@ -1,5 +1,23 @@
 export type ApiErrorBody = { code: string; message: string };
 
+export type AuthMe = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  document?: string;
+  customer_id?: string;
+  roles?: string[];
+  permissions?: string[];
+  mfa_enabled?: boolean;
+};
+
+export type UpdateMyProfileBody = {
+  name?: string;
+  phone?: string;
+  document?: string;
+};
+
 export type AdminCategory = { id: string; name: string; slug: string; active: boolean };
 
 export type CollaboratorCategory = {
@@ -382,7 +400,9 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       request('/auth/mfa/verify', { method: 'POST', body: JSON.stringify({ code }) }, 'admin'),
     logout: (audience: Audience) =>
       request('/auth/logout', { method: 'POST' }, audience),
-    me: (audience: Audience) => request('/auth/me', {}, audience),
+    me: (audience: Audience) => request<AuthMe>('/auth/me', {}, audience),
+    updateMyProfile: (body: UpdateMyProfileBody, audience: Audience) =>
+      request<AuthMe>('/auth/me', { method: 'PATCH', body: JSON.stringify(body) }, audience),
 
     verifyEmail: (token: string) =>
       request<{ status: string }>(`/auth/verify-email?token=${encodeURIComponent(token)}`),
