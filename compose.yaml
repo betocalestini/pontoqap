@@ -33,6 +33,22 @@ services:
       postgres:
         condition: service_healthy
 
+  seed:
+    profiles:
+      - seed
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: seed
+    environment:
+      DATABASE_URL: postgres://store:store@postgres:5432/store?sslmode=disable
+      APP_ENV: development
+      SEED_ALLOW: "true"
+      STORE_WEB_URL: http://localhost:5173
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   api:
     build:
       context: ./backend

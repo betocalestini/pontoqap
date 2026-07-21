@@ -8,6 +8,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o /bin/migrate ./cmd/migrate
 RUN CGO_ENABLED=0 go build -o /bin/api ./cmd/api
 RUN CGO_ENABLED=0 go build -o /bin/worker ./cmd/worker
+RUN CGO_ENABLED=0 go build -o /bin/seed ./cmd/seed
 
 FROM alpine:3.21 AS migrate
 RUN apk add --no-cache ca-certificates
@@ -28,3 +29,8 @@ FROM alpine:3.21 AS worker
 RUN apk add --no-cache ca-certificates
 COPY --from=build /bin/worker /worker
 ENTRYPOINT ["/worker"]
+
+FROM alpine:3.21 AS seed
+RUN apk add --no-cache ca-certificates
+COPY --from=build /bin/seed /seed
+ENTRYPOINT ["/seed"]
