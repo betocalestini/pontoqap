@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { AdminInventoryBalance, AdminInventoryMovement } from '@store/api-client';
 import { api } from '../api';
+import { usePermissions } from '../auth/usePermissions';
 
 const MOVEMENT_PAGE_SIZE = 50;
 
@@ -36,6 +37,19 @@ function entryUnitCostCents(totalPaidCents: number, otherCents: number, quantity
 }
 
 export function InventoryPage() {
+  const permissions = usePermissions();
+  const canEntry = permissions.includes('inventory.entry');
+  const canLoss = permissions.includes('inventory.loss');
+  const canAdjust = permissions.includes('inventory.adjust');
+  const allowedKinds = useMemo(() => {
+    const kinds: MovementKind[] = [];
+    if (canEntry) kinds.push('entry');
+    if (canLoss) {
+      kinds.push('loss', 'damage');
+    }
+    if (canAdjust) kinds.push('adjustment');
+    return kinds;
+  }, [canEntry, canLoss, canAdjust]);
   const [searchParams, setSearchParams] = useSearchParams();
   const filterProductId = searchParams.get('product_id') ?? '';
 
@@ -56,6 +70,12 @@ export function InventoryPage() {
     reason: '',
   });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (allowedKinds.length > 0 && !allowedKinds.includes(form.kind)) {
+      setForm((f) => ({ ...f, kind: allowedKinds[0] }));
+    }
+  }, [allowedKinds, form.kind]);
 
   const products = useMemo(() => {
     const map = new Map<string, string>();
@@ -331,10 +351,12 @@ export function InventoryPage() {
                 value={form.kind}
                 onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value as MovementKind }))}
               >
-                <option value="entry">Entrada</option>
-                <option value="loss">Perda</option>
-                <option value="damage">Avaria</option>
-                <option value="adjustment">Ajuste (contagem física)</option>
+                {allowedKinds.includes('entry') && <option value="entry">Entrada</option>}
+                {allowedKinds.includes('loss') && <option value="loss">Perda</option>}
+                {allowedKinds.includes('damage') && <option value="damage">Avaria</option>}
+                {allowedKinds.includes('adjustment') && (
+                  <option value="adjustment">Ajuste (contagem física)</option>
+                )}
               </select>
             </label>
             {form.kind === 'adjustment' ? (

@@ -10,6 +10,8 @@ import { BillingInvoiceDetailPage } from './pages/BillingInvoiceDetail';
 import { ProductsPage } from './pages/Products';
 import { InventoryPage } from './pages/Inventory';
 import { ReportsPage } from './pages/Reports';
+import { OrdersPage } from './pages/Orders';
+import { AuditPage } from './pages/Audit';
 import { UsersPage } from './pages/Users';
 import { AcceptInvitePage } from './pages/AcceptInvite';
 import './App.css';
@@ -52,6 +54,8 @@ function AppRoutes() {
         <Route path="/produtos" element={<ProductsPage />} />
         <Route path="/estoque" element={<InventoryPage />} />
         <Route path="/relatorios" element={<ReportsPage />} />
+        <Route path="/pedidos" element={<OrdersPage />} />
+        <Route path="/auditoria" element={<AuditPage />} />
         <Route path="/usuarios" element={<UsersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

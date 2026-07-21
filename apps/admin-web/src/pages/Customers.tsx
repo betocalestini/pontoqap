@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AdminCustomer, AdminStaffRole, CollaboratorCategory } from '@store/api-client';
 import { api } from '../api';
+import { useHasPermission } from '../auth/usePermissions';
 
 function formatBRL(cents: number) {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -232,6 +233,7 @@ function CustomerCard({
 }
 
 export function CustomersPage() {
+  const canManageUsers = useHasPermission('users.manage');
   const [items, setItems] = useState<AdminCustomer[]>([]);
   const [categories, setCategories] = useState<CollaboratorCategory[]>([]);
   const [staffRoles, setStaffRoles] = useState<AdminStaffRole[]>([]);
@@ -301,15 +303,22 @@ export function CustomersPage() {
   }
 
   const load = useCallback(async () => {
-    const [custRes, catRes, rolesRes] = await Promise.all([
-      api.adminListCustomers(),
-      api.adminListCollaboratorCategories(),
-      api.adminListStaffRoles(),
-    ]);
+    if (canManageUsers) {
+      const [custRes, catRes, rolesRes] = await Promise.all([
+        api.adminListCustomers(),
+        api.adminListCollaboratorCategories(),
+        api.adminListStaffRoles(),
+      ]);
+      setItems((custRes.items ?? []) as AdminCustomer[]);
+      setCategories((catRes.items ?? []) as CollaboratorCategory[]);
+      setStaffRoles((rolesRes.items ?? []) as AdminStaffRole[]);
+      return;
+    }
+    const [custRes, catRes] = await Promise.all([api.adminListCustomers(), api.adminListCollaboratorCategories()]);
     setItems((custRes.items ?? []) as AdminCustomer[]);
     setCategories((catRes.items ?? []) as CollaboratorCategory[]);
-    setStaffRoles((rolesRes.items ?? []) as AdminStaffRole[]);
-  }, []);
+    setStaffRoles([]);
+  }, [canManageUsers]);
 
   useEffect(() => {
     load().catch((e: Error) => setError(e.message));
@@ -577,31 +586,40 @@ export function CustomersPage() {
               </label>
               <fieldset className="customer-staff-fieldset form__full">
                 <legend>Acesso administrativo</legend>
-                <p className="form-hint">
-                  Funcionários devem ter cadastro na loja. O papel interno não remove o perfil de cliente.
-                </p>
-                {(editingCustomer?.staff_roles?.length ?? 0) > 0 && (
-                  <p>
-                    Papel atual: <strong>{(editingCustomer?.staff_roles ?? []).join(', ')}</strong>
+                {canManageUsers ? (
+                  <>
+                    <p className="form-hint">
+                      Funcionários devem ter cadastro na loja. O papel interno não remove o perfil de cliente.
+                    </p>
+                    {(editingCustomer?.staff_roles?.length ?? 0) > 0 && (
+                      <p>
+                        Papel atual: <strong>{(editingCustomer?.staff_roles ?? []).join(', ')}</strong>
+                      </p>
+                    )}
+                    <label>
+                      Papel interno
+                      <select
+                        value={form.staff_role_id}
+                        onChange={(e) => setForm((f) => ({ ...f, staff_role_id: e.target.value }))}
+                      >
+                        <option value="">— Sem acesso ao painel —</option>
+                        {staffRoles.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name} ({r.code})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button type="button" disabled={!form.staff_role_id} onClick={() => void assignStaffRole()}>
+                      Atribuir / alterar papel
+                    </button>
+                  </>
+                ) : (
+                  <p className="form-hint">
+                    Atribuição de papel interno é feita por um administrador (menu Usuários ou permissão{' '}
+                    <code>users.manage</code>).
                   </p>
                 )}
-                <label>
-                  Papel interno
-                  <select
-                    value={form.staff_role_id}
-                    onChange={(e) => setForm((f) => ({ ...f, staff_role_id: e.target.value }))}
-                  >
-                    <option value="">— Sem acesso ao painel —</option>
-                    {staffRoles.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name} ({r.code})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="button" disabled={!form.staff_role_id} onClick={() => void assignStaffRole()}>
-                  Atribuir / alterar papel
-                </button>
               </fieldset>
               <div className="form__actions form__full">
                 <button type="submit">Salvar</button>
