@@ -76,6 +76,30 @@ func SeedManager(ctx context.Context, pool *pgxpool.Pool, email string) (Manager
 	return Manager{UserID: userID, Email: email}, nil
 }
 
+// SeedFinanceOperator cria usuário com papel finance_operator (painel admin).
+func SeedFinanceOperator(ctx context.Context, pool *pgxpool.Pool, email string) (Manager, error) {
+	hash, err := security.HashPassword("password123")
+	if err != nil {
+		return Manager{}, err
+	}
+	userID := uuid.New()
+	_, err = pool.Exec(ctx, `
+		INSERT INTO users (id, name, email, password_hash, status, email_verified_at)
+		VALUES ($1, 'Financeiro Teste', $2, $3, 'active', NOW())
+	`, userID, email, hash)
+	if err != nil {
+		return Manager{}, err
+	}
+	_, err = pool.Exec(ctx, `
+		INSERT INTO user_roles (user_id, role_id)
+		VALUES ($1, 'a0000000-0000-4000-8000-000000000005')
+	`, userID)
+	if err != nil {
+		return Manager{}, err
+	}
+	return Manager{UserID: userID, Email: email}, nil
+}
+
 // SeedCustomer registra cliente pendente (papel customer).
 func SeedCustomer(ctx context.Context, pool *pgxpool.Pool, email, name string) (Customer, error) {
 	hash, err := security.HashPassword("password123")

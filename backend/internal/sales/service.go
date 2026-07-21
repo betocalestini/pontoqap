@@ -373,6 +373,10 @@ type AppError struct {
 func (e *AppError) Error() string { return e.Message }
 
 func AsAppError(err error) *AppError {
+	var se *AppError
+	if errors.As(err, &se) {
+		return se
+	}
 	var ie *inventory.AppError
 	if errors.As(err, &ie) {
 		return &AppError{Code: ie.Code, Message: ie.Message, Status: ie.Status}

@@ -65,3 +65,29 @@ func (s *Service) AddOrderEntryTx(ctx context.Context, tx pgx.Tx, customerID, or
 	`, periodID, orderID, desc, amount, at)
 	return err
 }
+
+// AddOrderCancellationTx estorna o valor do pedido no período em aberto original.
+func (s *Service) AddOrderCancellationTx(ctx context.Context, tx pgx.Tx, orderID uuid.UUID, amount int64, at time.Time) error {
+	var periodID uuid.UUID
+	var periodStatus string
+	err := tx.QueryRow(ctx, `
+		SELECT be.billing_period_id, bp.status
+		FROM billing_entries be
+		JOIN billing_periods bp ON bp.id = be.billing_period_id
+		WHERE be.order_id = $1 AND be.entry_type = 'order'
+		ORDER BY be.created_at ASC
+		LIMIT 1
+	`, orderID).Scan(&periodID, &periodStatus)
+	if err != nil {
+		return err
+	}
+	if periodStatus != "open" {
+		return fmt.Errorf("período de faturamento já fechado")
+	}
+	desc := fmt.Sprintf("Cancelamento pedido %s", orderID.String())
+	_, err = tx.Exec(ctx, `
+		INSERT INTO billing_entries (billing_period_id, entry_type, order_id, description, amount_cents, occurred_at)
+		VALUES ($1, 'order_cancellation', $2, $3, $4, $5)
+	`, periodID, orderID, desc, -amount, at)
+	return err
+}

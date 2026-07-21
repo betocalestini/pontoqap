@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/store-platform/store/internal/audit"
+	audithttp "github.com/store-platform/store/internal/audit/transport/http"
 	"github.com/store-platform/store/internal/billing"
 	billinghttp "github.com/store-platform/store/internal/billing/transport/http"
 	"github.com/store-platform/store/internal/catalog"
@@ -56,10 +57,11 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 	adminUsersSvc := identity.NewAdminUsersService(pool, idRepo, adminUsersRepo, jobRepo, auditSvc, cfg.App.AdminWebURL)
 	customersHandler := customershttp.NewHandler(custSvc, adminUsersSvc)
 	invHandler := inventoryhttp.NewHandler(invSvc, catalogSvc)
-	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc, catalogSvc, custSvc))
+	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc, catalogSvc, custSvc), auditSvc)
 	idSvc.SetAdminLoginAuditor(auditSvc)
 	idHandler := identityhttp.NewHandler(idSvc, verifySvc, adminUsersSvc, cfg.Session, cfg.Security)
 	adminUsersHandler := identityhttp.NewAdminUsersHandler(adminUsersSvc)
+	auditHandler := audithttp.NewHandler(auditSvc)
 
 	gateway := payments.NewSandboxGateway(cfg.Payments.WebhookSecret)
 	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments.WebhookSecret)
@@ -155,6 +157,14 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 				priv.With(identityhttp.RequireAnyPermission("inventory.entry", "inventory.loss", "inventory.adjust")).Post("/inventory/movements", invHandler.CreateMovement)
 				priv.With(identityhttp.RequirePermission("inventory.entry")).Post("/inventory/entries", invHandler.RegisterEntry)
 				adminUsersHandler.Routes(priv)
+				priv.Route("/orders", func(or chi.Router) {
+					or.With(identityhttp.RequirePermission("orders.read")).Get("/", salesHandler.AdminListOrders)
+					or.With(identityhttp.RequirePermission("orders.read")).Get("/{id}", salesHandler.AdminGetOrder)
+					or.With(identityhttp.RequirePermission("orders.cancel")).Post("/{id}/cancel", salesHandler.AdminCancelOrder)
+				})
+				priv.Route("/audit", func(ar chi.Router) {
+					ar.With(identityhttp.RequirePermission("audit.read")).Get("/logs", auditHandler.ListLogs)
+				})
 				priv.Route("/billing", func(br chi.Router) {
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/summary", billHandler.AdminSummary)
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/calendar", billHandler.ListCalendar)
@@ -168,7 +178,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 				priv.Route("/reports", func(rr chi.Router) {
 					rr.With(identityhttp.RequirePermission("reports.read")).Get("/dashboard", reportsHandler.Dashboard)
 					rr.With(identityhttp.RequirePermission("reports.read")).Get("/top-products", reportsHandler.TopProducts)
-					rr.With(identityhttp.RequirePermission("reports.read")).Get("/inventory", reportsHandler.Inventory)
+					rr.With(identityhttp.RequirePermission("inventory.read")).Get("/inventory", reportsHandler.Inventory)
 					rr.With(identityhttp.RequirePermission("reports.read")).Get("/forecast", forecastHandler.List)
 					rr.With(identityhttp.RequirePermission("reports.read")).Post("/forecast/generate", forecastHandler.Generate)
 				})

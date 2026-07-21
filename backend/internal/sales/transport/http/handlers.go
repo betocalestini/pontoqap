@@ -2,20 +2,24 @@ package http
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+
+	"github.com/store-platform/store/internal/audit"
 	identityhttp "github.com/store-platform/store/internal/identity/transport/http"
 	"github.com/store-platform/store/internal/platform/httpx"
 	"github.com/store-platform/store/internal/sales"
 )
 
 type Handler struct {
-	svc *sales.Service
+	svc   *sales.Service
+	audit *audit.Service
 }
 
-func NewHandler(svc *sales.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *sales.Service, auditSvc *audit.Service) *Handler {
+	return &Handler{svc: svc, audit: auditSvc}
 }
 
 func (h *Handler) MeRoutes(r chi.Router) {
@@ -26,125 +30,64 @@ func (h *Handler) MeRoutes(r chi.Router) {
 	r.Post("/cart/checkout", h.checkout)
 }
 
-func (h *Handler) getCart(w http.ResponseWriter, r *http.Request) {
-	user := identityhttp.UserFromContext(r.Context())
-	if user == nil || user.CustomerID == nil {
-		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Perfil de cliente necessário")
-		return
-	}
-	cart, err := h.svc.GetOrCreateCart(r.Context(), *user.CustomerID)
-	if err != nil {
-		if ae := sales.AsAppError(err); ae != nil {
-			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
-			return
-		}
-		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao carregar carrinho")
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, cart)
+func (h *Handler) AdminRoutes(r chi.Router) {
+	r.Get("/", h.AdminListOrders)
+	r.Get("/{id}", h.AdminGetOrder)
+	r.Post("/{id}/cancel", h.AdminCancelOrder)
 }
 
-func (h *Handler) clearCart(w http.ResponseWriter, r *http.Request) {
-	user := identityhttp.UserFromContext(r.Context())
-	if user == nil || user.CustomerID == nil {
-		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Perfil de cliente necessário")
-		return
-	}
-	cart, err := h.svc.ClearCart(r.Context(), *user.CustomerID)
+func (h *Handler) AdminListOrders(w http.ResponseWriter, r *http.Request) {
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	items, total, err := h.svc.AdminListOrders(r.Context(), sales.AdminOrderFilter{
+		Status: r.URL.Query().Get("status"),
+		Search: r.URL.Query().Get("search"),
+		Limit:  limit,
+		Offset: offset,
+	})
 	if err != nil {
-		if ae := sales.AsAppError(err); ae != nil {
-			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
-			return
-		}
-		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao esvaziar carrinho")
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao listar pedidos")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, cart)
+	if items == nil {
+		items = []sales.AdminOrderListItem{}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "total": total})
 }
 
-func (h *Handler) addItem(w http.ResponseWriter, r *http.Request) {
-	user := identityhttp.UserFromContext(r.Context())
-	if user == nil || user.CustomerID == nil {
-		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Perfil de cliente necessário")
-		return
-	}
-	var body struct {
-		SKUID    string `json:"sku_id"`
-		Quantity int    `json:"quantity"`
-	}
-	if err := httpx.DecodeJSON(r, &body); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
-		return
-	}
-	if body.Quantity <= 0 {
-		body.Quantity = 1
-	}
-	skuID, err := uuid.Parse(body.SKUID)
+func (h *Handler) AdminGetOrder(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "SKU inválido")
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
 		return
 	}
-	cart, err := h.svc.AddCartItem(r.Context(), *user.CustomerID, skuID, body.Quantity)
+	order, err := h.svc.AdminGetOrder(r.Context(), id)
 	if err != nil {
-		if ae := sales.AsAppError(err); ae != nil {
-			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
-			return
-		}
-		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		writeSalesError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, cart)
+	httpx.WriteJSON(w, http.StatusOK, order)
 }
 
-func (h *Handler) setItemQuantity(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) AdminCancelOrder(w http.ResponseWriter, r *http.Request) {
 	user := identityhttp.UserFromContext(r.Context())
-	if user == nil || user.CustomerID == nil {
-		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Perfil de cliente necessário")
+	if user == nil {
+		httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
 		return
 	}
-	skuID, err := uuid.Parse(chi.URLParam(r, "skuId"))
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "SKU inválido")
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
 		return
 	}
-	var body struct {
-		Quantity int `json:"quantity"`
-	}
-	if err := httpx.DecodeJSON(r, &body); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
-		return
-	}
-	cart, err := h.svc.SetCartItemQuantity(r.Context(), *user.CustomerID, skuID, body.Quantity)
+	order, err := h.svc.AdminCancelOrder(r.Context(), id, user.User.ID)
 	if err != nil {
-		if ae := sales.AsAppError(err); ae != nil {
-			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
-			return
-		}
-		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		writeSalesError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, cart)
-}
-
-func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
-	user := identityhttp.UserFromContext(r.Context())
-	if user == nil || user.CustomerID == nil {
-		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Perfil de cliente necessário")
-		return
+	if h.audit != nil {
+		_ = h.audit.Log(r.Context(), &user.User.ID, "order.cancelled", "order", &id,
+			map[string]string{"status": "confirmed"}, map[string]string{"status": "cancelled"})
 	}
-	idem := r.Header.Get("Idempotency-Key")
-	if idem == "" {
-		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Cabeçalho Idempotency-Key obrigatório")
-		return
-	}
-	order, err := h.svc.Checkout(r.Context(), *user.CustomerID, idem, user.User.ID)
-	if err != nil {
-		if ae := sales.AsAppError(err); ae != nil {
-			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
-			return
-		}
-		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
-		return
-	}
-	httpx.WriteJSON(w, http.StatusCreated, order)
+	httpx.WriteJSON(w, http.StatusOK, order)
 }
