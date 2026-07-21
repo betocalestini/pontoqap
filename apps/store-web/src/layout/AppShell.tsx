@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { storeNavLinks } from './navLinks';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 type AppShellProps = {
   children: ReactNode;
@@ -86,7 +87,9 @@ export function AppShell({ children }: AppShellProps) {
             Store
           </Link>
           <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} />
-          <button
+          <div className="app-top__actions">
+            <ThemeToggle />
+            <button
             type="button"
             className="nav-toggle"
             aria-expanded={menuOpen}
@@ -96,6 +99,7 @@ export function AppShell({ children }: AppShellProps) {
             <span className="nav-toggle__bars" aria-hidden />
             <span className="visually-hidden">{menuOpen ? 'Fechar menu' : 'Abrir menu'}</span>
           </button>
+          </div>
         </div>
       </div>
 
