@@ -5,6 +5,7 @@ import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
 import { CartPage } from './pages/Cart';
 import { InvoicesPage } from './pages/Invoices';
+import { OpenBillingPeriodPage } from './pages/OpenBillingPeriod';
 import { InvoiceDetailPage } from './pages/InvoiceDetail';
 import { VerifyEmailPage } from './pages/VerifyEmail';
 import { useClearCartOnReload } from './hooks/useClearCartOnReload';
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/cadastro" element={<RegisterPage />} />
         <Route path="/carrinho" element={<CartPage />} />
         <Route path="/faturas" element={<InvoicesPage />} />
+        <Route path="/faturas/competencia-atual" element={<OpenBillingPeriodPage />} />
         <Route path="/verificar-email" element={<VerifyEmailPage />} />
         <Route path="/faturas/:id" element={<InvoiceDetailPage />} />
       </Routes>

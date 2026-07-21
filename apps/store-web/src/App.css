@@ -492,6 +492,91 @@
   border-color: rgba(100, 108, 255, 0.45);
 }
 
+a.invoice-card--link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+a.invoice-card--link:hover {
+  border-color: rgba(100, 108, 255, 0.65);
+}
+
+.invoice-card-cta {
+  font-weight: 500;
+  color: var(--color-accent, #646cff);
+}
+
+.invoice-entry-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-md);
+}
+
+.invoice-entry-block {
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.invoice-entry-heading {
+  margin: 0 0 var(--space-xs);
+}
+
+.invoice-product-lines {
+  list-style: disc;
+  margin: var(--space-xs) 0 0 var(--space-md);
+  padding: 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.invoice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  align-items: center;
+}
+
+.invoice-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+
+.invoice-action-btn--primary {
+  background: var(--color-accent, #646cff);
+  color: #fff;
+  border-color: var(--color-accent, #646cff);
+}
+
+.invoice-action-btn--primary:hover {
+  filter: brightness(1.05);
+}
+
+.invoice-action-btn--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.invoice-action-btn--secondary {
+  background: var(--color-surface);
+  color: inherit;
+  border-color: var(--color-border);
+}
+
+.invoice-action-btn--secondary:hover {
+  border-color: rgba(100, 108, 255, 0.45);
+}
+
 .invoice-card-meta {
   font-size: 0.9rem;
   color: var(--color-text-muted);

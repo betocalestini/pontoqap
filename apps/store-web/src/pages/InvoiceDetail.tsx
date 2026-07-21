@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { AdminInvoiceDetail } from '@store/api-client';
+import type { MyInvoiceDetail } from '@store/api-client';
 import { formatMoney } from '@store/shared-core';
 import { api } from '../api';
+import { InvoiceItemsList } from '../components/InvoiceItems';
 import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
 import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
@@ -40,17 +41,19 @@ function closeTypeLabel(closeType?: string) {
 
 export function InvoiceDetailPage() {
   const { id } = useParams();
-  const [inv, setInv] = useState<AdminInvoiceDetail | null>(null);
+  const [inv, setInv] = useState<MyInvoiceDetail | null>(null);
+  const [loading, setLoading] = useState(true);
   const [charge, setCharge] = useState<Charge | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    setLoading(true);
     setNeedsAuth(false);
     api
       .getMyInvoice(id)
-      .then((v) => setInv(v as AdminInvoiceDetail))
+      .then(setInv)
       .catch((e: Error) => {
         if (isGuestAuthError(e)) {
           setNeedsAuth(true);
@@ -58,7 +61,8 @@ export function InvoiceDetailPage() {
         } else {
           setError(e.message);
         }
-      });
+      })
+      .finally(() => setLoading(false));
   }, [id]);
 
   async function payPix() {
@@ -81,7 +85,7 @@ export function InvoiceDetailPage() {
     if (!charge || !id) return;
     try {
       await api.simulatePixPayment(charge.id);
-      setInv((await api.getMyInvoice(id)) as AdminInvoiceDetail);
+      setInv(await api.getMyInvoice(id));
       setCharge(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
@@ -94,9 +98,10 @@ export function InvoiceDetailPage() {
         <Link to="/faturas">← Minhas faturas</Link>
       </p>
       <h1>{inv?.invoice_number ?? 'Fatura'}</h1>
+      {loading && <p>Carregando…</p>}
       {needsAuth && <AuthGuestPrompt message={guestAuthMessage('invoice')} />}
       {error && <p className="error">{error}</p>}
-      {!needsAuth && inv && (
+      {!loading && !needsAuth && inv && (
         <div className="invoice-card">
           <p>
             <span className="badge">{invoiceStatusLabel(inv.status)}</span>
@@ -138,17 +143,10 @@ export function InvoiceDetailPage() {
             </div>
           </dl>
           <h2>Itens</h2>
-          <ul className="invoice-item-list">
-            {inv.items.map((it) => (
-              <li key={it.id}>
-                {it.description} — {it.quantity} × {formatMoney(it.unit_price_cents)} ={' '}
-                {formatMoney(it.total_cents)}
-              </li>
-            ))}
-          </ul>
+          <InvoiceItemsList items={inv.items} />
         </div>
       )}
-      {!needsAuth && inv && inv.remaining_cents > 0 && inv.status !== 'paid' && (
+      {!loading && !needsAuth && inv && inv.remaining_cents > 0 && inv.status !== 'paid' && (
         <div className="stack-sm stack-sm--row">
           <button type="button" onClick={() => void payPix()}>
             Gerar Pix

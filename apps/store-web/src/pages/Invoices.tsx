@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import type { MyInvoiceListItem, OpenBillingPeriod } from '@store/api-client';
 import { formatMoney } from '@store/shared-core';
 import { api } from '../api';
@@ -37,13 +37,11 @@ function closeTypeLabel(closeType?: string) {
 }
 
 export function InvoicesPage() {
-  const navigate = useNavigate();
   const [current, setCurrent] = useState<OpenBillingPeriod | null>(null);
   const [items, setItems] = useState<MyInvoiceListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [closing, setClosing] = useState(false);
 
   function reload() {
     setLoading(true);
@@ -69,23 +67,8 @@ export function InvoicesPage() {
     reload();
   }, []);
 
-  async function handleCloseCycle() {
-    setClosing(true);
-    setError(null);
-    try {
-      const inv = await api.closeMyBillingCycle();
-      navigate(`/faturas/${inv.id}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível fechar a fatura');
-    } finally {
-      setClosing(false);
-    }
-  }
-
   const hasCurrent = current != null;
   const hasHistory = items.length > 0;
-  const canClosePartial =
-    hasCurrent && current.entry_count > 0 && (current.total_cents ?? 0) > 0;
 
   return (
     <section className="content-section invoices-page">
@@ -97,7 +80,7 @@ export function InvoicesPage() {
         <>
           <h2>Competência atual</h2>
           {hasCurrent ? (
-            <div className="invoice-card invoice-card--current">
+            <Link to="/faturas/competencia-atual" className="invoice-card invoice-card--current invoice-card--link">
               <p>
                 <strong>{formatCompetence(current.reference_year, current.reference_month)}</strong>
                 {current.cycle_number != null && current.cycle_number > 1 && (
@@ -110,14 +93,10 @@ export function InvoicesPage() {
               <p className="invoice-card-meta">
                 {current.entry_count === 0
                   ? 'Nenhuma compra nesta competência ainda.'
-                  : `${current.entry_count} lançamento(s). Fechamento automático no dia 1; você também pode fechar e pagar agora.`}
+                  : `${current.entry_count} lançamento(s). Fechamento automático no dia 1; abra os lançamentos para fechar e pagar antes disso.`}
               </p>
-              {canClosePartial && (
-                <button type="button" className="btn-primary" disabled={closing} onClick={handleCloseCycle}>
-                  {closing ? 'Fechando…' : 'Fechar fatura e pagar'}
-                </button>
-              )}
-            </div>
+              <p className="invoice-card-meta invoice-card-cta">Ver lançamentos →</p>
+            </Link>
           ) : (
             <p className="invoice-card-meta">Nenhuma competência em aberto no momento.</p>
           )}
@@ -129,28 +108,30 @@ export function InvoicesPage() {
                 const remaining = Math.max(0, inv.total_cents - inv.paid_cents);
                 const typeLabel = closeTypeLabel(inv.close_type);
                 return (
-                  <li key={inv.id} className="invoice-card">
-                    <Link to={`/faturas/${inv.id}`}>
-                      <strong>{inv.invoice_number}</strong>
+                  <li key={inv.id}>
+                    <Link to={`/faturas/${inv.id}`} className="invoice-card invoice-card--link">
+                      <p>
+                        <strong>{inv.invoice_number}</strong>
+                        <span className="badge">{invoiceStatusLabel(inv.status)}</span>
+                        {typeLabel && <span className="invoice-card-meta"> · {typeLabel}</span>}
+                      </p>
+                      <p>
+                        Total {formatMoney(inv.total_cents)}
+                        {remaining > 0 && ` · ${formatMoney(remaining)} em aberto`}
+                        {remaining === 0 && inv.total_cents > 0 && ' · quitada'}
+                      </p>
+                      {inv.reference_year != null && inv.reference_month != null && (
+                        <p className="invoice-card-meta">
+                          Competência {formatCompetence(inv.reference_year, inv.reference_month)}
+                          {inv.cycle_number != null && inv.cycle_number > 1 && ` · ciclo ${inv.cycle_number}`}
+                        </p>
+                      )}
+                      {inv.due_at && (
+                        <p className="invoice-card-meta">
+                          Vencimento: {new Date(inv.due_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
                     </Link>
-                    <span className="badge">{invoiceStatusLabel(inv.status)}</span>
-                    {typeLabel && <span className="invoice-card-meta"> · {typeLabel}</span>}
-                    <p>
-                      Total {formatMoney(inv.total_cents)}
-                      {remaining > 0 && ` · ${formatMoney(remaining)} em aberto`}
-                      {remaining === 0 && inv.total_cents > 0 && ' · quitada'}
-                    </p>
-                    {inv.reference_year != null && inv.reference_month != null && (
-                      <p className="invoice-card-meta">
-                        Competência {formatCompetence(inv.reference_year, inv.reference_month)}
-                        {inv.cycle_number != null && inv.cycle_number > 1 && ` · ciclo ${inv.cycle_number}`}
-                      </p>
-                    )}
-                    {inv.due_at && (
-                      <p className="invoice-card-meta">
-                        Vencimento: {new Date(inv.due_at).toLocaleDateString('pt-BR')}
-                      </p>
-                    )}
                   </li>
                 );
               })}
