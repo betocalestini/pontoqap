@@ -1,0 +1,5 @@
+SET search_path TO public;
+
+INSERT INTO public.role_permissions (role_id, permission_id)
+VALUES ('a0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-00000000000f')
+ON CONFLICT DO NOTHING;
