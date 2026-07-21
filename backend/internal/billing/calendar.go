@@ -105,21 +105,6 @@ func NthBusinessDay(ctx context.Context, pool *pgxpool.Pool, year, month, n int)
 	return time.Time{}, ErrNoBusinessDay
 }
 
-func IsMonthlyClosingDay(ctx context.Context, pool *pgxpool.Pool, now time.Time) (bool, error) {
-	now = now.In(saoPaulo)
-	fifth, err := NthBusinessDay(ctx, pool, now.Year(), int(now.Month()), 5)
-	if err != nil {
-		return false, err
-	}
-	return sameDate(now, fifth), nil
-}
-
-func sameDate(a, b time.Time) bool {
-	a = a.In(saoPaulo)
-	b = b.In(saoPaulo)
-	return a.Year() == b.Year() && a.Month() == b.Month() && a.Day() == b.Day()
-}
-
 func PreviousMonth(year, month int) (int, int) {
 	if month == 1 {
 		return year - 1, 12

@@ -64,7 +64,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 	gateway := payments.NewSandboxGateway(cfg.Payments.WebhookSecret)
 	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments.WebhookSecret)
 	payHandler := paymentshttp.NewHandler(paySvc)
-	billHandler := billinghttp.NewHandler(billSvc)
+	billHandler := billinghttp.NewHandler(billSvc, auditSvc)
 	reportsHandler := reportshttp.NewReportsHandler(reports.NewService(pool))
 	forecastHandler := reportshttp.NewForecastHandler(forecasting.NewService(pool))
 
@@ -156,10 +156,13 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 				priv.With(identityhttp.RequirePermission("inventory.entry")).Post("/inventory/entries", invHandler.RegisterEntry)
 				adminUsersHandler.Routes(priv)
 				priv.Route("/billing", func(br chi.Router) {
+					br.With(identityhttp.RequirePermission("billing.read")).Get("/summary", billHandler.AdminSummary)
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/calendar", billHandler.ListCalendar)
 					br.With(identityhttp.RequirePermission("settings.write")).Put("/calendar", billHandler.UpsertCalendar)
 					br.With(identityhttp.RequirePermission("billing.close")).Post("/close", billHandler.ClosePeriods)
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/invoices", billHandler.ListAllInvoices)
+					br.With(identityhttp.RequirePermission("billing.read")).Get("/invoices/{id}", billHandler.GetAdminInvoice)
+					br.With(identityhttp.RequirePermission("billing.close")).Post("/invoices/{id}/adjustments", billHandler.AddInvoiceAdjustment)
 				})
 				priv.With(identityhttp.RequirePermission("payments.read")).Post("/invoices/{id}/pix-charge", payHandler.CreatePixCharge)
 				priv.Route("/reports", func(rr chi.Router) {

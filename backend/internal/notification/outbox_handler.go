@@ -10,9 +10,11 @@ import (
 )
 
 const (
-	EventUserVerification = "user.verification_requested"
-	EventInvoiceClosed    = "invoice.closed"
-	EventAdminInvitation  = "admin.invitation_sent"
+	EventUserVerification        = "user.verification_requested"
+	EventInvoiceClosed           = "invoice.closed"
+	EventInvoicePaymentReminder  = "invoice.payment_reminder"
+	EventInvoicePaymentEscalation = "invoice.payment_escalation"
+	EventAdminInvitation         = "admin.invitation_sent"
 )
 
 type OutboxHandler struct {
@@ -54,6 +56,25 @@ func (h *OutboxHandler) Handle(ctx context.Context, eventType string, payload js
 			return fmt.Errorf("due_at: %w", err)
 		}
 		subj, text, html := InvoiceClosedContent(p.Name, p.InvoiceNumber, p.RefYear, p.RefMonth, p.TotalCents, due, p.InvoiceURL)
+		return h.Mailer.Send(p.To, subj, text, html)
+	case EventInvoicePaymentReminder, EventInvoicePaymentEscalation:
+		var p struct {
+			To            string `json:"to"`
+			Name          string `json:"name"`
+			InvoiceNumber string `json:"invoice_number"`
+			TotalCents    int64  `json:"total_cents"`
+			DueAt         string `json:"due_at"`
+			InvoiceURL    string `json:"invoice_url"`
+		}
+		if err := json.Unmarshal(payload, &p); err != nil {
+			return err
+		}
+		due, err := time.Parse(time.RFC3339, p.DueAt)
+		if err != nil {
+			return fmt.Errorf("due_at: %w", err)
+		}
+		escalation := eventType == EventInvoicePaymentEscalation
+		subj, text, html := InvoicePaymentFollowUpContent(p.Name, p.InvoiceNumber, p.TotalCents, due, p.InvoiceURL, escalation)
 		return h.Mailer.Send(p.To, subj, text, html)
 	case EventAdminInvitation:
 		var p struct {

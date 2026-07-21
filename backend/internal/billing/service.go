@@ -23,23 +23,33 @@ func NewService(pool *pgxpool.Pool, jobRepo *jobs.Repository, storeWebURL string
 }
 
 func (s *Service) EnsureOpenPeriodTx(ctx context.Context, tx pgx.Tx, customerID uuid.UUID, at time.Time) (uuid.UUID, error) {
-	year, month := at.Year(), int(at.Month())
 	var periodID uuid.UUID
 	err := tx.QueryRow(ctx, `
 		SELECT id FROM billing_periods
-		WHERE customer_id = $1 AND reference_year = $2 AND reference_month = $3
-	`, customerID, year, month).Scan(&periodID)
+		WHERE customer_id = $1 AND status = 'open'
+		FOR UPDATE
+	`, customerID).Scan(&periodID)
 	if err == nil {
 		return periodID, nil
 	}
 	if err != pgx.ErrNoRows {
 		return uuid.Nil, err
 	}
+	at = at.In(saoPaulo)
+	year, month := at.Year(), int(at.Month())
+	var maxCycle int
+	err = tx.QueryRow(ctx, `
+		SELECT COALESCE(MAX(cycle_number), 0) FROM billing_periods
+		WHERE customer_id = $1 AND reference_year = $2 AND reference_month = $3
+	`, customerID, year, month).Scan(&maxCycle)
+	if err != nil {
+		return uuid.Nil, err
+	}
 	periodID = uuid.New()
 	_, err = tx.Exec(ctx, `
-		INSERT INTO billing_periods (id, customer_id, reference_year, reference_month, status, opened_at)
-		VALUES ($1, $2, $3, $4, 'open', $5)
-	`, periodID, customerID, year, month, at)
+		INSERT INTO billing_periods (id, customer_id, reference_year, reference_month, cycle_number, status, opened_at)
+		VALUES ($1, $2, $3, $4, $5, 'open', $6)
+	`, periodID, customerID, year, month, maxCycle+1, at)
 	return periodID, err
 }
 

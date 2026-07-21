@@ -7,4 +7,6 @@ var (
 	ErrPeriodNotFound   = errors.New("billing period not found")
 	ErrNoBusinessDay    = errors.New("not enough business days in month")
 	ErrInvoiceExists    = errors.New("invoice already exists for period")
+	ErrPeriodEmpty      = errors.New("billing period has no billable entries")
+	ErrNoOpenPeriod     = errors.New("customer has no open billing period")
 )

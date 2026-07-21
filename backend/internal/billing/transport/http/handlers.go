@@ -3,31 +3,38 @@ package http
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/store-platform/store/internal/audit"
 	"github.com/store-platform/store/internal/billing"
 	identityhttp "github.com/store-platform/store/internal/identity/transport/http"
 	"github.com/store-platform/store/internal/platform/httpx"
 )
 
 type Handler struct {
-	svc *billing.Service
+	svc   *billing.Service
+	audit *audit.Service
 }
 
-func NewHandler(svc *billing.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *billing.Service, auditSvc *audit.Service) *Handler {
+	return &Handler{svc: svc, audit: auditSvc}
 }
 
 func (h *Handler) MeRoutes(r chi.Router) {
 	r.Get("/invoices", h.ListMyInvoices)
 	r.Get("/invoices/{id}", h.GetMyInvoice)
+	r.Post("/billing/close-cycle", h.CloseMyBillingCycle)
 }
 
 func (h *Handler) AdminRoutes(r chi.Router) {
+	r.Get("/summary", h.AdminSummary)
 	r.Get("/invoices", h.ListAllInvoices)
+	r.Get("/invoices/{id}", h.GetAdminInvoice)
+	r.Post("/invoices/{id}/adjustments", h.AddInvoiceAdjustment)
 	r.Post("/close", h.ClosePeriods)
 	r.Get("/calendar", h.ListCalendar)
 	r.Put("/calendar", h.UpsertCalendar)
@@ -39,7 +46,7 @@ func (h *Handler) ListMyInvoices(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Cliente necessário")
 		return
 	}
-	items, err := h.svc.ListInvoicesByCustomerLimit(r.Context(), *user.CustomerID, 3)
+	items, err := h.svc.ListInvoicesByCustomerLimit(r.Context(), *user.CustomerID, 20)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao listar faturas")
 		return
@@ -66,7 +73,7 @@ func (h *Handler) GetMyInvoice(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
 		return
 	}
-	inv, err := h.svc.GetInvoice(r.Context(), id)
+	inv, err := h.svc.GetInvoiceDetail(r.Context(), id)
 	if err != nil || inv == nil || inv.CustomerID != *user.CustomerID {
 		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Fatura não encontrada")
 		return
@@ -74,30 +81,171 @@ func (h *Handler) GetMyInvoice(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, inv)
 }
 
+func (h *Handler) CloseMyBillingCycle(w http.ResponseWriter, r *http.Request) {
+	user := identityhttp.UserFromContext(r.Context())
+	if user == nil || user.CustomerID == nil {
+		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Cliente necessário")
+		return
+	}
+	inv, err := h.svc.CloseCustomerOpenPeriod(r.Context(), *user.CustomerID)
+	if err != nil {
+		switch err {
+		case billing.ErrNoOpenPeriod:
+			httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Não há período em aberto")
+		case billing.ErrPeriodEmpty:
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Não há compras para fechar neste ciclo")
+		default:
+			httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		}
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, inv)
+}
+
+func (h *Handler) AdminSummary(w http.ResponseWriter, r *http.Request) {
+	sum, err := h.svc.AdminBillingSummary(r.Context(), time.Now())
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao carregar resumo")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, sum)
+}
+
+func parseAdminInvoiceFilter(r *http.Request) billing.AdminInvoiceFilter {
+	var f billing.AdminInvoiceFilter
+	f.Status = r.URL.Query().Get("status")
+	f.Search = r.URL.Query().Get("search")
+	f.Year, _ = strconv.Atoi(r.URL.Query().Get("year"))
+	f.Month, _ = strconv.Atoi(r.URL.Query().Get("month"))
+	f.Limit, _ = strconv.Atoi(r.URL.Query().Get("limit"))
+	f.Offset, _ = strconv.Atoi(r.URL.Query().Get("offset"))
+	if cid := r.URL.Query().Get("customer_id"); cid != "" {
+		if id, err := uuid.Parse(cid); err == nil {
+			f.CustomerID = &id
+		}
+	}
+	return f
+}
+
 func (h *Handler) ListAllInvoices(w http.ResponseWriter, r *http.Request) {
-	// simplificado: lista via query customer_id opcional omitida — retorna vazio se não implementado full scan
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": []billing.Invoice{}})
+	f := parseAdminInvoiceFilter(r)
+	items, total, err := h.svc.ListInvoicesAdmin(r.Context(), f)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao listar faturas")
+		return
+	}
+	if items == nil {
+		items = []billing.AdminInvoiceListRow{}
+	}
+	limit := f.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"items":  items,
+		"total":  total,
+		"limit":  limit,
+		"offset": f.Offset,
+	})
+}
+
+func (h *Handler) GetAdminInvoice(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
+		return
+	}
+	inv, err := h.svc.GetInvoiceDetail(r.Context(), id)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao carregar fatura")
+		return
+	}
+	if inv == nil {
+		httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Fatura não encontrada")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, inv)
+}
+
+func (h *Handler) AddInvoiceAdjustment(w http.ResponseWriter, r *http.Request) {
+	user := identityhttp.UserFromContext(r.Context())
+	if user == nil {
+		httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+	if !identityhttp.HasPermission(r.Context(), "billing.close") {
+		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Permissão insuficiente")
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
+		return
+	}
+	var body struct {
+		AdjustmentType string `json:"adjustment_type"`
+		AmountCents    int64  `json:"amount_cents"`
+		Reason         string `json:"reason"`
+	}
+	if err := httpx.DecodeJSON(r, &body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Dados inválidos")
+		return
+	}
+	inv, err := h.svc.AddInvoiceAdjustment(r.Context(), id, user.User.ID, body.AdjustmentType, body.AmountCents, body.Reason)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+	if h.audit != nil {
+		_ = h.audit.Log(r.Context(), &user.User.ID, "billing.invoice_adjustment", "invoice", &id, nil, map[string]any{
+			"adjustment_type": body.AdjustmentType,
+			"amount_cents":    body.AmountCents,
+			"reason":          body.Reason,
+		})
+	}
+	httpx.WriteJSON(w, http.StatusOK, inv)
 }
 
 func (h *Handler) ClosePeriods(w http.ResponseWriter, r *http.Request) {
+	user := identityhttp.UserFromContext(r.Context())
 	year, _ := strconv.Atoi(r.URL.Query().Get("year"))
 	month, _ := strconv.Atoi(r.URL.Query().Get("month"))
-	if year == 0 || month == 0 {
-		var body struct {
-			Year  int `json:"year"`
-			Month int `json:"month"`
-		}
-		_ = httpx.DecodeJSON(r, &body)
-		year, month = body.Year, body.Month
+	reason := strings.TrimSpace(r.URL.Query().Get("reason"))
+	var body struct {
+		Year   int    `json:"year"`
+		Month  int    `json:"month"`
+		Reason string `json:"reason"`
+	}
+	_ = httpx.DecodeJSON(r, &body)
+	if body.Year > 0 {
+		year = body.Year
+	}
+	if body.Month > 0 {
+		month = body.Month
+	}
+	if body.Reason != "" {
+		reason = strings.TrimSpace(body.Reason)
 	}
 	if year == 0 || month == 0 {
 		now := time.Now()
 		year, month = billing.PreviousMonth(now.Year(), int(now.Month()))
 	}
-	n, err := h.svc.CloseOpenPeriodsForReference(r.Context(), year, month)
+	if len(reason) < 10 {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Informe o motivo do fechamento (mínimo 10 caracteres)")
+		return
+	}
+	n, err := h.svc.CloseOpenPeriodsForReference(r.Context(), year, month, billing.CloseTypeAdminManual)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
+	}
+	if h.audit != nil && user != nil {
+		_ = h.audit.Log(r.Context(), &user.User.ID, "billing.close_manual", "billing_period", nil, nil, map[string]any{
+			"year":            year,
+			"month":           month,
+			"closed_periods":  n,
+			"reason":          reason,
+		})
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"closed_periods": n, "year": year, "month": month})
 }

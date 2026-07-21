@@ -21,6 +21,21 @@ func InvoiceClosedContent(name, invoiceNumber string, refYear, refMonth int, tot
 	return subject, text, html
 }
 
+func InvoicePaymentFollowUpContent(name, invoiceNumber string, totalCents int64, dueAt time.Time, invoiceURL string, escalation bool) (subject, text, html string) {
+	total := formatBRL(totalCents)
+	due := dueAt.Format("02/01/2006")
+	if escalation {
+		subject = fmt.Sprintf("Fatura %s em atraso — Store", invoiceNumber)
+		text = fmt.Sprintf("Olá, %s!\n\nSua fatura %s continua em aberto (total %s, vencimento %s). Regularize o pagamento em:\n%s\n", name, invoiceNumber, total, due, invoiceURL)
+		html = fmt.Sprintf(`<p>Olá, %s!</p><p>Sua fatura <strong>%s</strong> continua em aberto.</p><p>Total: %s<br>Vencimento: %s</p><p><a href="%s">Pagar agora</a></p>`, name, invoiceNumber, total, due, invoiceURL)
+		return subject, text, html
+	}
+	subject = fmt.Sprintf("Lembrete: fatura %s — Store", invoiceNumber)
+	text = fmt.Sprintf("Olá, %s!\n\nLembrete: a fatura %s (total %s, vencimento %s) aguarda pagamento.\n%s\n", name, invoiceNumber, total, due, invoiceURL)
+	html = fmt.Sprintf(`<p>Olá, %s!</p><p>Lembrete de pagamento da fatura <strong>%s</strong>.</p><p>Total: %s<br>Vencimento: %s</p><p><a href="%s">Ver fatura</a></p>`, name, invoiceNumber, total, due, invoiceURL)
+	return subject, text, html
+}
+
 func formatBRL(cents int64) string {
 	reais := cents / 100
 	frac := cents % 100

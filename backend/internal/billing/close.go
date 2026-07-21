@@ -20,6 +20,10 @@ type Invoice struct {
 	TotalCents      int64     `json:"total_cents"`
 	PaidCents       int64     `json:"paid_cents"`
 	DueAt           time.Time `json:"due_at"`
+	CloseType       string    `json:"close_type,omitempty"`
+	ReferenceYear   int       `json:"reference_year,omitempty"`
+	ReferenceMonth  int       `json:"reference_month,omitempty"`
+	CycleNumber     int       `json:"cycle_number,omitempty"`
 }
 
 func (inv Invoice) RemainingCents() int64 {
@@ -30,21 +34,36 @@ func (inv Invoice) RemainingCents() int64 {
 	return r
 }
 
-// ClosePeriod fecha um período aberto e gera fatura (idempotente).
+// ClosePeriod fecha um período aberto (fechamento automático mensal).
 func (s *Service) ClosePeriod(ctx context.Context, periodID uuid.UUID) (*Invoice, error) {
+	return s.ClosePeriodWithType(ctx, periodID, CloseTypeMonthlyAuto)
+}
+
+// ClosePeriodWithType fecha um período aberto e gera fatura (idempotente se já existir).
+func (s *Service) ClosePeriodWithType(ctx context.Context, periodID uuid.UUID, closeType string) (*Invoice, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+	inv, err := s.closePeriodTx(ctx, tx, periodID, closeType)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return inv, nil
+}
 
+func (s *Service) closePeriodTx(ctx context.Context, tx pgx.Tx, periodID uuid.UUID, closeType string) (*Invoice, error) {
 	var customerID uuid.UUID
 	var status string
-	var refYear, refMonth int
-	err = tx.QueryRow(ctx, `
-		SELECT customer_id, status, reference_year, reference_month
+	var refYear, refMonth, cycleNumber int
+	err := tx.QueryRow(ctx, `
+		SELECT customer_id, status, reference_year, reference_month, cycle_number
 		FROM billing_periods WHERE id = $1 FOR UPDATE
-	`, periodID).Scan(&customerID, &status, &refYear, &refMonth)
+	`, periodID).Scan(&customerID, &status, &refYear, &refMonth, &cycleNumber)
 	if err == pgx.ErrNoRows {
 		return nil, ErrPeriodNotFound
 	}
@@ -53,19 +72,26 @@ func (s *Service) ClosePeriod(ctx context.Context, periodID uuid.UUID) (*Invoice
 	}
 
 	var existing Invoice
+	var existingCloseType string
 	err = tx.QueryRow(ctx, `
-		SELECT id, invoice_number, customer_id, billing_period_id, status, total_cents, paid_cents, due_at
-		FROM invoices WHERE billing_period_id = $1
+		SELECT i.id, i.invoice_number, i.customer_id, i.billing_period_id, i.status,
+		       i.total_cents, i.paid_cents, i.due_at, i.close_type
+		FROM invoices i WHERE i.billing_period_id = $1
 	`, periodID).Scan(&existing.ID, &existing.InvoiceNumber, &existing.CustomerID,
-		&existing.BillingPeriodID, &existing.Status, &existing.TotalCents, &existing.PaidCents, &existing.DueAt)
+		&existing.BillingPeriodID, &existing.Status, &existing.TotalCents, &existing.PaidCents,
+		&existing.DueAt, &existingCloseType)
 	if err == nil {
+		existing.CloseType = existingCloseType
+		existing.ReferenceYear = refYear
+		existing.ReferenceMonth = refMonth
+		existing.CycleNumber = cycleNumber
 		return &existing, nil
 	}
 	if err != pgx.ErrNoRows {
 		return nil, err
 	}
 
-	if status == "closed" {
+	if status != "open" {
 		return nil, ErrPeriodNotOpen
 	}
 
@@ -95,6 +121,9 @@ func (s *Service) ClosePeriod(ctx context.Context, periodID uuid.UUID) (*Invoice
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	if len(entries) == 0 || subtotal <= 0 {
+		return nil, ErrPeriodEmpty
+	}
 
 	creditCents := int64(0)
 	adjustmentCents := int64(0)
@@ -104,17 +133,20 @@ func (s *Service) ClosePeriod(ctx context.Context, periodID uuid.UUID) (*Invoice
 	}
 
 	invID := uuid.New()
-	invNumber := fmt.Sprintf("INV-%04d%02d-%s", refYear, refMonth, invID.String()[:8])
-	dueAt := time.Date(refYear, time.Month(refMonth), 1, 0, 0, 0, 0, saoPaulo).AddDate(0, 2, 0) // vencimento simplificado: +2 meses
+	invNumber := fmt.Sprintf("INV-%04d%02d-c%d-%s", refYear, refMonth, cycleNumber, invID.String()[:8])
+	dueAt := DueAtForCompetence(refYear, refMonth)
 
 	now := time.Now()
+	if closeType == "" {
+		closeType = CloseTypeMonthlyAuto
+	}
 	_, err = tx.Exec(ctx, `
 		INSERT INTO invoices (
 			id, invoice_number, customer_id, billing_period_id, status,
 			subtotal_cents, credit_cents, adjustment_cents, total_cents, paid_cents,
-			due_at, closed_at
-		) VALUES ($1,$2,$3,$4,'open',$5,$6,$7,$8,0,$9,$10)
-	`, invID, invNumber, customerID, periodID, subtotal, creditCents, adjustmentCents, total, dueAt, now)
+			due_at, closed_at, close_type
+		) VALUES ($1,$2,$3,$4,'open',$5,$6,$7,$8,0,$9,$10,$11)
+	`, invID, invNumber, customerID, periodID, subtotal, creditCents, adjustmentCents, total, dueAt, now, closeType)
 	if err != nil {
 		return nil, err
 	}
@@ -162,17 +194,15 @@ func (s *Service) ClosePeriod(ctx context.Context, periodID uuid.UUID) (*Invoice
 		}
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return nil, err
-	}
 	return &Invoice{
 		ID: invID, InvoiceNumber: invNumber, CustomerID: customerID,
 		BillingPeriodID: periodID, Status: "open", TotalCents: total, PaidCents: 0, DueAt: dueAt,
+		CloseType: closeType, ReferenceYear: refYear, ReferenceMonth: refMonth, CycleNumber: cycleNumber,
 	}, nil
 }
 
 // CloseOpenPeriodsForReference fecha todos os períodos abertos de um ano/mês de competência.
-func (s *Service) CloseOpenPeriodsForReference(ctx context.Context, year, month int) (int, error) {
+func (s *Service) CloseOpenPeriodsForReference(ctx context.Context, year, month int, closeType string) (int, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id FROM billing_periods
 		WHERE reference_year = $1 AND reference_month = $2 AND status = 'open'
@@ -187,7 +217,10 @@ func (s *Service) CloseOpenPeriodsForReference(ctx context.Context, year, month 
 		if err := rows.Scan(&id); err != nil {
 			return closed, err
 		}
-		if _, err := s.ClosePeriod(ctx, id); err != nil && err != ErrInvoiceExists {
+		if _, err := s.ClosePeriodWithType(ctx, id, closeType); err != nil {
+			if err == ErrPeriodEmpty {
+				continue
+			}
 			return closed, err
 		}
 		closed++
@@ -195,50 +228,34 @@ func (s *Service) CloseOpenPeriodsForReference(ctx context.Context, year, month 
 	return closed, rows.Err()
 }
 
-// RunScheduledClosingIfDue executa fechamento do mês anterior no 5º dia útil.
+// RunScheduledClosingIfDue executa fechamento do mês anterior no dia 1 (America/Sao_Paulo).
 func (s *Service) RunScheduledClosingIfDue(ctx context.Context, now time.Time) (bool, int, error) {
-	due, err := IsMonthlyClosingDay(ctx, s.pool, now)
-	if err != nil {
-		return false, 0, err
-	}
-	if !due {
+	if !IsMonthlyClosingDay(now) {
 		return false, 0, nil
 	}
 	now = now.In(saoPaulo)
 	py, pm := PreviousMonth(now.Year(), int(now.Month()))
-	n, err := s.CloseOpenPeriodsForReference(ctx, py, pm)
+	n, err := s.CloseOpenPeriodsForReference(ctx, py, pm, CloseTypeMonthlyAuto)
 	return true, n, err
 }
 
 func (s *Service) ListInvoicesByCustomer(ctx context.Context, customerID uuid.UUID) ([]Invoice, error) {
-	rows, err := s.pool.Query(ctx, `
-		SELECT id, invoice_number, customer_id, billing_period_id, status, total_cents, paid_cents, due_at
-		FROM invoices WHERE customer_id = $1 ORDER BY created_at DESC
-	`, customerID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []Invoice
-	for rows.Next() {
-		var inv Invoice
-		if err := rows.Scan(&inv.ID, &inv.InvoiceNumber, &inv.CustomerID, &inv.BillingPeriodID,
-			&inv.Status, &inv.TotalCents, &inv.PaidCents, &inv.DueAt); err != nil {
-			return nil, err
-		}
-		out = append(out, inv)
-	}
-	return out, rows.Err()
+	return s.ListInvoicesByCustomerLimit(ctx, customerID, 50)
 }
 
 func (s *Service) GetInvoice(ctx context.Context, id uuid.UUID) (*Invoice, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, invoice_number, customer_id, billing_period_id, status, total_cents, paid_cents, due_at
-		FROM invoices WHERE id = $1
+		SELECT i.id, i.invoice_number, i.customer_id, i.billing_period_id, i.status,
+		       i.total_cents, i.paid_cents, i.due_at, i.close_type,
+		       bp.reference_year, bp.reference_month, bp.cycle_number
+		FROM invoices i
+		JOIN billing_periods bp ON bp.id = i.billing_period_id
+		WHERE i.id = $1
 	`, id)
 	var inv Invoice
 	err := row.Scan(&inv.ID, &inv.InvoiceNumber, &inv.CustomerID, &inv.BillingPeriodID,
-		&inv.Status, &inv.TotalCents, &inv.PaidCents, &inv.DueAt)
+		&inv.Status, &inv.TotalCents, &inv.PaidCents, &inv.DueAt, &inv.CloseType,
+		&inv.ReferenceYear, &inv.ReferenceMonth, &inv.CycleNumber)
 	if err == pgx.ErrNoRows {
 		return nil, nil
 	}

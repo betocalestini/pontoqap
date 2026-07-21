@@ -34,7 +34,7 @@ func (h *Handler) Handle(ctx context.Context, job Job) error {
 				p.Year, p.Month = y, m-1
 			}
 		}
-		_, err := h.Billing.CloseOpenPeriodsForReference(ctx, p.Year, p.Month)
+		_, err := h.Billing.CloseOpenPeriodsForReference(ctx, p.Year, p.Month, "monthly_auto")
 		return err
 	case TypeMarkOverdue:
 		_, err := h.Billing.MarkOverdueInvoices(ctx, time.Now())
@@ -80,6 +80,13 @@ func (r *Runner) ScheduleDailyMaintenance(ctx context.Context) error {
 	}
 	if ran {
 		r.Handler.Log.Info("monthly closing executed", "periods_closed", n)
+	}
+	rem, esc, err := r.Handler.Billing.ProcessClosedInvoiceReminders(ctx, time.Now())
+	if err != nil {
+		return err
+	}
+	if rem > 0 || esc > 0 {
+		r.Handler.Log.Info("invoice payment reminders processed", "reminders", rem, "escalations", esc)
 	}
 	return r.Repo.Enqueue(ctx, TypeMarkOverdue, map[string]any{})
 }
