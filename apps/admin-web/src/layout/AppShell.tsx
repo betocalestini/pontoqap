@@ -1,9 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { UserMenu } from '@store/ui';
+import '@store/ui/user-menu.css';
 import { adminNavLinks } from './navLinks';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { usePermissions } from '../auth/usePermissions';
+import { useAuth } from '../auth/AuthProvider';
 
 function navVisible(permissions: string[], permission?: string | string[]) {
   if (!permission) return true;
@@ -57,7 +60,9 @@ function NavLinks({
 export function AppShell({ children }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const permissions = usePermissions();
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     setMenuOpen(false);
@@ -106,6 +111,16 @@ export function AppShell({ children }: AppShellProps) {
           </Link>
           <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} permissions={permissions} />
           <div className="app-top__actions">
+            {user && (
+              <UserMenu
+                name={user.name}
+                email={user.email}
+                onSignOut={async () => {
+                  await signOut();
+                  navigate('/login');
+                }}
+              />
+            )}
             <ThemeToggle />
             <button
             type="button"

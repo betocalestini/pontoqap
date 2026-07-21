@@ -79,6 +79,8 @@ Outro terminal para o painel:
 pnpm dev:admin    # :5174
 ```
 
+Na loja e no painel, o menu com iniciais no header permite abrir **Meu perfil** (`/perfil`) e **Sair** da conta.
+
 ```bash
 pnpm install
 make openapi-gen   # tipos OpenAPI (só na raiz do repo)

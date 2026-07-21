@@ -14,6 +14,7 @@ import { OrdersPage } from './pages/Orders';
 import { AuditPage } from './pages/Audit';
 import { UsersPage } from './pages/Users';
 import { AcceptInvitePage } from './pages/AcceptInvite';
+import { ProfilePage } from './pages/Profile';
 import './App.css';
 
 function AppRoutes() {
@@ -47,6 +48,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/mfa" element={<MfaSetupPage />} />
+        <Route path="/perfil" element={<ProfilePage />} />
         <Route path="/" element={<DashboardPage />} />
         <Route path="/clientes" element={<CustomersPage />} />
         <Route path="/faturamento" element={<BillingPage />} />
