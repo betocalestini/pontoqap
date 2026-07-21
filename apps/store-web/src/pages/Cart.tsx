@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatMoney } from '@store/shared-core';
+import { useDialog } from '@store/ui';
 import { api } from '../api';
 import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
 import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
@@ -16,6 +17,7 @@ type CartItem = {
 type Cart = { items?: CartItem[] };
 
 export function CartPage() {
+  const { confirm } = useDialog();
   const [cart, setCart] = useState<Cart | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
@@ -43,6 +45,22 @@ export function CartPage() {
   }, [load, orderId]);
 
   async function checkout() {
+    const ok = await confirm({
+      title: 'Finalizar compra',
+      message: (
+        <>
+          <p>
+            Confirmar compra de <strong>{formatMoney(totalCents)}</strong>?
+          </p>
+          <p>
+            O valor será lançado na competência atual e comporá sua fatura mensal (pagamento posterior via
+            Pix).
+          </p>
+        </>
+      ),
+      confirmLabel: 'Confirmar compra',
+    });
+    if (!ok) return;
     setError(null);
     setBusy(true);
     try {

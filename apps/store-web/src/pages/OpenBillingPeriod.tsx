@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { OpenBillingPeriodDetail } from '@store/api-client';
 import { formatMoney } from '@store/shared-core';
+import { useDialog } from '@store/ui';
 import { api } from '../api';
 import { BillingEntriesList } from '../components/InvoiceItems';
 import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
-import { confirmCloseBillingCycle } from '../utils/confirmCloseBillingCycle';
 import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
 function formatCompetence(year: number, month: number) {
@@ -14,6 +14,7 @@ function formatCompetence(year: number, month: number) {
 
 export function OpenBillingPeriodPage() {
   const navigate = useNavigate();
+  const { confirm } = useDialog();
   const [data, setData] = useState<OpenBillingPeriodDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
@@ -38,7 +39,22 @@ export function OpenBillingPeriodPage() {
 
   async function handleCloseCycle() {
     if (!data?.period) return;
-    if (!confirmCloseBillingCycle(data.period.total_cents)) return;
+    const ok = await confirm({
+      title: 'Fechar fatura',
+      message: (
+        <>
+          <p>
+            Fechar fatura de <strong>{formatMoney(data.period.total_cents)}</strong>?
+          </p>
+          <p>
+            Será gerada uma fatura para pagamento (Pix). Um novo ciclo na mesma competência será aberto para
+            suas próximas compras.
+          </p>
+        </>
+      ),
+      confirmLabel: 'Fechar fatura e pagar',
+    });
+    if (!ok) return;
     setClosing(true);
     setError(null);
     try {
