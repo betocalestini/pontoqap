@@ -482,6 +482,35 @@
 }
 
 /* Invoice detail / pix */
+.invoice-detail-dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-sm);
+  margin: var(--space-md) 0;
+}
+
+.invoice-detail-dl dt {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.invoice-detail-dl dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
+.invoice-item-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-md);
+  font-size: 0.95rem;
+}
+
+.invoice-item-list li {
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
 .pix code {
   display: block;
   word-break: break-all;
