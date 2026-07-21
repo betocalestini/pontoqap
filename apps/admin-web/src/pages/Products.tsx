@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { AdminCategory, AdminProduct } from '@store/api-client';
+import { useDialog } from '@store/ui';
 import { api } from '../api';
 
 function slugify(name: string) {
@@ -43,6 +44,7 @@ function productImageSrc(url: string | undefined, cacheBust: number) {
 const ALLOWED_IMAGE_EXT = /\.(jpe?g|png|webp|svg)$/i;
 
 export function ProductsPage() {
+  const { confirm } = useDialog();
   const [items, setItems] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +100,12 @@ export function ProductsPage() {
       return;
     }
     const msg = `Definir margem de ${margin}% em todos os ${items.length} produtos e recalcular os preços de venda com base no custo médio dos lotes em estoque?`;
-    if (!window.confirm(msg)) return;
+    const ok = await confirm({
+      title: 'Aplicar margem em massa',
+      message: msg,
+      confirmLabel: 'Aplicar',
+    });
+    if (!ok) return;
     setRepriceBusy(true);
     setError(null);
     try {

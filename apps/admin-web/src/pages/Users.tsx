@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import type { AdminStaffRole, AdminStaffUser } from '@store/api-client';
+import { useDialog } from '@store/ui';
 import { api } from '../api';
 import { STAFF_ROLE_SUMMARIES } from '../content/staffRoles';
 
@@ -7,11 +8,19 @@ function staffRoleCode(user: AdminStaffUser): string {
   return (user.roles ?? []).find((r) => r !== 'customer') ?? '';
 }
 
-async function promptStepUp(): Promise<string | null> {
-  return window.prompt('Confirme sua senha para esta ação:');
-}
-
 export function UsersPage() {
+  const { prompt } = useDialog();
+
+  async function promptStepUp(): Promise<string | null> {
+    return prompt({
+      title: 'Confirmar identidade',
+      message: 'Confirme sua senha para esta ação.',
+      label: 'Senha',
+      inputType: 'password',
+      confirmLabel: 'Confirmar',
+    });
+  }
+
   const [users, setUsers] = useState<AdminStaffUser[]>([]);
   const [roles, setRoles] = useState<AdminStaffRole[]>([]);
   const [loading, setLoading] = useState(true);

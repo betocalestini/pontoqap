@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AdminOrderDetail, AdminOrderListItem } from '@store/api-client';
 import { formatMoney } from '@store/shared-core';
+import { useDialog } from '@store/ui';
 import { api } from '../api';
 import { useHasPermission } from '../auth/usePermissions';
 
 export function OrdersPage() {
+  const { confirm } = useDialog();
   const canCancel = useHasPermission('orders.cancel');
   const [items, setItems] = useState<AdminOrderListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -46,7 +48,13 @@ export function OrdersPage() {
   }
 
   async function cancelOrder(id: string) {
-    if (!window.confirm('Cancelar este pedido? Estoque e faturamento em aberto serão estornados.')) return;
+    const ok = await confirm({
+      title: 'Cancelar pedido',
+      message: 'Cancelar este pedido? Estoque e faturamento em aberto serão estornados.',
+      confirmLabel: 'Cancelar pedido',
+      variant: 'danger',
+    });
+    if (!ok) return;
     setError(null);
     try {
       const order = await api.adminCancelOrder(id);

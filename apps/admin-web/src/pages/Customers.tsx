@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AdminCustomer, AdminStaffRole, CollaboratorCategory } from '@store/api-client';
+import { useDialog } from '@store/ui';
 import { api } from '../api';
 import { useHasPermission } from '../auth/usePermissions';
 
@@ -233,6 +234,7 @@ function CustomerCard({
 }
 
 export function CustomersPage() {
+  const { prompt } = useDialog();
   const canManageUsers = useHasPermission('users.manage');
   const [items, setItems] = useState<AdminCustomer[]>([]);
   const [categories, setCategories] = useState<CollaboratorCategory[]>([]);
@@ -331,10 +333,14 @@ export function CustomersPage() {
       existing && (existing.credit_limit_cents ?? 0) > 0
         ? String((existing.credit_limit_cents ?? 0) / 100)
         : '1000';
-    const raw = window.prompt(
-      'Limite de crédito (R$) para aprovar este cadastro pendente.\nCadastros que confirmam o e-mail na loja costumam ser aprovados automaticamente.',
-      defaultReais,
-    );
+    const raw = await prompt({
+      title: 'Aprovar cliente',
+      message:
+        'Cadastros que confirmam o e-mail na loja costumam ser aprovados automaticamente. Informe o limite de crédito para aprovação manual.',
+      label: 'Limite de crédito (R$)',
+      defaultValue: defaultReais,
+      confirmLabel: 'Aprovar',
+    });
     if (raw === null) return;
     const limitCents = Math.round(parseFloat(raw.replace(',', '.')) * 100);
     if (!Number.isFinite(limitCents) || limitCents < 0) {
@@ -383,7 +389,13 @@ export function CustomersPage() {
 
   async function assignStaffRole() {
     if (!editingId || !form.staff_role_id) return;
-    const password = window.prompt('Confirme sua senha para atribuir acesso administrativo:');
+    const password = await prompt({
+      title: 'Confirmar identidade',
+      message: 'Confirme sua senha para atribuir acesso administrativo.',
+      label: 'Senha',
+      inputType: 'password',
+      confirmLabel: 'Confirmar',
+    });
     if (!password) return;
     setError(null);
     try {
