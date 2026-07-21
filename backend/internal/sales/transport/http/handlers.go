@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/store-platform/store/internal/audit"
+	"github.com/store-platform/store/internal/identity"
 	identityhttp "github.com/store-platform/store/internal/identity/transport/http"
 	"github.com/store-platform/store/internal/platform/httpx"
 	"github.com/store-platform/store/internal/sales"
@@ -78,6 +79,19 @@ func (h *Handler) AdminCancelOrder(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
+		return
+	}
+	var body struct {
+		Password string `json:"password"`
+		MFACode  string `json:"mfa_code"`
+	}
+	_ = httpx.DecodeJSON(r, &body)
+	if err := identity.VerifyStepUp(r.Context(), nil, user.User, body.Password, body.MFACode); err != nil {
+		if ae := identity.AsAppError(err); ae != nil {
+			httpx.WriteError(w, ae.Status, ae.Code, ae.Message)
+			return
+		}
+		httpx.WriteError(w, http.StatusForbidden, "STEP_UP_REQUIRED", "Confirme com sua senha ou código MFA")
 		return
 	}
 	order, err := h.svc.AdminCancelOrder(r.Context(), id, user.User.ID)

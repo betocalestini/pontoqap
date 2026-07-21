@@ -293,6 +293,14 @@ paths:
           in: path
           required: true
           schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password: { type: string }
+                mfa_code: { type: string }
       responses:
         '200':
           description: Pedido cancelado

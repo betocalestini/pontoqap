@@ -896,7 +896,14 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        password?: string;
+                        mfa_code?: string;
+                    };
+                };
+            };
             responses: {
                 /** @description Pedido cancelado */
                 200: {

@@ -188,11 +188,9 @@ func (s *Service) AdminCancelOrder(ctx context.Context, orderID uuid.UUID, actor
 	}
 
 	now := time.Now()
-	if err := s.billing.AddOrderCancellationTx(ctx, tx, orderID, total, now); err != nil {
-		if strings.Contains(err.Error(), "fechado") {
-			return nil, &AppError{Code: platformerrors.CodeValidation, Message: "Competência já fechada; não é possível cancelar", Status: 409}
-		}
-		return nil, err
+	billRes, err := s.billing.ApplyOrderCancellationBillingTx(ctx, tx, customerID, orderID, total, actorUserID, now)
+	if err != nil {
+		return nil, mapBillingCancelError(err)
 	}
 
 	for _, l := range lines {
@@ -201,12 +199,14 @@ func (s *Service) AdminCancelOrder(ctx context.Context, orderID uuid.UUID, actor
 		}
 	}
 
-	_, err = tx.Exec(ctx, `
-		UPDATE customers SET current_exposure_cents = GREATEST(0, current_exposure_cents - $2), updated_at = NOW()
-		WHERE id = $1
-	`, customerID, total)
-	if err != nil {
-		return nil, err
+	if billRes.ExposureDeltaCents != 0 {
+		_, err = tx.Exec(ctx, `
+			UPDATE customers SET current_exposure_cents = GREATEST(0, current_exposure_cents + $2), updated_at = NOW()
+			WHERE id = $1
+		`, customerID, billRes.ExposureDeltaCents)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	_, err = tx.Exec(ctx, `
@@ -220,6 +220,20 @@ func (s *Service) AdminCancelOrder(ctx context.Context, orderID uuid.UUID, actor
 		return nil, err
 	}
 	return s.AdminGetOrder(ctx, orderID)
+}
+
+func mapBillingCancelError(err error) error {
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "fatura já quitada"):
+		return &AppError{Code: platformerrors.CodeValidation, Message: "Fatura já quitada; não é possível estornar este pedido", Status: 409}
+	case strings.Contains(msg, "ajuste excede"):
+		return &AppError{Code: platformerrors.CodeValidation, Message: msg, Status: 400}
+	case strings.Contains(msg, "fatura não encontrada"):
+		return &AppError{Code: platformerrors.CodeValidation, Message: msg, Status: 404}
+	default:
+		return err
+	}
 }
 
 func errNotFound() error {

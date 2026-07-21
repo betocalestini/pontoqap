@@ -715,8 +715,8 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       );
     },
     adminGetOrder: (id: string) => request<AdminOrderDetail>(`/admin/orders/${id}`, {}, 'admin'),
-    adminCancelOrder: (id: string) =>
-      request<AdminOrderDetail>(`/admin/orders/${id}/cancel`, { method: 'POST' }, 'admin'),
+    adminCancelOrder: (id: string, body: { password: string; mfa_code?: string }) =>
+      request<AdminOrderDetail>(`/admin/orders/${id}/cancel`, { method: 'POST', body: JSON.stringify(body) }, 'admin'),
     adminListAuditLogs: (params?: { action?: string; entity_type?: string; limit?: number; offset?: number }) => {
       const q = new URLSearchParams();
       if (params?.action) q.set('action', params.action);
