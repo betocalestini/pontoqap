@@ -1358,3 +1358,249 @@ tr.row--selected td {
     background: transparent;
   }
 }
+
+/* —— Faturamento —— */
+.billing-page h1 {
+  margin-bottom: var(--space-lg);
+}
+
+.billing-summary {
+  display: grid;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+@media (min-width: 640px) {
+  .billing-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.billing-summary__card {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.billing-summary__label {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.billing-summary__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.billing-panel {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.billing-panel__title {
+  margin: 0 0 var(--space-md);
+  font-size: 1.125rem;
+}
+
+.billing-panel__empty {
+  margin: var(--space-md) 0 0;
+  color: var(--color-text-muted);
+}
+
+.billing-close-form {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.billing-close-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.billing-close-form select,
+.billing-close-form input,
+.billing-close-form textarea {
+  width: 100%;
+  max-width: 100%;
+  min-height: var(--touch-min, 2.75rem);
+  padding: 0.5rem 0.65rem;
+  font-size: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.billing-close-form textarea {
+  min-height: 5rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+@media (min-width: 768px) {
+  .billing-close-form {
+    grid-template-columns: repeat(2, minmax(8rem, 1fr));
+    align-items: end;
+  }
+
+  .billing-close-form__reason {
+    grid-column: 1 / -1;
+  }
+
+  .billing-close-form__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+.billing-close-msg {
+  margin: var(--space-md) 0 0;
+  color: var(--color-accent);
+}
+
+.billing-list-filters {
+  display: grid;
+  gap: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+@media (min-width: 768px) {
+  .billing-list-filters {
+    grid-template-columns: minmax(12rem, 2fr) repeat(3, minmax(8rem, 1fr));
+    align-items: end;
+  }
+}
+
+.billing-list-filters label {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.billing-list-meta {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.billing-table {
+  width: 100%;
+  min-width: 40rem;
+}
+
+.billing-table__sub {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.billing-status {
+  display: inline-block;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+
+.billing-status--overdue {
+  border-color: var(--color-danger, #b42318);
+  color: var(--color-danger, #b42318);
+}
+
+.billing-detail-header {
+  margin-bottom: var(--space-md);
+}
+
+.billing-detail-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-lg);
+}
+
+.billing-detail-totals dt {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.billing-detail-totals dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
+.billing-adjust-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-lg);
+}
+
+.billing-adjust-list li {
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.billing-adjust-list__date {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.billing-adjust-form {
+  display: grid;
+  gap: var(--space-md);
+}
+
+@media (min-width: 640px) {
+  .billing-adjust-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+  }
+
+  .billing-adjust-form__reason {
+    grid-column: 1 / -1;
+  }
+}
+
+.billing-calendar-range,
+.billing-calendar-form {
+  display: grid;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+@media (min-width: 640px) {
+  .billing-calendar-range,
+  .billing-calendar-form {
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    align-items: end;
+  }
+}
+
+.billing-calendar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.billing-calendar-list li {
+  padding: var(--space-xs) 0;
+}
+
+.billing-calendar-list__tag {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
