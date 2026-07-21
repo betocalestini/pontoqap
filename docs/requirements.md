@@ -367,6 +367,8 @@ Sistema externo que:
 | RF-CAR-009 | O sistema deverá informar itens indisponíveis            |
 | RF-CAR-010 | Adicionar ao carrinho não deverá reservar estoque no MVP |
 
+Nota (implementação loja): remoção por linha na UI; `DELETE /me/cart` esvazia o carrinho. Recarregar a página (F5) dispara esvaziamento no servidor; fechar o navegador e voltar sem F5 mantém os itens (RF-CAR-006).
+
 ## 9.6. Vendas e pedidos
 
 | ID         | Requisito                                                   |
