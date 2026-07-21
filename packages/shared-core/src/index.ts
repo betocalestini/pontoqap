@@ -1,3 +1,13 @@
+export {
+  THEME_STORAGE_KEY,
+  applyDocumentTheme,
+  getInitialTheme,
+  readThemePreference,
+  resolveEffectiveTheme,
+  writeThemePreference,
+  type ColorTheme,
+} from './theme';
+
 export const permissionCodes = {
   productsRead: 'products.read',
   productsWrite: 'products.write',

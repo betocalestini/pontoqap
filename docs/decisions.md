@@ -2156,6 +2156,10 @@ O MVP será considerado concluído quando for possível executar, em ambiente de
 
 O fluxo deverá estar coberto por testes automatizados e por um roteiro de homologação manual.
 
+## Nota — tema claro/escuro (front)
+
+Preferência `light` | `dark` em `localStorage` (`store-platform-color-theme`), compartilhada entre loja e admin no mesmo origin; tokens via `data-theme` em [`index.css`](apps/store-web/src/index.css). Sem persistência no backend.
+
 ## Nota — painel Faturamento (admin)
 
 Implementado: listagem/detalhe de faturas (`GET /admin/billing/invoices*`), resumo, fechamento manual com motivo e auditoria (`billing.close_manual`), ajustes em fatura (`billing_adjustments`), UI de calendário e detalhe formatado na loja. **Ciclos de faturamento (2026):** fechamento automático no dia 1, vencimento dia 10, fechamento parcial pelo cliente (`POST /me/billing/close-cycle`), `cycle_number` / `close_type`, lembretes D+2/D+3 via outbox. Calendário admin não governa mais o fechamento automático. Lacunas: créditos pós-fechamento (RF-VEN-017) sem fluxo dedicado; bloqueio automático por inadimplência no D+3 permanece evolução (RF-CLI-014).
