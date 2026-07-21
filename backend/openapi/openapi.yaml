@@ -126,6 +126,13 @@ paths:
       responses:
         '200':
           description: Carrinho atual
+    delete:
+      tags: [sales]
+      summary: Esvaziar carrinho
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Carrinho vazio
   /me/cart/items:
     post:
       tags: [sales]

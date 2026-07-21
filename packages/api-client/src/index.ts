@@ -340,6 +340,7 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       request('/customers/register', { method: 'POST', body: JSON.stringify(body) }),
 
     getCart: () => request('/me/cart', {}, 'store'),
+    clearCart: () => request('/me/cart', { method: 'DELETE' }, 'store'),
     addToCart: (skuId: string, quantity: number) =>
       request('/me/cart/items', {
         method: 'POST',
