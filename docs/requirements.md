@@ -201,7 +201,17 @@ Poderá:
 * consultar pagamentos;
 * gerar relatórios;
 * consultar previsões;
-* administrar calendário comercial.
+* fechar competência de faturamento e ajustes de fatura (como operação comercial).
+
+**Não poderá:** alterar calendário comercial nem parâmetros críticos (`settings.write`), gerenciar usuários internos (`users.manage`) nem consultar auditoria administrativa completa. Detalhes: `docs/access-control.md`.
+
+## AT-003a — Operador de estoque
+
+Poderá consultar produtos, registrar entradas e perdas e consultar movimentações. Não altera preços, limites ou faturamento.
+
+## AT-003b — Financeiro
+
+Poderá consultar pedidos, faturas, pagamentos, fechar competência, aplicar ajustes autorizados e relatórios financeiros. Não altera catálogo nem estoque.
 
 ## AT-004 — Administrador
 
@@ -209,13 +219,14 @@ Usuário com permissões técnicas e administrativas superiores.
 
 Poderá:
 
-* gerenciar usuários administrativos;
-* gerenciar papéis;
-* gerenciar permissões;
+* gerenciar usuários internos (convites, papéis fixos, suspensão);
+* configurar calendário comercial e parâmetros via `settings.write`;
 * configurar integrações;
 * configurar parâmetros financeiros;
-* consultar auditoria completa;
+* consultar auditoria completa (permissão `audit.read`; UI de consulta pós-MVP);
 * executar operações especiais.
+
+**MVP:** papéis e permissões são **fixos** no banco; não há edição customizada de permissões por tela. Ver `docs/access-control.md`.
 
 ## AT-005 — Worker
 
@@ -278,12 +289,12 @@ Sistema externo que:
 | RF-IDN-006 | O sistema deverá registrar o último acesso do usuário            |
 | RF-IDN-007 | O sistema deverá permitir revogação de sessões                   |
 | RF-IDN-008 | O sistema deverá exigir MFA para gerente e administrador         |
-| RF-IDN-009 | O sistema deverá diferenciar cliente, gerente e administrador    |
+| RF-IDN-009 | O sistema deverá diferenciar cliente e papéis internos (administrador, gerente, operador de estoque, financeiro) |
 | RF-IDN-010 | O sistema deverá verificar permissões no backend                 |
 | RF-IDN-011 | O sistema deverá permitir que um usuário possua mais de um papel |
 | RF-IDN-012 | O sistema deverá registrar logins administrativos na auditoria   |
 
-**Implementação:** funcionários internos são clientes da loja com papel administrativo adicional; atribuição em `POST /admin/customers/{id}/staff-role`; suspensão administrativa (`users.status = suspended`) não impede compras na loja.
+**Implementação:** modelo dual-role (`customer` + um papel interno); spec operacional em `docs/access-control.md`. Atribuição em `POST /admin/customers/{id}/staff-role` ou convite (`admin_invitations`); suspensão administrativa (`users.status = suspended`) não impede compras na loja.
 
 ## 9.2. Clientes
 

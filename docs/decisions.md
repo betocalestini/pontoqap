@@ -461,7 +461,7 @@ backend/
 
 # 20. Módulo `identity`
 
-**Estado implementado (MVP):** um único `users` por pessoa; clientes da loja têm papel `customer` + linha em `customers`; funcionários internos são **clientes** com papel interno adicional (`POST /admin/customers/{id}/staff-role` ou convite por e-mail já cadastrado na loja); convite com `admin_invitations` e aceite em `POST /auth/accept-invitation` (preserva papel `customer`); `suspended` suspende só o painel admin; papéis fixos `system_admin`, `manager`, `inventory_operator`, `finance_operator`; bootstrap via `ADMIN_BOOTSTRAP_*`; auditoria RF-IDN-012.
+**Estado implementado (MVP):** ver matriz, estados e fluxos em **`docs/access-control.md`** (fonte canônica). Resumo: um `users` por pessoa; dual-role (`customer` + papel interno); convites `admin_invitations`; papéis fixos `system_admin`, `manager`, `inventory_operator`, `finance_operator`; bootstrap `ADMIN_BOOTSTRAP_*`; auditoria RF-IDN-012.
 
 ```text
 backend/internal/identity/

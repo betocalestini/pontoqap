@@ -52,6 +52,27 @@ make test-backup-restore
 
 ---
 
+## Fase 1b — Papéis e permissões (`docs/access-control.md`)
+
+Smoke manual por papel (credenciais de teste criadas via convite ou seeds de integração). Marque após login no painel com `X-App-Audience: admin`.
+
+| Papel (`code`) | Menu / ação | Esperado | OK? |
+| -------------- | ----------- | -------- | --- |
+| `manager` | **Clientes** | Lista carrega (sem erro 403) | ☐ |
+| `manager` | **Usuários** | Menu oculto ou 403 na rota | ☐ |
+| `manager` | **Faturamento** → fechar competência | Permitido (`billing.close`) | ☐ |
+| `manager` | Calendário comercial (`settings.write`) | 403 ao salvar calendário | ☐ |
+| `inventory_operator` | **Produtos** leitura | OK | ☐ |
+| `inventory_operator` | Alterar preço de SKU | 403 | ☐ |
+| `inventory_operator` | Entrada de estoque | OK | ☐ |
+| `finance_operator` | **Faturamento** / ajustes | OK | ☐ |
+| `finance_operator` | **Estoque** → entrada | 403 | ☐ |
+| `system_admin` | **Usuários** → desativar funcionário | `disabled` + sessão revogada | ☐ |
+| `manager` | **Pedidos** (lista) | OK com `orders.read` | ☐ |
+| `system_admin` | **Auditoria** | Lista logs | ☐ |
+
+---
+
 ## Fase 2 — Catálogo e estoque
 
 | Passo | Ação | Resultado esperado | OK? | Evidência |

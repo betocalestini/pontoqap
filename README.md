@@ -11,7 +11,7 @@ Monorepositório da **Store Platform**: vendas pós-pagas, estoque, faturamento 
 | `apps/admin-web/` | Painel React (gerente) |
 | `apps/mobile/` | Base Expo (futuro) |
 | `packages/` | Contratos, cliente HTTP, tokens, validações |
-| `docs/` | Requisitos, arquitetura, decisões e backlog |
+| `docs/` | Requisitos, arquitetura, decisões, [controle de acesso](docs/access-control.md) e backlog |
 
 ## Pré-requisitos
 
@@ -76,7 +76,7 @@ Após a primeira subida da API, é criado um **administrador** bootstrap (se ain
 
 - **E-mail (padrão):** `admin@loja.local`
 - **Senha (padrão):** `ChangeMe123!`
-- Demais funcionários: convite pelo menu **Usuários** no painel (papel fixo, sem permissões customizadas no MVP).
+- Demais funcionários: cadastro na **loja** como cliente, depois convite pelo menu **Usuários** ou papel em **Clientes** (papel fixo; ver [docs/access-control.md](docs/access-control.md)).
 - **Audience no login:** enviar `X-App-Audience: admin` ou `"audience": "admin"` no corpo
 - **Painel admin:** após o login, a API devolve um JWT (`access_token`) com validade fixa definida por `SESSION_TTL_ADMIN` (padrão 8h). O navegador envia `Authorization: Bearer …` nas requisições; sem token válido o painel redireciona para `/login`.
 
