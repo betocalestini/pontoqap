@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { AdminCategory, AdminProduct } from '@store/api-client';
 import { useDialog } from '@store/ui';
 import { api } from '../api';
+import { ProductCategoriesPanel } from './ProductCategoriesPanel';
 
 function slugify(name: string) {
   return name
@@ -61,6 +62,7 @@ export function ProductsPage() {
   const [defaultMargin, setDefaultMargin] = useState('30');
   const [bulkMargin, setBulkMargin] = useState('30');
   const [repriceBusy, setRepriceBusy] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
 
   const clearImageSelection = useCallback(() => {
     setImageFile(null);
@@ -324,20 +326,21 @@ export function ProductsPage() {
   const displayPreviewUrl = imagePreviewUrl ?? productImageSrc(editingImageUrl ?? undefined, imageCacheBust);
 
   return (
-    <section className="content-section products-page">
-      <div className="page-toolbar">
-        <h1>Produtos</h1>
-        {!editingId && (
-          <button type="button" onClick={startCreate}>
-            Novo produto
-          </button>
-        )}
-      </div>
-      {error && <p className="error">{error}</p>}
-      {notice && <p className="ok">{notice}</p>}
+    <section className={`content-section products-page${editingId ? ' products-page--editing' : ''}`}>
+      <div className="products-page__layout">
+        <div className="page-toolbar products-page__toolbar">
+          <h1>Produtos</h1>
+          {!editingId && (
+            <button type="button" onClick={startCreate}>
+              Novo produto
+            </button>
+          )}
+        </div>
+        {error && <p className="error">{error}</p>}
+        {notice && <p className="ok">{notice}</p>}
 
-      {!editingId && (
-        <div className="products-pricing-bar">
+        {!editingId && (
+          <div className="products-pricing-bar">
           <label>
             Margem padrão (%)
             <input
@@ -351,187 +354,277 @@ export function ProductsPage() {
             {repriceBusy ? 'Aplicando…' : 'Aplicar a todos os produtos'}
           </button>
         </div>
-      )}
+        )}
+
+        {!editingId && (
+        <ProductCategoriesPanel
+          categories={categories}
+          products={items}
+          open={categoriesOpen}
+          onOpenChange={setCategoriesOpen}
+          onReload={load}
+          onError={setError}
+          onCategoryDeleted={(categoryId) => {
+            setForm((f) => (f.category_id === categoryId ? { ...f, category_id: '' } : f));
+          }}
+        />
+        )}
 
       {editingId && (
-        <form id="product-edit-form" onSubmit={save} className="form form--wide product-form">
-          <h2>{editingId === 'new' ? 'Novo produto' : 'Editar produto'}</h2>
-          <label className="form__full">
-            Nome
-            <input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value, slug: f.slug || slugify(e.target.value) }))}
-              required
-            />
-          </label>
-          <label className="form__full">
-            Slug
-            <input
-              value={form.slug}
-              onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-              readOnly={editingId !== 'new'}
-              title={editingId !== 'new' ? 'O slug não pode ser alterado após a criação' : undefined}
-            />
-            {editingId !== 'new' && <small>Identificador fixo (usado na URL da imagem na loja).</small>}
-          </label>
-          <label className="form__full">
-            Descrição
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              rows={3}
-            />
-          </label>
-          <label className="form__full">
-            Categoria
-            <select value={form.category_id} onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}>
-              <option value="">—</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Código SKU
-            <input value={form.sku_code} onChange={(e) => setForm((f) => ({ ...f, sku_code: e.target.value }))} required />
-          </label>
-          <label>
-            Código de barras
-            <input value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} />
-          </label>
-          <label>
-            Unidade
-            <input value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} />
-          </label>
-          <label>
-            Margem de lucro (%)
-            <input
-              value={form.margin_percent}
-              onChange={(e) => setForm((f) => ({ ...f, margin_percent: e.target.value }))}
-              inputMode="decimal"
-              required
-            />
-            <small>Preço de venda = custo médio dos lotes × (1 + margem/100)</small>
-          </label>
-          {editingId !== 'new' && (
-            <fieldset className="form__full product-promo-fieldset">
-              <legend>Promoção</legend>
-              <label className="form__checkbox">
+        <form id="product-edit-form" onSubmit={save} className="form product-form product-form-card">
+          <header className="product-form__header">
+            <h2>{editingId === 'new' ? 'Novo produto' : 'Editar produto'}</h2>
+          </header>
+
+          <div className="product-form__columns">
+            <div className="product-form__column">
+          <section className="product-form__section" aria-labelledby="product-section-ident">
+            <h3 id="product-section-ident" className="product-form__section-title">
+              Identificação
+            </h3>
+            <div className="product-form__grid">
+              <label>
+                Nome
                 <input
-                  type="checkbox"
-                  checked={form.promo_active}
-                  onChange={(e) => setForm((f) => ({ ...f, promo_active: e.target.checked }))}
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, name: e.target.value, slug: f.slug || slugify(e.target.value) }))
+                  }
+                  required
                 />
-                Promoção ativa
               </label>
-              {form.promo_active && (
-                <>
-                  <label>
-                    Margem promocional (%)
-                    <input
-                      value={form.promo_margin_percent}
-                      onChange={(e) => setForm((f) => ({ ...f, promo_margin_percent: e.target.value }))}
-                      inputMode="decimal"
-                      required
-                    />
-                  </label>
-                  <label>
-                    Unidades na promoção
-                    <input
-                      type="number"
-                      min={1}
-                      value={form.promo_quantity}
-                      onChange={(e) => setForm((f) => ({ ...f, promo_quantity: e.target.value }))}
-                      required
-                    />
-                    <small>
-                      Ao salvar, redefine a cota (restam = total). O preço na loja usa a margem promocional até
-                      esgotar as unidades; depois volta à margem normal.
-                    </small>
-                  </label>
-                </>
+              <label>
+                Slug
+                <input
+                  value={form.slug}
+                  onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
+                  readOnly={editingId !== 'new'}
+                  title={editingId !== 'new' ? 'O slug não pode ser alterado após a criação' : undefined}
+                />
+                {editingId !== 'new' && <small>Identificador fixo (URL da imagem na loja).</small>}
+              </label>
+              <label className="form__full">
+                Descrição
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  rows={2}
+                />
+              </label>
+              <label className="form__full">
+                Categoria
+                <div className="product-form__category-row">
+                  <select
+                    value={form.category_id}
+                    onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {categories
+                      .filter((c) => c.active || c.id === form.category_id)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                          {!c.active ? ' (inativa)' : ''}
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="product-form__secondary-btn"
+                    onClick={() => setCategoriesOpen(true)}
+                  >
+                    Categorias
+                  </button>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <section className="product-form__section" aria-labelledby="product-section-sku">
+            <h3 id="product-section-sku" className="product-form__section-title">
+              SKU e unidade
+            </h3>
+            <div className="product-form__grid product-form__grid--3">
+              <label>
+                Código SKU
+                <input
+                  value={form.sku_code}
+                  onChange={(e) => setForm((f) => ({ ...f, sku_code: e.target.value }))}
+                  required
+                />
+              </label>
+              <label>
+                Código de barras
+                <input value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} />
+              </label>
+              <label>
+                Unidade
+                <input value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} />
+              </label>
+            </div>
+          </section>
+            </div>
+
+            <div className="product-form__column">
+          <section className="product-form__section" aria-labelledby="product-section-price">
+            <h3 id="product-section-price" className="product-form__section-title">
+              Preço e estoque
+            </h3>
+            <div className="product-form__grid">
+              <label>
+                Margem de lucro (%)
+                <input
+                  value={form.margin_percent}
+                  onChange={(e) => setForm((f) => ({ ...f, margin_percent: e.target.value }))}
+                  inputMode="decimal"
+                  required
+                />
+                <small>Preço = custo médio dos lotes × (1 + margem/100)</small>
+              </label>
+              <label>
+                Estoque mínimo
+                <input
+                  type="number"
+                  min={0}
+                  value={form.minimum_stock}
+                  onChange={(e) => setForm((f) => ({ ...f, minimum_stock: e.target.value }))}
+                />
+              </label>
+              <label className="form__full">
+                Custo unitário (R$)
+                <input
+                  value={form.cost_price_cents}
+                  onChange={(e) => setForm((f) => ({ ...f, cost_price_cents: e.target.value }))}
+                />
+                <small>Base do preço; entradas de estoque atualizam o custo médio.</small>
+              </label>
+              <ProductSalePreview editingId={editingId} form={form} />
+              {editingId === 'new' && (
+                <label>
+                  Estoque inicial (opcional)
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.initial_stock}
+                    onChange={(e) => setForm((f) => ({ ...f, initial_stock: e.target.value }))}
+                  />
+                  <small>Gera movimentação de estoque inicial.</small>
+                </label>
               )}
-            </fieldset>
-          )}
-          <label>
-            Custo unitário (R$) — base do preço (lotes em estoque)
-            <input value={form.cost_price_cents} onChange={(e) => setForm((f) => ({ ...f, cost_price_cents: e.target.value }))} />
-            <small>Entradas de estoque com preço pago atualizam o custo médio automaticamente.</small>
-          </label>
-          <ProductSalePreview editingId={editingId} form={form} />
-          <label>
-            Estoque mínimo
-            <input
-              type="number"
-              min={0}
-              value={form.minimum_stock}
-              onChange={(e) => setForm((f) => ({ ...f, minimum_stock: e.target.value }))}
-            />
-          </label>
-          {editingId === 'new' && (
-            <label>
-              Estoque inicial (opcional)
-              <input
-                type="number"
-                min={0}
-                value={form.initial_stock}
-                onChange={(e) => setForm((f) => ({ ...f, initial_stock: e.target.value }))}
-              />
-              <small>Gera movimentação de estoque inicial.</small>
-            </label>
-          )}
+            </div>
+          </section>
+
           {editingId !== 'new' && (
-            <label className="form__checkbox">
-              <input
-                type="checkbox"
-                checked={form.active}
-                onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-              />
-              Ativo
-            </label>
+            <section className="product-form__section" aria-labelledby="product-section-promo">
+              <fieldset className="product-promo-fieldset">
+                <legend id="product-section-promo">Promoção</legend>
+                <div className="product-form__grid">
+                  <label className="form__checkbox form__full">
+                    <input
+                      type="checkbox"
+                      checked={form.promo_active}
+                      onChange={(e) => setForm((f) => ({ ...f, promo_active: e.target.checked }))}
+                    />
+                    Promoção ativa
+                  </label>
+                  {form.promo_active && (
+                    <>
+                      <label>
+                        Margem promocional (%)
+                        <input
+                          value={form.promo_margin_percent}
+                          onChange={(e) => setForm((f) => ({ ...f, promo_margin_percent: e.target.value }))}
+                          inputMode="decimal"
+                          required
+                        />
+                      </label>
+                      <label>
+                        Unidades na promoção
+                        <input
+                          type="number"
+                          min={1}
+                          value={form.promo_quantity}
+                          onChange={(e) => setForm((f) => ({ ...f, promo_quantity: e.target.value }))}
+                          required
+                        />
+                        <small>Ao salvar, redefine a cota. Preço promocional até esgotar.</small>
+                      </label>
+                    </>
+                  )}
+                </div>
+              </fieldset>
+            </section>
           )}
+
           {editingId !== 'new' && (
-            <label className="form__checkbox">
-              <input
-                type="checkbox"
-                checked={form.visible}
-                onChange={(e) => setForm((f) => ({ ...f, visible: e.target.checked }))}
-              />
-              Visível na loja
-            </label>
+            <section className="product-form__section" aria-labelledby="product-section-flags">
+              <h3 id="product-section-flags" className="product-form__section-title">
+                Publicação
+              </h3>
+              <div className="product-form__flags">
+                <label className="form__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={form.active}
+                    onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+                  />
+                  Ativo
+                </label>
+                <label className="form__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={form.visible}
+                    onChange={(e) => setForm((f) => ({ ...f, visible: e.target.checked }))}
+                  />
+                  Visível na loja
+                </label>
+              </div>
+            </section>
           )}
-          <div className="form__full file-upload">
-            <span className="file-upload__label">Foto</span>
-            {displayPreviewUrl && (
-              <img src={displayPreviewUrl} alt="" className="file-upload__preview" width={120} height={90} />
-            )}
-            <label className="file-upload__button">
-              Escolher arquivo
-              <input
-                type="file"
-                accept="image/*"
-                className="file-upload__input"
-                onChange={(e) => onImageFileChange(e.target.files?.[0] ?? null)}
-              />
-            </label>
-            {imageFile && <p className="file-upload__name">{imageFile.name}</p>}
-            <p className="file-upload__hint">A imagem será enviada ao clicar em Salvar.</p>
+
+          <section className="product-form__section" aria-labelledby="product-section-image">
+            <h3 id="product-section-image" className="product-form__section-title">
+              Imagem
+            </h3>
+            <div className="product-form__image-block">
+              <div className="file-upload">
+                {displayPreviewUrl && (
+                  <img src={displayPreviewUrl} alt="" className="file-upload__preview" width={160} height={120} />
+                )}
+                <div className="file-upload__controls">
+                  <span className="file-upload__label">Foto principal</span>
+                  <label className="file-upload__button">
+                    Escolher arquivo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="file-upload__input"
+                      onChange={(e) => onImageFileChange(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {imageFile && <p className="file-upload__name">{imageFile.name}</p>}
+                  <p className="file-upload__hint">Enviada ao clicar em Salvar.</p>
+                </div>
+              </div>
+              {editingId !== 'new' && (
+                <ProductImagesEditor key={imageEditorKey} productId={editingId} onRemove={removeImage} />
+              )}
+            </div>
+          </section>
+            </div>
           </div>
-          {editingId !== 'new' && (
-            <ProductImagesEditor key={imageEditorKey} productId={editingId} onRemove={removeImage} />
-          )}
-          <div className="form__actions form__full">
+
+          <div className="product-form__actions form__actions">
             <button type="submit" disabled={saving}>
               {saving ? 'Salvando…' : 'Salvar'}
             </button>
-            <button type="button" onClick={cancelForm}>
+            <button type="button" className="product-form__secondary-btn" onClick={cancelForm}>
               Cancelar
             </button>
           </div>
         </form>
       )}
+      </div>
 
       <div className="table-scroll products-table-desktop">
         <table>
@@ -724,7 +817,7 @@ function ProductSalePreview({
     });
   }, [editingId, form.margin_percent, form.cost_price_cents]);
   return (
-    <p className="form__full">
+    <p className="product-form__price-preview form__full">
       Preço de venda (calculado): <strong>{preview}</strong>
     </p>
   );
@@ -748,13 +841,13 @@ function ProductImagesEditor({
   if (!images.length) return null;
 
   return (
-    <div className="form__full">
-      <p>Imagens cadastradas</p>
-      <ul className="data-list">
+    <div className="product-form__gallery">
+      <p className="product-form__gallery-title">Imagens cadastradas</p>
+      <ul className="product-form__gallery-list">
         {images.map((im) => (
-          <li key={im.id}>
+          <li key={im.id} className="product-form__gallery-item">
             <img src={im.url} alt="" className="product-thumb" />
-            <button type="button" onClick={() => onRemove(productId, im.id)}>
+            <button type="button" className="button--danger" onClick={() => onRemove(productId, im.id)}>
               Remover
             </button>
           </li>
