@@ -37,11 +37,12 @@ type AdminInvoiceFilter struct {
 }
 
 type InvoiceItem struct {
-	ID               uuid.UUID `json:"id"`
-	Description      string    `json:"description"`
-	Quantity         int       `json:"quantity"`
-	UnitPriceCents   int64     `json:"unit_price_cents"`
-	TotalCents       int64     `json:"total_cents"`
+	ID               uuid.UUID            `json:"id"`
+	Description      string               `json:"description"`
+	Quantity         int                  `json:"quantity"`
+	UnitPriceCents   int64                `json:"unit_price_cents"`
+	TotalCents       int64                `json:"total_cents"`
+	Products         []InvoiceProductLine `json:"products,omitempty"`
 }
 
 type InvoiceAdjustment struct {
@@ -239,21 +240,29 @@ func (s *Service) GetInvoiceDetail(ctx context.Context, id uuid.UUID) (*InvoiceD
 	}
 
 	itemRows, err := s.pool.Query(ctx, `
-		SELECT id, description, quantity, unit_price_cents, total_cents
-		FROM invoice_items WHERE invoice_id = $1 ORDER BY created_at
+		SELECT ii.id, ii.description, ii.quantity, ii.unit_price_cents, ii.total_cents, COALESCE(be.order_id, '00000000-0000-0000-0000-000000000000'::uuid)
+		FROM invoice_items ii
+		LEFT JOIN billing_entries be ON be.id = ii.billing_entry_id
+		WHERE ii.invoice_id = $1 ORDER BY ii.created_at
 	`, id)
 	if err != nil {
 		return nil, err
 	}
 	defer itemRows.Close()
+	var orderIDs []uuid.UUID
 	for itemRows.Next() {
 		var it InvoiceItem
-		if err := itemRows.Scan(&it.ID, &it.Description, &it.Quantity, &it.UnitPriceCents, &it.TotalCents); err != nil {
+		var orderID uuid.UUID
+		if err := itemRows.Scan(&it.ID, &it.Description, &it.Quantity, &it.UnitPriceCents, &it.TotalCents, &orderID); err != nil {
 			return nil, err
 		}
 		d.Items = append(d.Items, it)
+		orderIDs = append(orderIDs, orderID)
 	}
 	if err := itemRows.Err(); err != nil {
+		return nil, err
+	}
+	if err := s.attachProductsToInvoiceItems(ctx, d.Items, orderIDs); err != nil {
 		return nil, err
 	}
 

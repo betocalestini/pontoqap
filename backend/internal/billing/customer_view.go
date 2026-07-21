@@ -68,3 +68,19 @@ func (s *Service) ListInvoicesByCustomerLimit(ctx context.Context, customerID uu
 	}
 	return out, rows.Err()
 }
+
+// GetOpenPeriodDetail retorna a competência aberta do cliente com lançamentos e produtos.
+func (s *Service) GetOpenPeriodDetail(ctx context.Context, customerID uuid.UUID) (*OpenPeriodDetail, error) {
+	summary, err := s.GetOpenPeriodSummary(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+	if summary == nil {
+		return nil, ErrNoOpenPeriod
+	}
+	entries, err := s.loadEntryViewsForPeriod(ctx, summary.BillingPeriodID)
+	if err != nil {
+		return nil, err
+	}
+	return &OpenPeriodDetail{Period: *summary, Entries: entries}, nil
+}

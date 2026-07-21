@@ -27,6 +27,7 @@ func NewHandler(svc *billing.Service, auditSvc *audit.Service) *Handler {
 func (h *Handler) MeRoutes(r chi.Router) {
 	r.Get("/invoices", h.ListMyInvoices)
 	r.Get("/invoices/{id}", h.GetMyInvoice)
+	r.Get("/billing/open-period", h.GetMyOpenBillingPeriod)
 	r.Post("/billing/close-cycle", h.CloseMyBillingCycle)
 }
 
@@ -60,6 +61,24 @@ func (h *Handler) ListMyInvoices(w http.ResponseWriter, r *http.Request) {
 		items = []billing.Invoice{}
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"current_period": current, "items": items})
+}
+
+func (h *Handler) GetMyOpenBillingPeriod(w http.ResponseWriter, r *http.Request) {
+	user := identityhttp.UserFromContext(r.Context())
+	if user == nil || user.CustomerID == nil {
+		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Cliente necessário")
+		return
+	}
+	detail, err := h.svc.GetOpenPeriodDetail(r.Context(), *user.CustomerID)
+	if err != nil {
+		if err == billing.ErrNoOpenPeriod {
+			httpx.WriteError(w, http.StatusNotFound, "NOT_FOUND", "Não há período em aberto")
+			return
+		}
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao carregar competência")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, detail)
 }
 
 func (h *Handler) GetMyInvoice(w http.ResponseWriter, r *http.Request) {

@@ -167,6 +167,16 @@ paths:
           description: Fatura gerada
         '400':
           description: Sem lançamentos no ciclo
+  /me/billing/open-period:
+    get:
+      tags: [billing]
+      summary: Competência aberta com lançamentos e produtos
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Período em aberto
+        '404':
+          description: Sem período em aberto
   /me/invoices/{id}:
     get:
       tags: [billing]
