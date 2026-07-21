@@ -35,6 +35,20 @@ make dev-up
 
 Para manter os dados do Postgres: `./scripts/dev-up.sh --no-clean`
 
+Com `make dev-up` (sem `--no-clean`), após migrations e bootstrap da API, o comando **seed** popula o banco com produtos, clientes, pedidos e faturas de demonstração. Reexecutar manualmente (banco já no ar): `make seed-demo`. Flags: `cd backend && go run ./cmd/seed -customers=10 -products=5 -months=2`.
+
+**Contas demo** (senha padrão `DemoStore123!`, domínio `demo.loja.local`):
+
+| Uso | E-mail |
+| ----- | ------ |
+| Gerente | `demo-gerente@demo.loja.local` |
+| Gerente (2º) | `demo-gerente2@demo.loja.local` |
+| Estoque | `demo-estoque@demo.loja.local` |
+| Financeiro | `demo-financeiro@demo.loja.local` |
+| Clientes | `demo-cliente-001@demo.loja.local` … |
+
+O administrador bootstrap (`admin@loja.local` / `ChangeMe123!`) não é alterado pelo seed. O seed só roda em `APP_ENV=development` ou `test`, ou com `SEED_ALLOW=true` (não usar em produção).
+
 Para só resetar o banco e rodar API/front no host (Vite com hot reload):
 
 ```bash
