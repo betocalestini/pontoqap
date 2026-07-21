@@ -1,0 +1,121 @@
+.store-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.store-dialog {
+  width: min(100%, 26rem);
+  max-height: min(90vh, 32rem);
+  overflow: auto;
+  padding: var(--space-lg);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  color: var(--color-text);
+}
+
+.store-dialog__title {
+  margin: 0 0 var(--space-sm);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.store-dialog__message {
+  margin: 0 0 var(--space-md);
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.store-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.store-dialog__label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.store-dialog__input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-size: 1rem;
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+.store-dialog__input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.store-dialog__message p {
+  margin: 0 0 var(--space-sm);
+}
+
+.store-dialog__message p:last-child {
+  margin-bottom: 0;
+}
+
+.store-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.store-dialog__btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.store-dialog__btn--secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.store-dialog__btn--secondary:hover {
+  border-color: var(--color-accent);
+}
+
+.store-dialog__btn--primary {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
+.store-dialog__btn--primary:hover {
+  filter: brightness(1.05);
+}
+
+.store-dialog__btn--danger {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.store-dialog__btn--danger:hover {
+  filter: brightness(1.08);
+}
