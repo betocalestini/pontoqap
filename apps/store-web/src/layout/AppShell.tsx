@@ -1,8 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { UserMenu } from '@store/ui';
+import '@store/ui/user-menu.css';
 import { storeNavLinks } from './navLinks';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { useStoreAuth } from '../auth/StoreAuthProvider';
+
+const guestOnlyPaths = new Set(['/login', '/cadastro']);
 
 type AppShellProps = {
   children: ReactNode;
@@ -13,16 +18,19 @@ function NavLinks({
   onNavigate,
   pathname,
   id,
+  authenticated,
 }: {
   navClassName: string;
   onNavigate?: () => void;
   pathname: string;
   id?: string;
+  authenticated: boolean;
 }) {
+  const links = storeNavLinks.filter((link) => !authenticated || !guestOnlyPaths.has(link.to));
   return (
     <nav id={id} className={navClassName} aria-label="Principal">
       <ul className="app-nav__list">
-        {storeNavLinks.map(({ to, label }) => (
+        {links.map(({ to, label }) => (
           <li key={to}>
             <Link
               to={to}
@@ -41,6 +49,9 @@ function NavLinks({
 export function AppShell({ children }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { status, user, signOut } = useStoreAuth();
+  const authenticated = status === 'authenticated' && user != null;
 
   useEffect(() => {
     setMenuOpen(false);
@@ -74,6 +85,7 @@ export function AppShell({ children }: AppShellProps) {
           id="store-primary-nav"
           onNavigate={closeMenu}
           pathname={location.pathname}
+          authenticated={authenticated}
         />
       </>,
       document.body,
@@ -86,8 +98,18 @@ export function AppShell({ children }: AppShellProps) {
           <Link to="/" className="app-brand">
             Store
           </Link>
-          <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} />
+          <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} authenticated={authenticated} />
           <div className="app-top__actions">
+            {authenticated && (
+              <UserMenu
+                name={user.name}
+                email={user.email}
+                onSignOut={async () => {
+                  await signOut();
+                  navigate('/');
+                }}
+              />
+            )}
             <ThemeToggle />
             <button
             type="button"

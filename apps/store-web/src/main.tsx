@@ -4,13 +4,16 @@ import { BrowserRouter } from 'react-router-dom';
 import { DialogProvider } from '@store/ui';
 import '@store/ui/dialog.css';
 import App from './App';
+import { StoreAuthProvider } from './auth/StoreAuthProvider';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <DialogProvider>
-        <App />
+        <StoreAuthProvider>
+          <App />
+        </StoreAuthProvider>
       </DialogProvider>
     </BrowserRouter>
   </StrictMode>,

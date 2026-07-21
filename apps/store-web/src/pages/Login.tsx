@@ -1,10 +1,13 @@
 import { type FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '@store/api-client';
 import { api } from '../api';
+import { useStoreAuth } from '../auth/StoreAuthProvider';
 
 export function LoginPage() {
   const nav = useNavigate();
+  const location = useLocation();
+  const { refreshUser } = useStoreAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +21,9 @@ export function LoginPage() {
     setResent(false);
     try {
       await api.login(email, password, 'store');
-      nav('/');
+      await refreshUser();
+      const from = (location.state as { from?: string } | null)?.from;
+      nav(from && from !== '/login' ? from : '/');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') {
         setNeedsVerify(true);

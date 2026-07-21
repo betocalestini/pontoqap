@@ -8,6 +8,7 @@ import { InvoicesPage } from './pages/Invoices';
 import { OpenBillingPeriodPage } from './pages/OpenBillingPeriod';
 import { InvoiceDetailPage } from './pages/InvoiceDetail';
 import { VerifyEmailPage } from './pages/VerifyEmail';
+import { ProfilePage } from './pages/Profile';
 import { useClearCartOnReload } from './hooks/useClearCartOnReload';
 import './App.css';
 
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/faturas" element={<InvoicesPage />} />
         <Route path="/faturas/competencia-atual" element={<OpenBillingPeriodPage />} />
         <Route path="/verificar-email" element={<VerifyEmailPage />} />
+        <Route path="/perfil" element={<ProfilePage />} />
         <Route path="/faturas/:id" element={<InvoiceDetailPage />} />
       </Routes>
     </AppShell>
