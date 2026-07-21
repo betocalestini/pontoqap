@@ -98,13 +98,21 @@ if [[ "$MODE" == docker ]]; then
   log "Build e subida completa (postgres → migrate → api, worker, loja, admin)"
   docker compose up --build -d
   wait_api
+  if [[ "$CLEAN" == true ]]; then
+    log "Populando dados de demonstração (seed)"
+    docker compose --profile seed run --rm seed
+  fi
   log "Ambiente Docker pronto"
   echo ""
   echo "  Loja:   http://localhost:5173"
   echo "  Admin:  http://localhost:5174"
   echo "  API:    http://localhost:8080/health"
   echo "  Mailpit (e-mails dev): http://localhost:8025"
-  echo "  Login:  admin@loja.local / ChangeMe123! (administrador bootstrap)"
+  echo "  Login admin bootstrap: admin@loja.local / ChangeMe123!"
+  if [[ "$CLEAN" == true ]]; then
+    echo "  Demo (seed): demo-gerente@demo.loja.local / DemoStore123! (e demais @demo.loja.local)"
+    echo "  Re-seed manual: make seed-demo"
+  fi
   echo ""
   echo "Logs: docker compose logs -f api"
   exit 0
@@ -121,6 +129,11 @@ run_make deps
 log "Migrations"
 run_make migrate-up
 
+if [[ "$CLEAN" == true ]]; then
+  log "Populando dados de demonstração (seed)"
+  (cd backend && APP_ENV=development SEED_ALLOW=true go run ./cmd/seed)
+fi
+
 log "Postgres e schema prontos; suba API/worker/front no host"
 echo ""
 echo "  Terminal 1: make api"
@@ -128,7 +141,11 @@ echo "  Terminal 2: make worker"
 echo "  Terminal 3: pnpm dev:store   → http://localhost:5173"
 echo "  Terminal 4: pnpm dev:admin   → http://localhost:5174"
 echo ""
-echo "  Credenciais: admin@loja.local / ChangeMe123!"
+echo "  Credenciais admin: admin@loja.local / ChangeMe123!"
+if [[ "$CLEAN" == true ]]; then
+  echo "  Demo (seed): demo-gerente@demo.loja.local / DemoStore123!"
+  echo "  Re-seed: make seed-demo"
+fi
 echo ""
 echo "Opcional — API/worker em Docker e front no host:"
 echo "  docker compose up --build -d api worker"

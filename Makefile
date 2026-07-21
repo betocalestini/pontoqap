@@ -1,10 +1,13 @@
 GO ?= go
 PNPM ?= pnpm
 
-.PHONY: help deps migrate-up api worker test lint docker-up docker-down dev-up dev-up-local openapi-gen backup restore test-backup-restore deploy-staging-help
+.PHONY: help deps migrate-up seed-demo api worker test lint docker-up docker-down dev-up dev-up-local openapi-gen backup restore test-backup-restore deploy-staging-help
 
 help:
-	@echo "Targets: deps, migrate-up, api, worker, test, docker-up, dev-up, dev-up-local, openapi-gen, backup, restore, test-backup-restore"
+	@echo "Targets: deps, migrate-up, seed-demo, api, worker, test, docker-up, dev-up, dev-up-local, openapi-gen, backup, restore, test-backup-restore"
+
+seed-demo:
+	cd backend && APP_ENV=development SEED_ALLOW=true $(GO) run ./cmd/seed
 
 dev-up:
 	@chmod +x scripts/dev-up.sh
