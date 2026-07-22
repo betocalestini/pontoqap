@@ -2129,3 +2129,127 @@ tr.row--selected td {
   font-size: 0.75rem;
   color: var(--color-text-muted);
 }
+
+.reports-layout {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.reports-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.reports-subnav a {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.reports-subnav a.active,
+.reports-subnav a:hover {
+  color: var(--color-text);
+  background: var(--color-surface-elevated);
+}
+
+.report-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.report-page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: flex-end;
+}
+
+.report-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.report-summary-card {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.report-summary-card__label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.report-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+.report-export-menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.report-export-menu__label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.reports-readonly-banner {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+}
+
+.report-chart__fallback {
+  margin-top: var(--space-md);
+  font-size: 0.85rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+@media (min-width: 768px) {
+  .report-chart__fallback {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+}
+
+.pagination-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+

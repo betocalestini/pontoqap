@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AuditLogEntry } from '@store/api-client';
 import { api } from '../api';
+import { fetchAllPages } from '../components/reports/exportReport';
+import { exportSubtitle } from '../components/reports/exportSubtitle';
+import { ReportPageHeader } from '../components/reports/ReportPageHeader';
 
 export function AuditPage() {
   const [items, setItems] = useState<AuditLogEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [action, setAction] = useState('');
   const [entityType, setEntityType] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,6 +22,8 @@ export function AuditPage() {
       const res = await api.adminListAuditLogs({
         action: action || undefined,
         entity_type: entityType || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
         limit: 100,
       });
       setItems(res.items ?? []);
@@ -26,16 +33,46 @@ export function AuditPage() {
     } finally {
       setLoading(false);
     }
-  }, [action, entityType]);
+  }, [action, entityType, dateFrom, dateTo]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  const buildExportTable = useCallback(async () => {
+    const rows = await fetchAllPages((offset, limit) =>
+      api.adminListAuditLogs({
+        action: action || undefined,
+        entity_type: entityType || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        offset,
+        limit,
+      }),
+    );
+    return {
+      title: 'Auditoria administrativa',
+      subtitle: exportSubtitle(),
+      filenameBase: 'auditoria',
+      headers: ['Quando', 'Quem', 'IP', 'Ação', 'Entidade', 'ID entidade'],
+      rows: rows.map((r) => [
+        r.created_at,
+        r.actor_email ?? r.actor_user_id ?? '',
+        r.ip_address ?? '',
+        r.action,
+        r.entity_type,
+        r.entity_id ?? '',
+      ]),
+    };
+  }, [action, entityType, dateFrom, dateTo]);
+
   return (
     <section className="content-section">
-      <h1>Auditoria</h1>
-      <p className="form-hint">Registros administrativos e operações sensíveis (somente administrador).</p>
+      <ReportPageHeader
+        title="Auditoria"
+        description="Registros administrativos e operações sensíveis (somente administrador)."
+        exportTable={buildExportTable}
+      />
       {error && <p className="error">{error}</p>}
       <div className="form form--wide customers-list-filters">
         <label>
@@ -45,6 +82,14 @@ export function AuditPage() {
         <label>
           Entidade
           <input value={entityType} onChange={(e) => setEntityType(e.target.value)} placeholder="ex.: order" />
+        </label>
+        <label>
+          De
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        </label>
+        <label>
+          Até
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </label>
         <button type="button" onClick={() => void load()}>
           Filtrar
@@ -61,6 +106,7 @@ export function AuditPage() {
                 <tr>
                   <th>Quando</th>
                   <th>Quem</th>
+                  <th>IP</th>
                   <th>Ação</th>
                   <th>Entidade</th>
                 </tr>
@@ -70,6 +116,7 @@ export function AuditPage() {
                   <tr key={row.id}>
                     <td>{new Date(row.created_at).toLocaleString('pt-BR')}</td>
                     <td>{row.actor_email ?? row.actor_user_id ?? '—'}</td>
+                    <td>{row.ip_address ?? '—'}</td>
                     <td>
                       <code>{row.action}</code>
                     </td>

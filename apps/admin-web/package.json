@@ -13,9 +13,13 @@
     "@store/api-client": "workspace:*",
     "@store/shared-core": "workspace:*",
     "@store/ui": "workspace:*",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.0"
+    "react-router-dom": "^7.6.0",
+    "recharts": "^3.10.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
