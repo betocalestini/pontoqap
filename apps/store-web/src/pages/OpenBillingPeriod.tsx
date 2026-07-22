@@ -5,8 +5,6 @@ import { formatMoney } from '@store/shared-core';
 import { useDialog } from '@store/ui';
 import { api } from '../api';
 import { BillingEntriesList } from '../components/InvoiceItems';
-import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
-import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
 function formatCompetence(year: number, month: number) {
   return `${String(month).padStart(2, '0')}/${year}`;
@@ -17,23 +15,14 @@ export function OpenBillingPeriodPage() {
   const { confirm } = useDialog();
   const [data, setData] = useState<OpenBillingPeriodDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [needsAuth, setNeedsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
-    setNeedsAuth(false);
     api
       .getMyOpenBillingPeriod()
       .then(setData)
-      .catch((e: Error) => {
-        if (isGuestAuthError(e)) {
-          setNeedsAuth(true);
-          setError(null);
-        } else {
-          setError(e.message);
-        }
-      })
+      .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -78,9 +67,8 @@ export function OpenBillingPeriodPage() {
       </p>
       <h1>Competência atual</h1>
       {loading && <p>Carregando…</p>}
-      {needsAuth && <AuthGuestPrompt message={guestAuthMessage('invoices')} />}
       {error && <p className="error">{error}</p>}
-      {!loading && !needsAuth && period && (
+      {!loading && period && (
         <>
           <div className="invoice-card invoice-card--current">
             <p>
@@ -117,7 +105,7 @@ export function OpenBillingPeriodPage() {
           </div>
         </>
       )}
-      {!loading && !needsAuth && !period && !error && (
+      {!loading && !period && !error && (
         <p className="invoice-card-meta">Nenhuma competência em aberto no momento.</p>
       )}
     </section>

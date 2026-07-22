@@ -4,8 +4,6 @@ import type { MyInvoiceDetail } from '@store/api-client';
 import { formatMoney, labelInvoiceStatus } from '@store/shared-core';
 import { api } from '../api';
 import { InvoiceItemsList } from '../components/InvoiceItems';
-import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
-import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
 type Charge = { id: string; qr_code_text: string; amount_cents: number };
 
@@ -32,23 +30,14 @@ export function InvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [charge, setCharge] = useState<Charge | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [needsAuth, setNeedsAuth] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    setNeedsAuth(false);
     api
       .getMyInvoice(id)
       .then(setInv)
-      .catch((e: Error) => {
-        if (isGuestAuthError(e)) {
-          setNeedsAuth(true);
-          setError(null);
-        } else {
-          setError(e.message);
-        }
-      })
+      .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -59,12 +48,7 @@ export function InvoiceDetailPage() {
       const c = (await api.createPixCharge(id)) as Charge;
       setCharge(c);
     } catch (e) {
-      if (isGuestAuthError(e)) {
-        setNeedsAuth(true);
-        setError(null);
-      } else {
-        setError(e instanceof Error ? e.message : 'Erro');
-      }
+      setError(e instanceof Error ? e.message : 'Erro');
     }
   }
 
@@ -86,9 +70,8 @@ export function InvoiceDetailPage() {
       </p>
       <h1>{inv?.invoice_number ?? 'Fatura'}</h1>
       {loading && <p>Carregando…</p>}
-      {needsAuth && <AuthGuestPrompt message={guestAuthMessage('invoice')} />}
       {error && <p className="error">{error}</p>}
-      {!loading && !needsAuth && inv && (
+      {!loading && inv && (
         <div className="invoice-card">
           <p>
             <span className="badge">{labelInvoiceStatus(inv.status)}</span>
@@ -133,14 +116,14 @@ export function InvoiceDetailPage() {
           <InvoiceItemsList items={inv.items} />
         </div>
       )}
-      {!loading && !needsAuth && inv && inv.remaining_cents > 0 && inv.status !== 'paid' && (
+      {!loading && inv && inv.remaining_cents > 0 && inv.status !== 'paid' && (
         <div className="stack-sm stack-sm--row">
           <button type="button" onClick={() => void payPix()}>
             Gerar Pix
           </button>
         </div>
       )}
-      {!needsAuth && charge && (
+      {charge && (
         <div className="pix">
           <p>Valor: {formatMoney(charge.amount_cents)}</p>
           <code>{charge.qr_code_text}</code>

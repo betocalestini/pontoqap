@@ -1,10 +1,10 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useStoreAuth } from '../auth/StoreAuthProvider';
 import { api } from '../api';
 
 export function ProfilePage() {
-  const { status, user, refreshUser, signOut } = useStoreAuth();
+  const { user, refreshUser, signOut } = useStoreAuth();
   const nav = useNavigate();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -19,14 +19,6 @@ export function ProfilePage() {
     setPhone(user.phone ?? '');
     setDocument(user.document ?? '');
   }, [user]);
-
-  if (status === 'loading') {
-    return null;
-  }
-
-  if (status === 'guest') {
-    return <Navigate to="/login" replace state={{ from: '/perfil' }} />;
-  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -85,7 +77,7 @@ export function ProfilePage() {
           Sair da conta
         </button>
         {' · '}
-        <Link to="/">Voltar ao catálogo</Link>
+        <Link to="/loja">Voltar ao catálogo</Link>
       </p>
     </section>
   );

@@ -1,6 +1,5 @@
 export const storeNavLinks = [
+  { to: '/loja', label: 'Loja' },
   { to: '/carrinho', label: 'Carrinho' },
   { to: '/faturas', label: 'Faturas' },
-  { to: '/cadastro', label: 'Criar conta' },
-  { to: '/login', label: 'Entrar' },
 ] as const;

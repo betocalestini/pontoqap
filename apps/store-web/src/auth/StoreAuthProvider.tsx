@@ -7,14 +7,23 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { AuthMe } from '@store/api-client';
 import { api } from '../api';
+import {
+  clearStoreAccessToken,
+  hasValidStoreAccessToken,
+  setStoreAccessToken,
+} from './token';
 
-export type StoreAuthStatus = 'loading' | 'guest' | 'authenticated';
+export type StoreAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+
+const publicPaths = new Set(['/', '/login', '/cadastro', '/verificar-email']);
 
 type StoreAuthContextValue = {
   status: StoreAuthStatus;
   user: AuthMe | null;
+  completeLogin: (accessToken: string) => void;
   refreshUser: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -22,23 +31,51 @@ type StoreAuthContextValue = {
 const StoreAuthContext = createContext<StoreAuthContextValue | null>(null);
 
 export function StoreAuthProvider({ children }: { children: ReactNode }) {
+  const location = useLocation();
   const [status, setStatus] = useState<StoreAuthStatus>('loading');
   const [user, setUser] = useState<AuthMe | null>(null);
 
+  const markUnauthenticated = useCallback(() => {
+    clearStoreAccessToken();
+    setUser(null);
+    setStatus('unauthenticated');
+  }, []);
+
   const refreshUser = useCallback(async () => {
+    if (!hasValidStoreAccessToken()) {
+      markUnauthenticated();
+      return;
+    }
     try {
       const me = await api.me('store');
       setUser(me);
       setStatus('authenticated');
     } catch {
-      setUser(null);
-      setStatus('guest');
+      markUnauthenticated();
     }
-  }, []);
+  }, [markUnauthenticated]);
+
+  const verifySession = refreshUser;
 
   useEffect(() => {
-    void refreshUser();
-  }, [refreshUser]);
+    if (publicPaths.has(location.pathname)) {
+      if (hasValidStoreAccessToken()) {
+        void verifySession();
+        return;
+      }
+      setStatus('unauthenticated');
+      return;
+    }
+    void verifySession();
+  }, [location.pathname, verifySession]);
+
+  const completeLogin = useCallback(
+    (accessToken: string) => {
+      setStoreAccessToken(accessToken);
+      void verifySession();
+    },
+    [verifySession],
+  );
 
   const signOut = useCallback(async () => {
     try {
@@ -46,13 +83,12 @@ export function StoreAuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-    setUser(null);
-    setStatus('guest');
-  }, []);
+    markUnauthenticated();
+  }, [markUnauthenticated]);
 
   const value = useMemo(
-    () => ({ status, user, refreshUser, signOut }),
-    [status, user, refreshUser, signOut],
+    () => ({ status, user, completeLogin, refreshUser, signOut }),
+    [status, user, completeLogin, refreshUser, signOut],
   );
 
   return <StoreAuthContext.Provider value={value}>{children}</StoreAuthContext.Provider>;

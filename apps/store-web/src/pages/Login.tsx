@@ -7,7 +7,7 @@ import { useStoreAuth } from '../auth/StoreAuthProvider';
 export function LoginPage() {
   const nav = useNavigate();
   const location = useLocation();
-  const { refreshUser } = useStoreAuth();
+  const { completeLogin, refreshUser } = useStoreAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -20,10 +20,16 @@ export function LoginPage() {
     setNeedsVerify(false);
     setResent(false);
     try {
-      await api.login(email, password, 'store');
+      const res = await api.login(email, password, 'store');
+      if (!res.access_token) {
+        setError('Resposta de login inválida');
+        return;
+      }
+      completeLogin(res.access_token);
       await refreshUser();
       const from = (location.state as { from?: string } | null)?.from;
-      nav(from && from !== '/login' ? from : '/');
+      const dest = from && from !== '/login' && from !== '/' ? from : '/loja';
+      nav(dest);
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') {
         setNeedsVerify(true);

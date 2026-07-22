@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatMoney } from '@store/shared-core';
 import { api } from '../api';
-import { useStoreAuth } from '../auth/StoreAuthProvider';
-import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
 import { CatalogFilterSelect } from '../components/CatalogFilterSelect';
-import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
 type Product = {
   id: string;
@@ -71,7 +68,6 @@ function categoryLabel(slug: string, categories: CatalogCategory[]): string {
 }
 
 export function CatalogPage() {
-  const { status: authStatus } = useStoreAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
@@ -81,7 +77,6 @@ export function CatalogPage() {
   const [sort, setSort] = useState<CatalogSort>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [guestAuth, setGuestAuth] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -122,17 +117,12 @@ export function CatalogPage() {
 
   async function add(skuId: string) {
     setMsg(null);
-    setGuestAuth(false);
     setError(null);
     try {
       await api.addToCart(skuId, 1);
       setMsg('Item adicionado ao carrinho.');
     } catch (e) {
-      if (isGuestAuthError(e)) {
-        setGuestAuth(true);
-      } else {
-        setError(e instanceof Error ? e.message : 'Erro');
-      }
+      setError(e instanceof Error ? e.message : 'Erro');
     }
   }
 
@@ -153,12 +143,7 @@ export function CatalogPage() {
     { value: 'name', label: 'Nome (A–Z)' },
     { value: 'price_asc', label: 'Preço (menor → maior)' },
     { value: 'price_desc', label: 'Preço (maior → menor)' },
-    {
-      value: 'purchases',
-      label: 'Mais comprados por você',
-      disabled: authStatus !== 'authenticated',
-      title: authStatus !== 'authenticated' ? 'Faça login para usar esta ordenação' : undefined,
-    },
+    { value: 'purchases', label: 'Mais comprados por você' },
   ];
 
   const metaText =
@@ -219,7 +204,6 @@ export function CatalogPage() {
 
       {loading && <p>Carregando produtos…</p>}
       {error && <p className="error">{error}</p>}
-      {guestAuth && <AuthGuestPrompt message={guestAuthMessage('catalog')} />}
       {msg && <p className="ok">{msg}</p>}
       {showEmptyCatalog && (
         <p>Nenhum produto disponível. Cadastre itens no painel admin ou rode as migrations (seed de demo).</p>

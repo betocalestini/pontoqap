@@ -7,8 +7,6 @@ import { storeNavLinks } from './navLinks';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useStoreAuth } from '../auth/StoreAuthProvider';
 
-const guestOnlyPaths = new Set(['/login', '/cadastro']);
-
 type AppShellProps = {
   children: ReactNode;
 };
@@ -18,23 +16,20 @@ function NavLinks({
   onNavigate,
   pathname,
   id,
-  authenticated,
 }: {
   navClassName: string;
   onNavigate?: () => void;
   pathname: string;
   id?: string;
-  authenticated: boolean;
 }) {
-  const links = storeNavLinks.filter((link) => !authenticated || !guestOnlyPaths.has(link.to));
   return (
     <nav id={id} className={navClassName} aria-label="Principal">
       <ul className="app-nav__list">
-        {links.map(({ to, label }) => (
+        {storeNavLinks.map(({ to, label }) => (
           <li key={to}>
             <Link
               to={to}
-              className={pathname === to ? 'app-nav__link is-active' : 'app-nav__link'}
+              className={pathname === to || pathname.startsWith(`${to}/`) ? 'app-nav__link is-active' : 'app-nav__link'}
               onClick={onNavigate}
             >
               {label}
@@ -50,8 +45,7 @@ export function AppShell({ children }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { status, user, signOut } = useStoreAuth();
-  const authenticated = status === 'authenticated' && user != null;
+  const { user, signOut } = useStoreAuth();
 
   useEffect(() => {
     setMenuOpen(false);
@@ -85,7 +79,6 @@ export function AppShell({ children }: AppShellProps) {
           id="store-primary-nav"
           onNavigate={closeMenu}
           pathname={location.pathname}
-          authenticated={authenticated}
         />
       </>,
       document.body,
@@ -95,12 +88,12 @@ export function AppShell({ children }: AppShellProps) {
     <div className={`app-shell${menuOpen ? ' app-shell--menu-open' : ''}`}>
       <div className="app-top">
         <div className="app-top__inner">
-          <Link to="/" className="app-brand">
+          <Link to="/loja" className="app-brand">
             Store
           </Link>
-          <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} authenticated={authenticated} />
+          <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} />
           <div className="app-top__actions">
-            {authenticated && (
+            {user && (
               <UserMenu
                 name={user.name}
                 email={user.email}

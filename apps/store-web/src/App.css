@@ -852,19 +852,98 @@ a.invoice-card--link:hover {
   }
 }
 
-.auth-guest-prompt {
-  margin: var(--space-md) 0 var(--space-lg);
-  padding: var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-  text-align: left;
+/* Public shell (landing, login, cadastro) */
+.public-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
-.auth-guest-prompt__links {
-  margin: var(--space-sm) 0 0;
+.public-shell__header {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-header-bg);
 }
 
-.auth-guest-prompt__sep {
+.public-shell__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+  min-height: var(--header-height);
+  width: 100%;
+}
+
+.public-shell__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-md);
+}
+
+.landing {
+  max-width: 28rem;
+  text-align: center;
+}
+
+.landing__eyebrow {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.875rem;
   color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.landing__title {
+  margin: 0 0 var(--space-md);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.landing__lead {
+  margin: 0 0 var(--space-xl);
+  color: var(--color-text-muted);
+  line-height: 1.55;
+}
+
+.landing__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+@media (min-width: 400px) {
+  .landing__actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+.landing__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.25rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.landing__btn--primary {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast, #fff);
+}
+
+.landing__btn--secondary {
+  border-color: var(--color-border);
+  color: inherit;
+}
+
+.public-shell__main .content-section {
+  width: 100%;
+  max-width: 24rem;
 }

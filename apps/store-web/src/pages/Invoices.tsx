@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import type { MyInvoiceListItem, OpenBillingPeriod } from '@store/api-client';
 import { formatMoney, labelInvoiceStatus } from '@store/shared-core';
 import { api } from '../api';
-import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
-import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
 function formatCompetence(year: number, month: number) {
   return `${String(month).padStart(2, '0')}/${year}`;
@@ -27,26 +25,17 @@ export function InvoicesPage() {
   const [current, setCurrent] = useState<OpenBillingPeriod | null>(null);
   const [items, setItems] = useState<MyInvoiceListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [needsAuth, setNeedsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
 
   function reload() {
     setLoading(true);
-    setNeedsAuth(false);
     api
       .listMyInvoices()
       .then((res) => {
         setCurrent(res.current_period ?? null);
         setItems(res.items ?? []);
       })
-      .catch((e: Error) => {
-        if (isGuestAuthError(e)) {
-          setNeedsAuth(true);
-          setError(null);
-        } else {
-          setError(e.message);
-        }
-      })
+      .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }
 
@@ -61,9 +50,8 @@ export function InvoicesPage() {
     <section className="content-section invoices-page">
       <h1>Minhas faturas</h1>
       {loading && <p>Carregando…</p>}
-      {needsAuth && <AuthGuestPrompt message={guestAuthMessage('invoices')} />}
       {error && <p className="error">{error}</p>}
-      {!loading && !error && !needsAuth && (
+      {!loading && !error && (
         <>
           <h2>Competência atual</h2>
           {hasCurrent ? (
