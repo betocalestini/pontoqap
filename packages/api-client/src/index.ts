@@ -578,14 +578,31 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     resendVerification: (email: string) =>
       request('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
 
-    listProducts: (params?: { search?: string; page?: number; page_size?: number }) => {
+    listCatalogCategories: () =>
+      request<{ items: { id: string; name: string; slug: string; active: boolean }[] }>(
+        '/catalog/categories',
+        {},
+        'store',
+      ),
+
+    listProducts: (params?: {
+      search?: string;
+      category?: string;
+      sort?: 'default' | 'name' | 'price_asc' | 'price_desc' | 'purchases';
+      page?: number;
+      page_size?: number;
+    }) => {
       const q = new URLSearchParams();
       if (params?.search?.trim()) q.set('search', params.search.trim());
+      if (params?.category?.trim()) q.set('category', params.category.trim());
+      if (params?.sort) q.set('sort', params.sort);
       if (params?.page != null) q.set('page', String(params.page));
       if (params?.page_size != null) q.set('page_size', String(params.page_size));
       const qs = q.toString();
       return request<{ items: unknown[]; total: number }>(
         `/catalog/products${qs ? `?${qs}` : ''}`,
+        {},
+        'store',
       );
     },
     registerCustomer: (body: Record<string, string>) =>
