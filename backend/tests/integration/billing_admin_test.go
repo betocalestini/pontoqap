@@ -139,6 +139,55 @@ func TestAddInvoiceAdjustmentUpdatesTotal(t *testing.T) {
 	}
 }
 
+func TestAddInvoiceAdjustmentFullCreditMarksInvoicePaid(t *testing.T) {
+	testdb.MigrateUp(t)
+	pool := testdb.Pool(t)
+	ctx := context.Background()
+	if err := testdb.Reset(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	mgr, _ := testdb.SeedManager(ctx, pool, testdb.UniqueEmail(t, "mgr"))
+	cust, _ := testdb.SeedCustomer(ctx, pool, testdb.UniqueEmail(t, "c"), "Cliente Quitação")
+	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 50_000)
+	invID := seedClosedInvoice(t, ctx, pool, cust.ID, 2026, 6, 5000)
+
+	svc := billing.NewService(pool, nil, "")
+	detail, err := svc.AddInvoiceAdjustment(ctx, invID, mgr.UserID, billing.AdjustmentTypeCredit, 5000, "pago em dinheiro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Status != "paid" {
+		t.Fatalf("expected status paid, got %s", detail.Status)
+	}
+	if detail.TotalCents != 0 || detail.RemainingCents != 0 {
+		t.Fatalf("expected total and remaining 0, got total=%d remaining=%d", detail.TotalCents, detail.RemainingCents)
+	}
+	if detail.PaidAt == nil {
+		t.Fatal("expected paid_at to be set")
+	}
+
+	invID2 := seedClosedInvoice(t, ctx, pool, cust.ID, 2026, 7, 3000)
+	chargeID := uuid.New()
+	_, err = pool.Exec(ctx, `
+		INSERT INTO payment_charges (id, invoice_id, provider, external_id, status, amount_cents, expires_at)
+		VALUES ($1, $2, 'sandbox', $3, 'pending', 3000, NOW() + INTERVAL '1 hour')
+	`, chargeID, invID2, uuid.NewString())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.AddInvoiceAdjustment(ctx, invID2, mgr.UserID, billing.AdjustmentTypeCredit, 3000, "quitação total")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var st string
+	if err := pool.QueryRow(ctx, `SELECT status FROM payment_charges WHERE id = $1`, chargeID).Scan(&st); err != nil {
+		t.Fatal(err)
+	}
+	if st != "expired" {
+		t.Fatalf("expected pending pix charge expired, got %s", st)
+	}
+}
+
 func TestClosePeriodsHTTPRequiresReason(t *testing.T) {
 	testdb.MigrateUp(t)
 	pool := testdb.Pool(t)

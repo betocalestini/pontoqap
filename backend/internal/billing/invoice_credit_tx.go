@@ -60,21 +60,15 @@ func (s *Service) applyInvoiceCreditAdjustmentTx(
 		return err
 	}
 
-	newStatus := status
-	if newTotal <= paidCents && paidCents > 0 {
-		newStatus = "paid"
-	}
+	newStatus, markPaidAt := invoiceStatusAfterAdjustment(newTotal, paidCents, status)
 
-	_, err = tx.Exec(ctx, `
-		UPDATE invoices SET
-			adjustment_cents = $2,
-			total_cents = $3,
-			status = $4,
-			updated_at = NOW()
-		WHERE id = $1
-	`, invoiceID, newAdjustmentTotal, newTotal, newStatus)
-	if err != nil {
+	if err := updateInvoiceAfterAdjustmentTx(ctx, tx, invoiceID, newAdjustmentTotal, newTotal, newStatus, markPaidAt); err != nil {
 		return err
+	}
+	if markPaidAt {
+		if err := expirePendingPixChargesTx(ctx, tx, invoiceID); err != nil {
+			return err
+		}
 	}
 
 	exposureDelta := newTotal - totalCents
