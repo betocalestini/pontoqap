@@ -333,6 +333,7 @@ Sistema externo que:
 | RF-CAT-012 | O gerente deverá poder informar código de barras                    |
 | RF-CAT-013 | O gerente deverá poder informar unidade de medida                   |
 | RF-CAT-014 | O gerente deverá poder definir preço de venda                       |
+| RF-CAT-014a | *(implementado)* Preço de venda arredondado ao múltiplo de R$ 0,50 (margem normal, promo, colaborador, manual); total da linha no carrinho também arredondado |
 | RF-CAT-015 | O gerente poderá informar custo de aquisição                        |
 | RF-CAT-016 | O sistema deverá registrar histórico de alteração de preço          |
 | RF-CAT-017 | O gerente deverá poder anexar imagens                               |

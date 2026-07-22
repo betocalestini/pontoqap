@@ -10,6 +10,7 @@ Use isto junto com RF em `requirements.md`. Em conflito com código, **o código
 ## Preço e margem (catálogo / admin)
 
 - Preço de venda (varejo) derivado do **custo médio ponderado** dos lotes × `(1 + margin_percent/100)` do produto.
+- Após o cálculo, preço de venda arredondado ao **múltiplo de R$ 0,50** mais próximo (ex.: R$ 2,58 → R$ 2,50; R$ 2,90 → R$ 3,00). Vale para varejo, promo (recálculo), colaborador, preço manual e total da linha no carrinho/checkout.
 - Margem padrão global: `store_settings.default_margin_percent` (admin: settings/pricing, reprice-all).
 - Entrada de estoque informa **custo unitário**; saldo em lotes (`inventory_lots`) para FIFO/custo médio.
 - Alteração manual de preço ainda passa por histórico onde aplicável (`ChangePrice`).

@@ -16,7 +16,7 @@ func SalePriceFromCost(costCents int64, marginPercent float64) int64 {
 		return 0
 	}
 	f := float64(costCents) * (1 + marginPercent/100)
-	return int64(math.Round(f))
+	return RoundSalePriceCents(int64(math.Round(f)))
 }
 
 func (s *Service) GetDefaultMarginPercent(ctx context.Context) (float64, error) {

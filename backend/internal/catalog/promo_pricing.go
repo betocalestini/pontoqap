@@ -50,7 +50,9 @@ func (s *Service) PriceLine(ctx context.Context, in PriceLineInput, avgCostFn fu
 		return PriceLineResult{}, err
 	}
 	if regular <= 0 {
-		regular = in.SalePrice
+		regular = RoundSalePriceCents(in.SalePrice)
+	} else {
+		regular = RoundSalePriceCents(regular)
 	}
 	promoQty := 0
 	if in.PromoActive && in.PromoRemain > 0 && in.SalePrice > 0 {
@@ -73,14 +75,15 @@ func (s *Service) PriceLine(ctx context.Context, in PriceLineInput, avgCostFn fu
 			hasCollab = true
 		}
 	}
-	effPromo, effRegular := applyCollaboratorMin(in.SalePrice, regular, collabUnit, hasCollab)
+	effPromo, effRegular := applyCollaboratorMin(RoundSalePriceCents(in.SalePrice), regular, collabUnit, hasCollab)
 	lineTotal := int64(promoQty)*effPromo + int64(regQty)*effRegular
+	lineRounded := RoundSalePriceCents(lineTotal)
 	var unitAvg int64
 	if in.Quantity > 0 {
-		unitAvg = lineTotal / int64(in.Quantity)
+		unitAvg = lineRounded / int64(in.Quantity)
 	}
 	return PriceLineResult{
-		LineTotalCents: lineTotal,
+		LineTotalCents: lineRounded,
 		UnitPriceCents: unitAvg,
 		PromoUnits:     promoQty,
 	}, nil

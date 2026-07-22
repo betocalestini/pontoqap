@@ -444,7 +444,7 @@ func (s *Service) CreateProduct(ctx context.Context, in CreateProductInput) (*Pr
 		INSERT INTO skus (product_id, code, barcode, unit, sale_price_cents, cost_price_cents, minimum_stock, active)
 		VALUES ($1, $2, NULLIF($3,''), $4, $5, $6, $7, TRUE)
 		RETURNING id, code, COALESCE(barcode,''), unit, sale_price_cents, cost_price_cents, minimum_stock, active
-	`, p.ID, in.SKUCode, in.Barcode, in.Unit, in.SalePrice, in.CostPrice, in.MinimumStock).Scan(
+	`, p.ID, in.SKUCode, in.Barcode, in.Unit, RoundSalePriceCents(in.SalePrice), in.CostPrice, in.MinimumStock).Scan(
 		&sku.ID, &sku.Code, &sku.Barcode, &sku.Unit, &sku.SalePriceCents, &sku.CostPriceCents, &sku.MinimumStock, &sku.Active,
 	)
 	if err != nil {
@@ -467,6 +467,7 @@ func (s *Service) ChangeSKUPrice(ctx context.Context, skuID uuid.UUID, newPrice 
 	if err := tx.QueryRow(ctx, `SELECT sale_price_cents FROM skus WHERE id = $1 FOR UPDATE`, skuID).Scan(&prev); err != nil {
 		return err
 	}
+	newPrice = RoundSalePriceCents(newPrice)
 	if _, err := tx.Exec(ctx, `UPDATE skus SET sale_price_cents = $2, updated_at = NOW() WHERE id = $1`, skuID, newPrice); err != nil {
 		return err
 	}
