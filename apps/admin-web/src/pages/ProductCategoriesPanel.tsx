@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import type { AdminCategory, AdminProduct } from '@store/api-client';
+import type { AdminCategory } from '@store/api-client';
 import { useDialog } from '@store/ui';
 import { api } from '../api';
 
@@ -15,7 +15,6 @@ const emptyCatForm = () => ({ name: '', slug: '', active: true });
 
 export type ProductCategoriesPanelProps = {
   categories: AdminCategory[];
-  products: AdminProduct[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onReload: () => Promise<void>;
@@ -25,7 +24,6 @@ export type ProductCategoriesPanelProps = {
 
 export function ProductCategoriesPanel({
   categories,
-  products,
   open,
   onOpenChange,
   onReload,
@@ -60,11 +58,7 @@ export function ProductCategoriesPanel({
   }
 
   async function deleteCategory(cat: AdminCategory) {
-    const linked = products.filter((p) => p.category_id === cat.id).length;
-    const message =
-      linked > 0
-        ? `${linked} produto(s) usam a categoria "${cat.name}" e ficarão sem categoria. Deseja excluir mesmo assim?`
-        : `Excluir a categoria "${cat.name}"?`;
+    const message = `Excluir a categoria "${cat.name}"? Produtos vinculados ficarão sem categoria.`;
     const ok = await confirm({
       title: 'Excluir categoria',
       message,

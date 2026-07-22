@@ -43,10 +43,55 @@ function productImageSrc(url: string | undefined, cacheBust: number) {
 }
 
 const ALLOWED_IMAGE_EXT = /\.(jpe?g|png|webp|svg)$/i;
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 25;
+const SEARCH_DEBOUNCE_MS = 300;
+const PROMO_CATEGORY_SLUG = 'promocoes';
+const UNCATEGORIZED_CATEGORY_SLUG = 'sem-categoria';
+
+type ProductListStatus = '' | 'store' | 'inactive' | 'hidden';
+
+function productListQueryParams(
+  debouncedSearch: string,
+  categorySlug: string,
+  status: ProductListStatus,
+): {
+  search?: string;
+  category?: string;
+  active?: boolean;
+  visible?: boolean;
+} {
+  const params: {
+    search?: string;
+    category?: string;
+    active?: boolean;
+    visible?: boolean;
+  } = {};
+  if (debouncedSearch) params.search = debouncedSearch;
+  if (categorySlug) params.category = categorySlug;
+  switch (status) {
+    case 'store':
+      params.active = true;
+      params.visible = true;
+      break;
+    case 'inactive':
+      params.active = false;
+      break;
+    case 'hidden':
+      params.visible = false;
+      break;
+    default:
+      break;
+  }
+  return params;
+}
 
 export function ProductsPage() {
   const { confirm } = useDialog();
   const [items, setItems] = useState<AdminProduct[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -63,6 +108,18 @@ export function ProductsPage() {
   const [bulkMargin, setBulkMargin] = useState('30');
   const [repriceBusy, setRepriceBusy] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [categorySlug, setCategorySlug] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ProductListStatus>('');
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [search]);
 
   const clearImageSelection = useCallback(() => {
     setImageFile(null);
@@ -78,11 +135,26 @@ export function ProductsPage() {
     };
   }, [imagePreviewUrl]);
 
-  const load = useCallback(async () => {
-    const [prodRes, catRes] = await Promise.all([api.adminListProducts(), api.adminListCategories()]);
-    setItems(prodRes.items ?? []);
-    setCategories(catRes.items ?? []);
-  }, []);
+  const load = useCallback(
+    async (opts?: { page?: number }) => {
+      const p = opts?.page ?? page;
+      if (opts?.page != null) {
+        setPage(opts.page);
+      }
+      const [prodRes, catRes] = await Promise.all([
+        api.adminListProducts({
+          page: p,
+          page_size: pageSize,
+          ...productListQueryParams(debouncedSearch, categorySlug, statusFilter),
+        }),
+        api.adminListCategories(),
+      ]);
+      setItems(prodRes.items ?? []);
+      setTotal(prodRes.total ?? 0);
+      setCategories(catRes.items ?? []);
+    },
+    [page, pageSize, debouncedSearch, categorySlug, statusFilter],
+  );
 
   useEffect(() => {
     load().catch((e: Error) => setError(e.message));
@@ -101,7 +173,7 @@ export function ProductsPage() {
       setError('Informe uma margem válida');
       return;
     }
-    const msg = `Definir margem de ${margin}% em todos os ${items.length} produtos e recalcular os preços de venda com base no custo médio dos lotes em estoque?`;
+    const msg = `Definir margem de ${margin}% em todos os ${total} produtos e recalcular os preços de venda com base no custo médio dos lotes em estoque?`;
     const ok = await confirm({
       title: 'Aplicar margem em massa',
       message: msg,
@@ -114,7 +186,7 @@ export function ProductsPage() {
       await api.adminRepriceAllProducts(margin);
       setDefaultMargin(String(margin));
       setNotice('Margem aplicada e preços recalculados.');
-      await load();
+      await load({ page: 1 });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao aplicar margem');
     } finally {
@@ -252,7 +324,7 @@ export function ProductsPage() {
           ? await uploadImageForProduct(created.id, fileToUpload)
           : true;
         setImageCacheBust(Date.now());
-        await load();
+        await load({ page: 1 });
         if (uploadOk) cancelForm();
         return;
       }
@@ -298,7 +370,7 @@ export function ProductsPage() {
           ? await uploadImageForProduct(editingId, fileToUpload)
           : true;
         setImageCacheBust(Date.now());
-        await load();
+        await load({ page: 1 });
         if (uploadOk) cancelForm();
       }
     } catch (err) {
@@ -317,13 +389,16 @@ export function ProductsPage() {
         const p = await api.adminGetProduct(productId);
         setEditingImageUrl(p.image_url ?? null);
       }
-      await load();
+      await load({ page: 1 });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao remover imagem');
     }
   }
 
   const displayPreviewUrl = imagePreviewUrl ?? productImageSrc(editingImageUrl ?? undefined, imageCacheBust);
+  const productListOffset = (page - 1) * pageSize;
+  const hasActiveFilters =
+    debouncedSearch.length > 0 || categorySlug !== '' || statusFilter !== '';
 
   return (
     <section className={`content-section products-page${editingId ? ' products-page--editing' : ''}`}>
@@ -359,10 +434,9 @@ export function ProductsPage() {
         {!editingId && (
         <ProductCategoriesPanel
           categories={categories}
-          products={items}
           open={categoriesOpen}
           onOpenChange={setCategoriesOpen}
-          onReload={load}
+          onReload={() => load()}
           onError={setError}
           onCategoryDeleted={(categoryId) => {
             setForm((f) => (f.category_id === categoryId ? { ...f, category_id: '' } : f));
@@ -626,12 +700,86 @@ export function ProductsPage() {
       )}
       </div>
 
+      {!editingId && (
+        <div className="customers-list-filters products-list-filters" role="search">
+          <label className="customers-list-filters__field customers-list-filters__field--search">
+            <span className="customers-list-filters__label">Buscar</span>
+            <input
+              type="search"
+              className="customers-filter-input"
+              placeholder="Nome, slug, SKU ou código de barras…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <label className="customers-list-filters__field">
+            <span className="customers-list-filters__label">Categoria</span>
+            <select
+              className="customers-filter-input"
+              value={categorySlug}
+              onChange={(e) => {
+                setCategorySlug(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Todas</option>
+              <option value={UNCATEGORIZED_CATEGORY_SLUG}>Sem categoria</option>
+              <option value={PROMO_CATEGORY_SLUG}>Em promoção</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.slug}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="customers-list-filters__field">
+            <span className="customers-list-filters__label">Situação</span>
+            <select
+              className="customers-filter-input"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as ProductListStatus);
+                setPage(1);
+              }}
+            >
+              <option value="">Todas</option>
+              <option value="store">Ativo na loja</option>
+              <option value="inactive">Inativo</option>
+              <option value="hidden">Oculto na loja</option>
+            </select>
+          </label>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className="product-list-filters__clear"
+              onClick={() => {
+                setSearch('');
+                setCategorySlug('');
+                setStatusFilter('');
+                setPage(1);
+              }}
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+      )}
+
+      {!editingId && <p className="form-hint">{total} produto(s)</p>}
+
+      {!editingId && items.length === 0 && (
+        <p className="form-hint">
+          {hasActiveFilters ? 'Nenhum produto corresponde aos filtros.' : 'Nenhum produto cadastrado.'}
+        </p>
+      )}
+
       <div className="table-scroll products-table-desktop">
         <table>
           <thead>
             <tr>
               <th />
               <th>Nome</th>
+              <th>Categoria</th>
               <th>Margem</th>
               <th>Custo médio</th>
               <th>Preço venda</th>
@@ -666,6 +814,40 @@ export function ProductsPage() {
           />
         ))}
       </ul>
+
+      {!editingId && (
+        <div className="pagination-row">
+          <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            Anterior
+          </button>
+          <span>
+            {total === 0 ? 0 : productListOffset + 1}–{Math.min(productListOffset + pageSize, total)} de {total}
+          </span>
+          <button
+            type="button"
+            disabled={productListOffset + pageSize >= total}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Próxima
+          </button>
+          <label>
+            Por página{' '}
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
     </section>
   );
 }
@@ -694,6 +876,7 @@ function ProductTableRow({
         )}
       </td>
       <td>{p.name}</td>
+      <td>{p.category_name?.trim() ? p.category_name : '—'}</td>
       <td>{p.margin_percent != null ? `${p.margin_percent}%` : '—'}</td>
       <td>{sku?.average_cost_cents != null ? formatBRL(sku.average_cost_cents) : '—'}</td>
       <td>{sku ? formatBRL(sku.sale_price_cents) : '—'}</td>
@@ -748,6 +931,9 @@ function ProductCard({
         )}
         <div>
           <strong>{p.name}</strong>
+          <p className="product-card__meta">
+            Categoria: {p.category_name?.trim() ? p.category_name : '—'}
+          </p>
           <p className="product-card__meta">
             Margem {p.margin_percent ?? '—'}% · Custo médio{' '}
             {sku?.average_cost_cents != null ? formatBRL(sku.average_cost_cents) : '—'} · Venda{' '}

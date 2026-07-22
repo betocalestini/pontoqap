@@ -671,6 +671,18 @@ tr.row--warning td {
   margin-bottom: 0;
 }
 
+@media (min-width: 768px) {
+  .products-list-filters.customers-list-filters {
+    grid-template-columns: minmax(12rem, 2fr) minmax(8rem, 1fr) minmax(8rem, 1fr) auto;
+    align-items: end;
+  }
+}
+
+.products-list-filters__clear {
+  align-self: end;
+  white-space: nowrap;
+}
+
 .products-page .product-form.product-form-card {
   display: flex;
   flex-direction: column;
