@@ -116,6 +116,19 @@ Na subida da API, se não existir `system_admin`, cria-se um usuário via `ADMIN
 
 Operações sensíveis (status, papel, revogar sessões): step-up com senha ou código MFA.
 
+## Loja — rotas autenticadas (`/api/v1/me/*`)
+
+O painel administrativo usa a matriz de permissões (`RequirePermission`). A **loja do cliente não**: carrinho, checkout, faturas e Pix passam por autenticação JWT com audience `store` (`Authorization: Bearer` + header `X-App-Audience: store`), sem checagem de códigos como `orders.read`.
+
+| Verificação | Onde |
+| ----------- | ---- |
+| Sessão JWT loja válida e não revogada | `AuthMiddleware` + `AuthenticateStoreBearer` |
+| Usuário autenticado | `RequireAuth` no grupo `/me` |
+| Cliente `approved` e não `blocked` | `RequireStoreCustomerActive` |
+| Limite de crédito no checkout | serviço de vendas (`RF-CLI-013`) |
+
+Papéis internos (`manager`, etc.) e `permissions` retornados em `/auth/me` **não** substituem o cadastro de cliente aprovado para comprar.
+
 ## Segurança (implementado)
 
 - MFA obrigatório no painel quando `ADMIN_MFA_REQUIRED=true` (produção por padrão).
