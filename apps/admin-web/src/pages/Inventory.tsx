@@ -50,7 +50,6 @@ export function InventoryPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productFilterSearch, setProductFilterSearch] = useState('');
-  const [skuSearch, setSkuSearch] = useState('');
   const [form, setForm] = useState({
     sku_id: '',
     kind: 'entry' as MovementKind,
@@ -116,17 +115,30 @@ export function InventoryPage() {
   }, [loadMovements]);
 
   const skuOptions = useMemo(() => {
-    const q = skuSearch.trim().toLowerCase();
-    const base = filterProductId
-      ? balances.filter((b) => b.product_id === filterProductId)
-      : balances;
-    return base.filter(
-      (b) =>
-        !q ||
+    const q = productFilterSearch.trim().toLowerCase();
+    return balances.filter((b) => {
+      if (filterProductId && b.product_id !== filterProductId) return false;
+      if (!q) return true;
+      return (
         b.product_name.toLowerCase().includes(q) ||
-        b.sku_code.toLowerCase().includes(q),
-    );
-  }, [balances, skuSearch, filterProductId]);
+        b.sku_code.toLowerCase().includes(q)
+      );
+    });
+  }, [balances, filterProductId, productFilterSearch]);
+
+  useEffect(() => {
+    setForm((f) => {
+      let sku_id = f.sku_id;
+      if (sku_id && !skuOptions.some((b) => b.sku_id === sku_id)) {
+        sku_id = '';
+      }
+      if (!sku_id && filterProductId && skuOptions.length === 1) {
+        sku_id = skuOptions[0].sku_id;
+      }
+      if (sku_id === f.sku_id) return f;
+      return { ...f, sku_id };
+    });
+  }, [skuOptions, filterProductId]);
 
   function setProductFilter(productId: string) {
     const next = new URLSearchParams(searchParams);
@@ -134,10 +146,6 @@ export function InventoryPage() {
     else next.delete('product_id');
     next.delete('sku_id');
     setSearchParams(next, { replace: true });
-    setForm((f) => ({
-      ...f,
-      sku_id: productId && f.sku_id && balances.find((b) => b.sku_id === f.sku_id)?.product_id !== productId ? '' : f.sku_id,
-    }));
   }
 
   async function submitMovement(e: React.FormEvent) {
@@ -257,7 +265,7 @@ export function InventoryPage() {
           <input
             value={productFilterSearch}
             onChange={(e) => setProductFilterSearch(e.target.value)}
-            placeholder="Nome do produto"
+            placeholder="Nome do produto ou código SKU"
           />
         </label>
         {filterProductId && (
@@ -317,10 +325,6 @@ export function InventoryPage() {
         <div className="inventory-panel inventory-panel--form">
           <h2>Registrar movimentação</h2>
           <form onSubmit={submitMovement} className="form form--wide inventory-form">
-            <label className="form__full">
-              Buscar produto / SKU
-              <input value={skuSearch} onChange={(e) => setSkuSearch(e.target.value)} placeholder="Filtrar lista" />
-            </label>
             <label className="form__full">
               SKU
               <select
