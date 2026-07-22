@@ -96,6 +96,9 @@ export function BillingPage() {
   return (
     <section className="content-section billing-page">
       <h1>Faturamento</h1>
+      <p>
+        <Link to="/faturamento/parcelas">Configuração de parcelamento</Link>
+      </p>
       {error && <p className="error">{error}</p>}
 
       {summary && (

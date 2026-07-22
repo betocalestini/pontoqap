@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/Dashboard';
 import { CustomersPage } from './pages/Customers';
 import { BillingPage } from './pages/Billing';
 import { BillingInvoiceDetailPage } from './pages/BillingInvoiceDetail';
+import { InstallmentPolicyPage } from './pages/InstallmentPolicy';
 import { ProductsPage } from './pages/Products';
 import { InventoryPage } from './pages/Inventory';
 import { ReportsLayout } from './pages/reports/ReportsLayout';
@@ -61,6 +62,7 @@ function AppRoutes() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/clientes" element={<CustomersPage />} />
         <Route path="/faturamento" element={<BillingPage />} />
+        <Route path="/faturamento/parcelas" element={<InstallmentPolicyPage />} />
         <Route path="/faturamento/:id" element={<BillingInvoiceDetailPage />} />
         <Route path="/produtos" element={<ProductsPage />} />
         <Route path="/estoque" element={<InventoryPage />} />
