@@ -319,6 +319,8 @@ func AuthMiddleware(svc *identity.Service, sessionCfg config.SessionConfig) func
 						next.ServeHTTP(w, r.WithContext(ctx))
 						return
 					}
+					writeAppError(w, err)
+					return
 				}
 				next.ServeHTTP(w, r)
 				return
@@ -331,9 +333,14 @@ func AuthMiddleware(svc *identity.Service, sessionCfg config.SessionConfig) func
 						next.ServeHTTP(w, r.WithContext(ctx))
 						return
 					}
+					writeAppError(w, err)
+					return
 				}
 			}
 			cookieName := sessionCfg.StoreCookie
+			if aud == "admin" {
+				cookieName = sessionCfg.AdminCookie
+			}
 			token := readSessionCookie(r, cookieName)
 			if token == "" {
 				next.ServeHTTP(w, r)

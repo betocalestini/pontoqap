@@ -103,4 +103,14 @@ func TestStoreLoginReturnsJWTAndProtectsRoutes(t *testing.T) {
 	if meRec2.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 after logout, got %d", meRec2.Code)
 	}
+
+	chReq := httptest.NewRequest(http.MethodPost, "/api/v1/me/cart/checkout", nil)
+	chReq.Header.Set("X-App-Audience", "store")
+	chReq.Header.Set("Authorization", "Bearer "+token)
+	chReq.Header.Set("Idempotency-Key", "jwt-test-checkout")
+	chRec := httptest.NewRecorder()
+	handler.ServeHTTP(chRec, chReq)
+	if chRec.Code != http.StatusUnauthorized {
+		t.Fatalf("checkout after logout want 401, got %d %s", chRec.Code, chRec.Body.String())
+	}
 }
