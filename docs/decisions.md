@@ -261,6 +261,10 @@ As estimativas são expressas em pontos relativos:
 | BK-0820 | Criar testes de valor divergente                |         P0 |      5 | BK-0809           |
 | BK-0821 | Criar teste completo em sandbox                 |         P0 |      8 | BK-0802 a BK-0817 |
 
+**Nota (2026-07):** ambiente de desenvolvimento Mercado Pago entregue — `PAYMENT_PROVIDER=mercadopago`, adaptador `POST /v1/orders`, webhook `POST /api/v1/webhooks/mercado-pago/orders` (assinatura + `payment_events`); baixa financeira via MP pendente (BK-0810). Ver `docs/development/mercadopago-pix.md`.
+
+**Nota (2026-07):** logging operacional P0 (Pix, worker/outbox, fechamento, checkout, login admin, access log restrito) — ver `docs/development/logging.md`. Métricas Prometheus (`mercadopago_*_total`) ficam fora do escopo atual.
+
 ---
 
 ## EP-09 — Dashboard e relatórios
@@ -314,6 +318,8 @@ As estimativas são expressas em pontos relativos:
 | BK-1102 | Implementar serviço de auditoria    |         P0 |      5 | BK-1101           |
 | BK-1103 | Implementar `request_id`            |         P0 |      3 | EP-01             |
 | BK-1104 | Implementar logging estruturado     |         P0 |      3 | EP-01             |
+
+**Nota (2026-07):** BK-1104 parcialmente entregue no monólito — `slog` nos fluxos financeiros, worker, checkout e auth admin; ver `docs/development/logging.md`. Access log global da API permanece fora de escopo.
 | BK-1105 | Implementar proteção CSRF           |         P0 |      5 | EP-02             |
 | BK-1106 | Implementar cabeçalhos de segurança |         P0 |      3 | EP-01             |
 | BK-1107 | Implementar limites de upload       |         P0 |      3 | EP-03             |

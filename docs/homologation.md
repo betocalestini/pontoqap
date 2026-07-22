@@ -127,6 +127,7 @@ Smoke manual por papel (credenciais de teste criadas via convite ou seeds de int
 | ----- | ---- | ------------------ | --- | --------- |
 | 6.1 | Detalhe da fatura → **Gerar Pix** | QR/código retornado | ☐ | charge_id: |
 | 6.2 | Staging sandbox: simular pagamento (dev) ou webhook PSP | Pagamento confirmado uma vez | ☐ | |
+| 6.2b | (Opcional MP teste) `PAYMENT_PROVIDER=mercadopago` + túnel HTTPS → webhook Order | Linha em `payment_events` (`mercadopago`, `processed=false`); ver [development/mercadopago-pix.md](development/mercadopago-pix.md) | ☐ | |
 | 6.3 | Repetir mesmo webhook (teste técnico) | Sem duplicar liquidação | ☐ | log / paid_cents |
 | 6.4 | Fatura | Status pago ou `paid_cents` = total | ☐ | |
 | 6.5 | Exposição do cliente | Reduzida após pagamento | ☐ | |

@@ -1900,3 +1900,165 @@ fatura
 ```
 
 Essa abordagem evita acoplamento do domínio ao Mercado Pago, protege contra eventos falsos ou duplicados e permite substituir o provedor futuramente sem alterar o módulo de faturamento.
+
+
+## Melhor escolha: **Checkout Transparente via API de Orders**
+
+Para o seu sistema, essa é a opção mais adequada porque o parcelamento será administrado internamente. O Mercado Pago ficará responsável apenas por:
+
+* gerar um Pix para cada parcela;
+* processar o pagamento;
+* enviar a confirmação;
+* disponibilizar o estado da transação.
+
+O cliente continua dentro do seu site, e o backend controla qual fatura e qual parcela estão sendo pagas. A API de Orders permite criar o Pix com valor e referência próprios, enquanto os Webhooks notificam automaticamente as atualizações da cobrança. ([Mercado Pago][1])
+
+## Como funcionaria
+
+```text
+Fatura de R$ 350,00
+        ↓
+Plano escolhido: 3 parcelas
+        ↓
+Parcela 1 — R$ 116,66 — aberta
+Parcela 2 — R$ 116,67 — agendada
+Parcela 3 — R$ 116,67 — agendada
+        ↓
+Cliente clica em “Gerar Pix” na parcela 1
+        ↓
+Backend cria uma Order Pix no Mercado Pago
+        ↓
+React exibe QR Code e Pix Copia e Cola
+        ↓
+Cliente paga
+        ↓
+Mercado Pago envia Webhook
+        ↓
+Backend confirma o pagamento
+        ↓
+Parcela 1 fica paga
+        ↓
+Parcela 2 é liberada
+```
+
+A referência enviada ao Mercado Pago deverá identificar a parcela, por exemplo:
+
+```text
+external_reference = INSTALLMENT-UUID
+```
+
+Assim, cada pagamento fica relacionado de forma inequívoca a:
+
+```text
+fatura
+→ plano de pagamento
+→ parcela
+→ cobrança Mercado Pago
+→ pagamento confirmado
+```
+
+## Comparação das opções
+
+| Solução                   | Adequação                  | Motivo                                                                                   |
+| ------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
+| **Checkout Transparente** | **Melhor opção**           | Controle completo da parcela, QR Code dentro do site e confirmação automática            |
+| Checkout Pro              | Alternativa simplificada   | Mais fácil, mas redireciona o cliente para o Mercado Pago                                |
+| Checkout Bricks           | Desnecessário inicialmente | Útil para montar interfaces com vários meios de pagamento                                |
+| Link de Pagamento         | Inadequado para automação  | Exigiria criar e relacionar links individualmente, com menor integração ao fluxo interno |
+| Planos de Assinatura      | Inadequado                 | Destinado a cobranças recorrentes padronizadas                                           |
+| Assinaturas por API       | Inadequado                 | Automatiza recorrência, não um parcelamento finito de uma fatura específica              |
+
+### Checkout Pro
+
+É tecnicamente mais simples, pois oferece uma tela pronta e redireciona o cliente ao ambiente do Mercado Pago. Ele também suporta notificações de pagamento. Entretanto, você perde parte do controle da experiência e precisa relacionar o retorno externo à parcela interna. ([Mercado Pago][2])
+
+Seria uma boa alternativa apenas se a prioridade absoluta fosse colocar o sistema no ar rapidamente, aceitando o redirecionamento.
+
+### Checkout Bricks
+
+O Bricks oferece módulos de interface prontos e personalizáveis para incorporar pagamentos ao site. É útil quando se pretende aceitar cartões, Pix e outros meios em um formulário visual padronizado. Para um sistema inicialmente focado apenas em gerar QR Code Pix por parcela, ele adicionaria uma camada de frontend que não é indispensável. ([Mercado Pago][3])
+
+### Link de Pagamento
+
+É adequado para cobranças manuais por WhatsApp ou redes sociais, mas não para o fluxo principal do sistema. A plataforma precisaria criar, armazenar e conciliar cada link com cada parcela, perdendo parte do benefício de possuir um faturamento interno automatizado.
+
+Pode permanecer como solução emergencial caso a API esteja indisponível, mas não como integração principal.
+
+### Planos de Assinatura e Assinaturas
+
+Essas soluções são destinadas a pagamentos recorrentes com frequência definida. Em seu sistema, o parcelamento é uma quantidade finita de parcelas vinculadas a uma única fatura, podendo inclusive haver diferença de centavos entre elas. Portanto, não se trata de uma assinatura. ([Mercado Pago][4])
+
+## Estrutura mínima recomendada
+
+### No sistema
+
+```text
+invoices
+invoice_payment_plans
+invoice_installments
+payment_charges
+payments
+payment_events
+```
+
+### No Mercado Pago
+
+Cada parcela aberta gera uma Order Pix independente:
+
+```text
+Parcela 1 → Order MP 001
+Parcela 2 → Order MP 002
+Parcela 3 → Order MP 003
+```
+
+### Endpoint interno
+
+```text
+POST /api/v1/me/installments/{installmentId}/pix-charge
+```
+
+### Webhook
+
+```text
+POST /api/v1/webhooks/mercado-pago/orders
+```
+
+## Regra de segurança
+
+A baixa não deverá ocorrer apenas porque o webhook informou que houve pagamento.
+
+O fluxo seguro será:
+
+1. validar a assinatura do webhook;
+2. identificar a Order;
+3. consultar a Order diretamente na API do Mercado Pago;
+4. confirmar a referência da parcela;
+5. confirmar o valor exato;
+6. confirmar o estado aprovado;
+7. registrar o pagamento;
+8. marcar a parcela como paga;
+9. atualizar o saldo da fatura;
+10. liberar a próxima parcela.
+
+Os Webhooks permitem receber atualizações automaticamente, evitando consultas constantes, mas a consulta posterior da Order oferece uma confirmação adicional antes da baixa financeira. ([Mercado Pago][5])
+
+## Decisão final
+
+Adote:
+
+```text
+Checkout Transparente
++ API de Orders
++ uma Order Pix por parcela
++ external_reference da parcela
++ Webhook de Order
++ confirmação pela API
+```
+
+Essa opção exige um pouco mais de desenvolvimento que o Checkout Pro, mas é a mais simples **dentro das necessidades reais do seu sistema**, porque preserva o controle sobre faturas, parcelas, vencimentos, exposição do cliente e baixa automática sem tentar adaptar uma solução de assinatura ou um link manual.
+
+[1]: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview?utm_source=chatgpt.com "Checkout Transparente (via API Orders)"
+[2]: https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/overview?utm_source=chatgpt.com "Checkout Pro e configure"
+[3]: https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/overview?utm_source=chatgpt.com "Checkout Bricks"
+[4]: https://www.mercadopago.com.br/developers/pt/docs/subscription-plans/create-subscription-plan?utm_source=chatgpt.com "Criar plano de assinatura"
+[5]: https://www.mercadopago.com.br/developers/pt/docs/your-integrations/notifications/webhooks?utm_source=chatgpt.com "Webhooks"

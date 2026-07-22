@@ -90,6 +90,8 @@ pnpm install
 make openapi-gen   # tipos OpenAPI (só na raiz do repo)
 ```
 
+**Pix Mercado Pago (credenciais de teste):** [docs/development/mercadopago-pix.md](docs/development/mercadopago-pix.md). Padrão local continua `PAYMENT_PROVIDER=sandbox`.
+
 ### Credenciais iniciais (bootstrap)
 
 Após a primeira subida da API, é criado um **administrador** bootstrap (se ainda não existir `system_admin` no banco), configurável via `ADMIN_BOOTSTRAP_*` no `.env`:
