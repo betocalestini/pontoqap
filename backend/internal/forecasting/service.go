@@ -20,7 +20,10 @@ func NewService(pool *pgxpool.Pool) *Service {
 type Snapshot struct {
 	SKUID                     uuid.UUID `json:"sku_id"`
 	SKUCode                   string    `json:"sku_code"`
+	ProductName               string    `json:"product_name,omitempty"`
 	ReferenceMonth            time.Time `json:"reference_month"`
+	SalesLast3Months          int64     `json:"sales_last_3_months"`
+	CurrentStock              int       `json:"current_stock"`
 	ForecastQuantity          int       `json:"forecast_quantity"`
 	SafetyStockQuantity       int       `json:"safety_stock_quantity"`
 	SuggestedPurchaseQuantity int       `json:"suggested_purchase_quantity"`
@@ -88,11 +91,20 @@ func (s *Service) ListLatest(ctx context.Context, limit int) ([]Snapshot, error)
 		limit = 50
 	}
 	rows, err := s.pool.Query(ctx, `
-		SELECT fs.sku_id, s.code, fs.reference_month, fs.forecast_quantity,
+		SELECT fs.sku_id, s.code, p.name, fs.reference_month, fs.forecast_quantity,
 		       fs.safety_stock_quantity, fs.suggested_purchase_quantity,
-		       fs.confidence_level, fs.method
+		       fs.confidence_level, fs.method,
+		       COALESCE((
+		         SELECT SUM(oi.quantity) FROM order_items oi
+		         JOIN orders o ON o.id = oi.order_id
+		         WHERE oi.sku_id = fs.sku_id AND o.status = 'confirmed'
+		           AND o.confirmed_at >= fs.reference_month - interval '3 months'
+		           AND o.confirmed_at < fs.reference_month + interval '1 month'
+		       ),0),
+		       COALESCE((SELECT SUM(available_quantity) FROM inventory_balances WHERE sku_id = fs.sku_id),0)
 		FROM forecast_snapshots fs
 		JOIN skus s ON s.id = fs.sku_id
+		JOIN products p ON p.id = s.product_id
 		ORDER BY fs.created_at DESC
 		LIMIT $1
 	`, limit)
@@ -103,8 +115,9 @@ func (s *Service) ListLatest(ctx context.Context, limit int) ([]Snapshot, error)
 	var out []Snapshot
 	for rows.Next() {
 		var sn Snapshot
-		if err := rows.Scan(&sn.SKUID, &sn.SKUCode, &sn.ReferenceMonth, &sn.ForecastQuantity,
-			&sn.SafetyStockQuantity, &sn.SuggestedPurchaseQuantity, &sn.ConfidenceLevel, &sn.Method); err != nil {
+		if err := rows.Scan(&sn.SKUID, &sn.SKUCode, &sn.ProductName, &sn.ReferenceMonth, &sn.ForecastQuantity,
+			&sn.SafetyStockQuantity, &sn.SuggestedPurchaseQuantity, &sn.ConfidenceLevel, &sn.Method,
+			&sn.SalesLast3Months, &sn.CurrentStock); err != nil {
 			return nil, err
 		}
 		out = append(out, sn)
