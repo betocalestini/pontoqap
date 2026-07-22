@@ -284,6 +284,21 @@ func (h *ReportsHandler) ReceivablesCSV(w http.ResponseWriter, r *http.Request) 
 		[]string{"fatura", "cliente", "status", "total_centavos", "saldo_centavos", "faixa_atraso"}, rows)
 }
 
+func (h *ReportsHandler) ReceivablesInstallments(w http.ResponseWriter, r *http.Request) {
+	f := receivablesFilter(r)
+	items, total, err := h.svc.ReceivablesInstallments(r.Context(), f, time.Now())
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha no relatório de parcelas")
+		return
+	}
+	if items == nil {
+		items = []reports.ReceivableInstallmentRow{}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"items": items, "total": total, "limit": f.Limit, "offset": f.Offset,
+	})
+}
+
 func receivablesFilter(r *http.Request) reports.ReceivablesFilter {
 	y, _ := strconv.Atoi(r.URL.Query().Get("year"))
 	m, _ := strconv.Atoi(r.URL.Query().Get("month"))

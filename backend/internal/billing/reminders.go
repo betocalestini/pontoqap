@@ -27,7 +27,7 @@ func (s *Service) processPaymentReminders(ctx context.Context, now time.Time) (i
 	rows, err := s.pool.Query(ctx, `
 		SELECT i.id, i.invoice_number, i.customer_id, i.total_cents, i.due_at
 		FROM invoices i
-		WHERE i.status IN ('open', 'overdue')
+		WHERE i.status IN ('open', 'overdue', 'partially_paid')
 		  AND i.paid_cents < i.total_cents
 		  AND i.closed_at IS NOT NULL
 		  AND i.reminder_sent_at IS NULL
@@ -72,7 +72,7 @@ func (s *Service) processPaymentEscalations(ctx context.Context, now time.Time) 
 	rows, err := s.pool.Query(ctx, `
 		SELECT i.id, i.invoice_number, i.customer_id, i.total_cents, i.due_at
 		FROM invoices i
-		WHERE i.status IN ('open', 'overdue')
+		WHERE i.status IN ('open', 'overdue', 'partially_paid')
 		  AND i.paid_cents < i.total_cents
 		  AND i.closed_at IS NOT NULL
 		  AND i.escalation_sent_at IS NULL

@@ -265,7 +265,7 @@ paths:
   /me/invoices/{id}/pix-charge:
     post:
       tags: [payments]
-      summary: Gerar cobrança Pix
+      summary: Gerar cobrança Pix (legado, sem plano de parcelas)
       security: [{ cookieAuth: [] }]
       parameters:
         - name: id
@@ -274,6 +274,78 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         '200':
+          description: Cobrança Pix
+  /me/invoices/{id}/payment-options:
+    get:
+      tags: [billing]
+      summary: Opções de parcelamento da fatura
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Opções
+  /me/invoices/{id}/payment-plan:
+    get:
+      tags: [billing]
+      summary: Plano de pagamento da fatura
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Plano
+    post:
+      tags: [billing]
+      summary: Selecionar plano de parcelas
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                installment_count: { type: integer }
+      responses:
+        '201':
+          description: Plano criado
+  /me/invoices/{id}/installments:
+    get:
+      tags: [billing]
+      summary: Parcelas da fatura
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Parcelas
+  /me/installments/{installmentId}/pix-charge:
+    post:
+      tags: [payments]
+      summary: Gerar Pix para parcela
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: installmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201':
           description: Cobrança Pix
   /webhooks/pix:
     post:

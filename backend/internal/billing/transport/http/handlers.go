@@ -27,6 +27,10 @@ func NewHandler(svc *billing.Service, auditSvc *audit.Service) *Handler {
 func (h *Handler) MeRoutes(r chi.Router) {
 	r.Get("/invoices", h.ListMyInvoices)
 	r.Get("/invoices/{id}", h.GetMyInvoice)
+	r.Get("/invoices/{id}/payment-options", h.GetMyPaymentOptions)
+	r.Post("/invoices/{id}/payment-plan", h.SelectMyPaymentPlan)
+	r.Get("/invoices/{id}/payment-plan", h.GetMyPaymentPlan)
+	r.Get("/invoices/{id}/installments", h.ListMyInstallments)
 	r.Get("/billing/open-period", h.GetMyOpenBillingPeriod)
 	r.Post("/billing/close-cycle", h.CloseMyBillingCycle)
 }
@@ -36,9 +40,13 @@ func (h *Handler) AdminRoutes(r chi.Router) {
 	r.Get("/invoices", h.ListAllInvoices)
 	r.Get("/invoices/{id}", h.GetAdminInvoice)
 	r.Post("/invoices/{id}/adjustments", h.AddInvoiceAdjustment)
+	r.Post("/invoices/{id}/payment-plan/reset", h.ResetPaymentPlan)
 	r.Post("/close", h.ClosePeriods)
 	r.Get("/calendar", h.ListCalendar)
 	r.Put("/calendar", h.UpsertCalendar)
+	r.Get("/installment-policy", h.GetInstallmentPolicy)
+	r.Put("/installment-policy", h.PutInstallmentPolicy)
+	r.Get("/installment-policies", h.ListInstallmentPolicies)
 }
 
 func (h *Handler) ListMyInvoices(w http.ResponseWriter, r *http.Request) {

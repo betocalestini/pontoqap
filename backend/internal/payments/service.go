@@ -29,15 +29,23 @@ func NewService(pool *pgxpool.Pool, gateway Gateway, bill *billing.Service, webh
 }
 
 type Charge struct {
-	ID          uuid.UUID `json:"id"`
-	InvoiceID   uuid.UUID `json:"invoice_id"`
-	Status      string    `json:"status"`
-	AmountCents int64     `json:"amount_cents"`
-	QRCodeText  string    `json:"qr_code_text"`
-	ExpiresAt   time.Time `json:"expires_at"`
+	ID            uuid.UUID  `json:"id"`
+	InvoiceID     uuid.UUID  `json:"invoice_id"`
+	InstallmentID *uuid.UUID `json:"installment_id,omitempty"`
+	Status        string     `json:"status"`
+	AmountCents   int64      `json:"amount_cents"`
+	QRCodeText    string     `json:"qr_code_text"`
+	ExpiresAt     time.Time  `json:"expires_at"`
 }
 
 func (s *Service) CreateOrReusePixCharge(ctx context.Context, invoiceID uuid.UUID) (*Charge, error) {
+	requires, err := s.billing.InvoiceRequiresInstallmentPix(ctx, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	if requires {
+		return nil, errors.New("selecione o plano de pagamento e gere Pix pela parcela em aberto")
+	}
 	inv, err := s.billing.GetInvoice(ctx, invoiceID)
 	if err != nil || inv == nil {
 		return nil, fmt.Errorf("invoice not found")
@@ -51,7 +59,7 @@ func (s *Service) CreateOrReusePixCharge(ctx context.Context, invoiceID uuid.UUI
 	err = s.pool.QueryRow(ctx, `
 		SELECT id, invoice_id, status, amount_cents, COALESCE(qr_code_text,''), expires_at
 		FROM payment_charges
-		WHERE invoice_id = $1 AND status = 'pending' AND expires_at > NOW()
+		WHERE invoice_id = $1 AND installment_id IS NULL AND status = 'pending' AND expires_at > NOW()
 		ORDER BY created_at DESC LIMIT 1
 	`, invoiceID).Scan(&existing.ID, &existing.InvoiceID, &existing.Status, &existing.AmountCents,
 		&existing.QRCodeText, &existing.ExpiresAt)
@@ -77,6 +85,61 @@ func (s *Service) CreateOrReusePixCharge(ctx context.Context, invoiceID uuid.UUI
 	}
 	return &Charge{
 		ID: chargeID, InvoiceID: invoiceID, Status: "pending",
+		AmountCents: res.AmountCents, QRCodeText: res.QRCodeText, ExpiresAt: res.ExpiresAt,
+	}, nil
+}
+
+func (s *Service) CreateOrReusePixChargeForInstallment(ctx context.Context, installmentID, customerID uuid.UUID) (*Charge, error) {
+	inst, err := s.billing.GetInstallmentForCustomer(ctx, installmentID, customerID)
+	if err != nil || inst == nil {
+		return nil, fmt.Errorf("parcela não encontrada")
+	}
+	if err := s.billing.ValidateInstallmentForPix(ctx, installmentID); err != nil {
+		return nil, err
+	}
+	inv, err := s.billing.GetInvoice(ctx, inst.InvoiceID)
+	if err != nil || inv == nil {
+		return nil, fmt.Errorf("invoice not found")
+	}
+	if inv.RemainingCents() <= 0 {
+		return nil, errors.New("invoice already settled")
+	}
+
+	var existing Charge
+	var existingInstID *uuid.UUID
+	err = s.pool.QueryRow(ctx, `
+		SELECT id, invoice_id, installment_id, status, amount_cents, COALESCE(qr_code_text,''), expires_at
+		FROM payment_charges
+		WHERE installment_id = $1 AND status = 'pending' AND expires_at > NOW()
+		ORDER BY created_at DESC LIMIT 1
+	`, installmentID).Scan(&existing.ID, &existing.InvoiceID, &existingInstID, &existing.Status, &existing.AmountCents,
+		&existing.QRCodeText, &existing.ExpiresAt)
+	if err == nil {
+		existing.InstallmentID = existingInstID
+		return &existing, nil
+	}
+	if err != pgx.ErrNoRows {
+		return nil, err
+	}
+
+	amount := inst.RemainingCents
+	res, err := s.gateway.CreatePixCharge(ctx, inst.InvoiceID, amount, inv.InvoiceNumber)
+	if err != nil {
+		return nil, err
+	}
+	chargeID := uuid.New()
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO payment_charges (
+			id, invoice_id, installment_id, provider, external_id, txid, status, amount_cents, qr_code_text, expires_at
+		) VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$8,$9)
+	`, chargeID, inst.InvoiceID, installmentID, res.Provider, res.ExternalID, res.TxID, res.AmountCents, res.QRCodeText, res.ExpiresAt)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.billing.MarkInstallmentPixActive(ctx, installmentID)
+	instID := installmentID
+	return &Charge{
+		ID: chargeID, InvoiceID: inst.InvoiceID, InstallmentID: &instID, Status: "pending",
 		AmountCents: res.AmountCents, QRCodeText: res.QRCodeText, ExpiresAt: res.ExpiresAt,
 	}, nil
 }
@@ -117,11 +180,12 @@ func (s *Service) ProcessWebhook(ctx context.Context, payload []byte, signature 
 	}
 
 	var chargeID, invoiceID uuid.UUID
+	var installmentID *uuid.UUID
 	var chargeAmount int64
 	err = tx.QueryRow(ctx, `
-		SELECT id, invoice_id, amount_cents FROM payment_charges
+		SELECT id, invoice_id, installment_id, amount_cents FROM payment_charges
 		WHERE provider = 'sandbox' AND external_id = $1 FOR UPDATE
-	`, paymentExtID).Scan(&chargeID, &invoiceID, &chargeAmount)
+	`, paymentExtID).Scan(&chargeID, &invoiceID, &installmentID, &chargeAmount)
 	if err != nil {
 		return err
 	}
@@ -131,9 +195,9 @@ func (s *Service) ProcessWebhook(ctx context.Context, payload []byte, signature 
 	}
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO payments (id, invoice_id, payment_charge_id, provider, external_payment_id, amount_cents, status, settled_at)
-		VALUES ($1,$2,$3,'sandbox',$4,$5,'settled',NOW())
-	`, uuid.New(), invoiceID, chargeID, paymentExtID, amountCents)
+		INSERT INTO payments (id, invoice_id, installment_id, payment_charge_id, provider, external_payment_id, amount_cents, status, settled_at)
+		VALUES ($1,$2,$3,$4,'sandbox',$5,$6,'settled',NOW())
+	`, uuid.New(), invoiceID, installmentID, chargeID, paymentExtID, amountCents)
 	if err != nil {
 		return err
 	}
@@ -141,23 +205,31 @@ func (s *Service) ProcessWebhook(ctx context.Context, payload []byte, signature 
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `
-		UPDATE invoices SET paid_cents = paid_cents + $2,
-			status = CASE WHEN paid_cents + $2 >= total_cents THEN 'paid' ELSE status END,
-			paid_at = CASE WHEN paid_cents + $2 >= total_cents THEN NOW() ELSE paid_at END,
-			updated_at = NOW()
-		WHERE id = $1
-	`, invoiceID, amountCents)
-	if err != nil {
-		return err
+
+	if installmentID != nil {
+		if err := s.billing.ApplyInstallmentPaymentTx(ctx, tx, *installmentID, amountCents); err != nil {
+			return err
+		}
+	} else {
+		_, err = tx.Exec(ctx, `
+			UPDATE invoices SET paid_cents = paid_cents + $2,
+				status = CASE WHEN paid_cents + $2 >= total_cents THEN 'paid' ELSE status END,
+				paid_at = CASE WHEN paid_cents + $2 >= total_cents THEN NOW() ELSE paid_at END,
+				updated_at = NOW()
+			WHERE id = $1
+		`, invoiceID, amountCents)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `
+			UPDATE customers SET current_exposure_cents = GREATEST(0, current_exposure_cents - $2), updated_at = NOW()
+			WHERE id = (SELECT customer_id FROM invoices WHERE id = $1)
+		`, invoiceID, amountCents)
+		if err != nil {
+			return err
+		}
 	}
-	_, err = tx.Exec(ctx, `
-		UPDATE customers SET current_exposure_cents = GREATEST(0, current_exposure_cents - $2), updated_at = NOW()
-		WHERE id = (SELECT customer_id FROM invoices WHERE id = $1)
-	`, invoiceID, amountCents)
-	if err != nil {
-		return err
-	}
+
 	_, err = tx.Exec(ctx, `UPDATE payment_events SET processed = TRUE, processed_at = NOW() WHERE id = $1`, peID)
 	if err != nil {
 		return err

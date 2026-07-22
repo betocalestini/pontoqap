@@ -22,6 +22,7 @@ func NewHandler(svc *payments.Service) *Handler {
 
 func (h *Handler) MeRoutes(r chi.Router) {
 	r.Post("/invoices/{id}/pix-charge", h.CreatePixCharge)
+	r.Post("/installments/{installmentId}/pix-charge", h.CreateInstallmentPixCharge)
 }
 
 func (h *Handler) AdminRoutes(r chi.Router) {
@@ -38,11 +39,26 @@ func (h *Handler) CreatePixCharge(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
 		return
 	}
-	user := identityhttp.UserFromContext(r.Context())
-	if user != nil && user.CustomerID != nil {
-		// ownership check via billing would be ideal; charge creation validates invoice exists
-	}
 	charge, err := h.svc.CreateOrReusePixCharge(r.Context(), id)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, charge)
+}
+
+func (h *Handler) CreateInstallmentPixCharge(w http.ResponseWriter, r *http.Request) {
+	user := identityhttp.UserFromContext(r.Context())
+	if user == nil || user.CustomerID == nil {
+		httpx.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Cliente necessário")
+		return
+	}
+	installmentID, err := uuid.Parse(chi.URLParam(r, "installmentId"))
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "ID inválido")
+		return
+	}
+	charge, err := h.svc.CreateOrReusePixChargeForInstallment(r.Context(), installmentID, *user.CustomerID)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return

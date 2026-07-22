@@ -151,6 +151,14 @@ func (s *Service) closePeriodTx(ctx context.Context, tx pgx.Tx, periodID uuid.UU
 		return nil, err
 	}
 
+	policy, err := s.GetActiveInstallmentPolicy(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.createPendingPaymentPlanTx(ctx, tx, invID, total, policy); err != nil {
+		return nil, err
+	}
+
 	for _, e := range entries {
 		_, err = tx.Exec(ctx, `
 			INSERT INTO invoice_items (invoice_id, billing_entry_id, description, quantity, unit_price_cents, total_cents)
@@ -266,12 +274,16 @@ func (s *Service) GetInvoice(ctx context.Context, id uuid.UUID) (*Invoice, error
 }
 
 func (s *Service) MarkOverdueInvoices(ctx context.Context, now time.Time) (int64, error) {
+	n, err := s.MarkOverdueInstallments(ctx, now)
+	if err != nil {
+		return 0, err
+	}
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE invoices SET status = 'overdue', updated_at = NOW()
-		WHERE status = 'open' AND due_at < $1 AND paid_cents < total_cents
+		WHERE status IN ('open', 'partially_paid') AND due_at < $1 AND paid_cents < total_cents
 	`, now)
 	if err != nil {
 		return 0, err
 	}
-	return tag.RowsAffected(), nil
+	return n + tag.RowsAffected(), nil
 }

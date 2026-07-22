@@ -46,7 +46,7 @@ func (s *Service) ListInvoicesByCustomerLimit(ctx context.Context, customerID uu
 	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT i.id, i.invoice_number, i.customer_id, i.billing_period_id, i.status,
-		       i.total_cents, i.paid_cents, i.due_at, i.close_type,
+		       i.total_cents, i.paid_cents, `+sqlEffectiveInvoiceDueAt+`, i.close_type,
 		       bp.reference_year, bp.reference_month, bp.cycle_number
 		FROM invoices i
 		JOIN billing_periods bp ON bp.id = i.billing_period_id

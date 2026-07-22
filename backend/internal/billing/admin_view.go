@@ -169,7 +169,7 @@ func (s *Service) ListInvoicesAdmin(ctx context.Context, f AdminInvoiceFilter) (
 	q := `
 		SELECT i.id, i.invoice_number, i.customer_id, u.name, u.email,
 		       bp.reference_year, bp.reference_month, i.status,
-		       i.total_cents, i.paid_cents, i.due_at, i.closed_at
+		       i.total_cents, i.paid_cents, ` + sqlEffectiveInvoiceDueAt + `, i.closed_at
 		FROM invoices i
 		JOIN billing_periods bp ON bp.id = i.billing_period_id
 		JOIN customers c ON c.id = i.customer_id
@@ -210,7 +210,7 @@ func (s *Service) GetInvoiceDetail(ctx context.Context, id uuid.UUID) (*InvoiceD
 		SELECT i.id, i.invoice_number, i.customer_id, u.name, u.email,
 		       i.billing_period_id, bp.reference_year, bp.reference_month, bp.cycle_number,
 		       i.status, i.subtotal_cents, i.credit_cents, i.adjustment_cents,
-		       i.total_cents, i.paid_cents, i.due_at, i.closed_at, i.paid_at, i.close_type
+		       i.total_cents, i.paid_cents, `+sqlEffectiveInvoiceDueAt+`, i.closed_at, i.paid_at, i.close_type
 		FROM invoices i
 		JOIN billing_periods bp ON bp.id = i.billing_period_id
 		JOIN customers c ON c.id = i.customer_id

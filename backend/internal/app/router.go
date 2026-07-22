@@ -172,6 +172,10 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 				})
 				priv.Route("/billing", func(br chi.Router) {
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/summary", billHandler.AdminSummary)
+					br.With(identityhttp.RequirePermission("billing.installment_settings.write")).Get("/installment-policy", billHandler.GetInstallmentPolicy)
+					br.With(identityhttp.RequirePermission("billing.installment_settings.write")).Put("/installment-policy", billHandler.PutInstallmentPolicy)
+					br.With(identityhttp.RequirePermission("billing.read")).Get("/installment-policies", billHandler.ListInstallmentPolicies)
+					br.With(identityhttp.RequirePermission("billing.installments.override")).Post("/invoices/{id}/payment-plan/reset", billHandler.ResetPaymentPlan)
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/calendar", billHandler.ListCalendar)
 					br.With(identityhttp.RequirePermission("settings.write")).Put("/calendar", billHandler.UpsertCalendar)
 					br.With(identityhttp.RequirePermission("billing.close")).Post("/close", billHandler.ClosePeriods)
@@ -193,6 +197,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 					rr.With(identityhttp.RequirePermission("reports.inventory.read")).Get("/inventory/movements", reportsHandler.InventoryMovements)
 					rr.With(identityhttp.RequirePermission("reports.inventory.read")).Get("/inventory/movements/export.csv", reportsHandler.InventoryMovementsCSV)
 					rr.With(identityhttp.RequirePermission("reports.receivables.read")).Get("/receivables/invoices", reportsHandler.Receivables)
+					rr.With(identityhttp.RequirePermission("reports.receivables.read")).Get("/receivables/installments", reportsHandler.ReceivablesInstallments)
 					rr.With(identityhttp.RequirePermission("reports.receivables.read")).Get("/receivables/invoices/export.csv", reportsHandler.ReceivablesCSV)
 					rr.With(identityhttp.RequirePermission("reports.payments.read")).Get("/payments/pix-reconciliation", reportsHandler.PixReconciliation)
 					rr.With(identityhttp.RequirePermission("reports.customers.read")).Get("/customers/exposure", reportsHandler.CustomerExposure)

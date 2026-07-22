@@ -111,3 +111,19 @@ func PreviousMonth(year, month int) (int, int) {
 	}
 	return year, month - 1
 }
+
+// NextBusinessDay returns the same date or the next calendar day that is a business day.
+func NextBusinessDay(ctx context.Context, pool *pgxpool.Pool, day time.Time) (time.Time, error) {
+	d := calendarDateOnly(day)
+	for i := 0; i < 366; i++ {
+		ok, err := IsBusinessDay(ctx, pool, d)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if ok {
+			return d, nil
+		}
+		d = d.AddDate(0, 0, 1)
+	}
+	return time.Time{}, ErrNoBusinessDay
+}
