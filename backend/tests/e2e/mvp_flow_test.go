@@ -35,11 +35,11 @@ func TestMVPBillingPixAndDashboard(t *testing.T) {
 	email := testdb.UniqueEmail(t, "cli")
 	registerStoreCustomer(t, client, server.URL, email)
 	verifyStoreCustomer(t, ctx, pool, email, 50_000)
-	adminCookie := login(t, client, server.URL, mgr.Email, "password123", "admin")
+	adminCookie := loginAdminCookie(t, client, server.URL, mgr.Email, "password123")
 
-	storeCookie := login(t, client, server.URL, email, "password123", "store")
+	storeToken := login(t, client, server.URL, email, "password123", "store")
 	cartBody, _ := json.Marshal(map[string]any{"sku_id": prod.SKUID.String(), "quantity": 2})
-	cartRes := doStoreJSON(t, client, http.MethodPost, server.URL+"/api/v1/me/cart/items", storeCookie, cartBody)
+	cartRes := doStoreJSON(t, client, http.MethodPost, server.URL+"/api/v1/me/cart/items", storeToken, cartBody)
 	if cartRes.StatusCode != http.StatusOK {
 		t.Fatalf("cart: %d", cartRes.StatusCode)
 	}
@@ -48,7 +48,7 @@ func TestMVPBillingPixAndDashboard(t *testing.T) {
 	chReq, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/me/cart/checkout", nil)
 	chReq.Header.Set("Idempotency-Key", "mvp-flow-1")
 	chReq.Header.Set("X-App-Audience", "store")
-	chReq.AddCookie(storeCookie)
+	chReq.Header.Set("Authorization", "Bearer "+storeToken)
 	chRes, err := client.Do(chReq)
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +68,7 @@ func TestMVPBillingPixAndDashboard(t *testing.T) {
 	}
 	closeRes.Body.Close()
 
-	invRes := doStoreJSON(t, client, http.MethodGet, server.URL+"/api/v1/me/invoices", storeCookie, nil)
+	invRes := doStoreJSON(t, client, http.MethodGet, server.URL+"/api/v1/me/invoices", storeToken, nil)
 	if invRes.StatusCode != http.StatusOK {
 		t.Fatalf("invoices: %d", invRes.StatusCode)
 	}
@@ -86,7 +86,7 @@ func TestMVPBillingPixAndDashboard(t *testing.T) {
 	}
 	invID := invList.Items[0].ID
 
-	pixRes := doStoreJSON(t, client, http.MethodPost, server.URL+"/api/v1/me/invoices/"+invID+"/pix-charge", storeCookie, nil)
+	pixRes := doStoreJSON(t, client, http.MethodPost, server.URL+"/api/v1/me/invoices/"+invID+"/pix-charge", storeToken, nil)
 	if pixRes.StatusCode != http.StatusOK && pixRes.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(pixRes.Body)
 		t.Fatalf("pix charge: %d %s", pixRes.StatusCode, body)

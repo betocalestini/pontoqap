@@ -151,7 +151,8 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 		return nil, err
 	}
 	out := &LoginResult{SessionToken: token, User: authUser, ExpiresAt: sess.ExpiresAt}
-	if in.Audience == "admin" {
+	switch in.Audience {
+	case "admin":
 		jwtRaw, err := security.IssueAdminToken(s.sessionSecret, user.ID, sess.ID, sess.ExpiresAt)
 		if err != nil {
 			return nil, err
@@ -160,6 +161,12 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 		if s.audit != nil {
 			_ = s.audit.LogAdminLogin(ctx, user.ID)
 		}
+	case "store":
+		jwtRaw, err := security.IssueStoreToken(s.sessionSecret, user.ID, sess.ID, sess.ExpiresAt)
+		if err != nil {
+			return nil, err
+		}
+		out.AccessToken = jwtRaw
 	}
 	return out, nil
 }
@@ -216,6 +223,42 @@ func (s *Service) AuthenticateAdminBearer(ctx context.Context, bearer string) (*
 	return &authUser, nil
 }
 
+func (s *Service) AuthenticateStoreBearer(ctx context.Context, bearer string) (*AuthUser, error) {
+	userID, sessionID, err := security.ParseStoreToken(s.sessionSecret, bearer)
+	if err != nil {
+		return nil, errUnauthorized()
+	}
+	sess, err := s.repo.FindSessionByID(ctx, sessionID)
+	if err != nil || sess == nil {
+		return nil, errUnauthorized()
+	}
+	if sess.RevokedAt != nil || sess.ExpiresAt.Before(time.Now()) {
+		return nil, errUnauthorized()
+	}
+	if sess.Audience != "store" || sess.UserID != userID {
+		return nil, errUnauthorized()
+	}
+	user, err := s.repo.FindUserByID(ctx, sess.UserID)
+	if err != nil || user == nil || !storeSessionAllowedStatus(user.Status) {
+		return nil, errUnauthorized()
+	}
+	if user.Status == "pending_email" {
+		return nil, errUnauthorized()
+	}
+	blocked, err := s.repo.IsCustomerBlocked(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if blocked {
+		return nil, errForbidden("Cliente bloqueado")
+	}
+	authUser, err := s.buildAuthUser(ctx, *user)
+	if err != nil {
+		return nil, err
+	}
+	return &authUser, nil
+}
+
 func (s *Service) Logout(ctx context.Context, token string) error {
 	hash := security.HashToken(token)
 	sess, err := s.repo.FindSessionByTokenHash(ctx, hash)
@@ -227,6 +270,14 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 
 func (s *Service) LogoutAdminBearer(ctx context.Context, bearer string) error {
 	_, sessionID, err := security.ParseAdminToken(s.sessionSecret, bearer)
+	if err != nil {
+		return nil
+	}
+	return s.repo.RevokeSession(ctx, sessionID)
+}
+
+func (s *Service) LogoutStoreBearer(ctx context.Context, bearer string) error {
+	_, sessionID, err := security.ParseStoreToken(s.sessionSecret, bearer)
 	if err != nil {
 		return nil
 	}

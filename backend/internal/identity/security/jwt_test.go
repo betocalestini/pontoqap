@@ -44,6 +44,25 @@ func TestParseAdminTokenExpired(t *testing.T) {
 	}
 }
 
+func TestIssueAndParseStoreToken(t *testing.T) {
+	secret := "test-session-secret-min-16"
+	userID := uuid.New()
+	sessionID := uuid.New()
+	exp := time.Now().Add(time.Hour)
+
+	raw, err := security.IssueStoreToken(secret, userID, sessionID, exp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotUser, gotSession, err := security.ParseStoreToken(secret, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotUser != userID || gotSession != sessionID {
+		t.Fatalf("got user %v session %v", gotUser, gotSession)
+	}
+}
+
 func TestParseAdminTokenWrongSecret(t *testing.T) {
 	userID := uuid.New()
 	sessionID := uuid.New()

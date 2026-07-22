@@ -75,9 +75,9 @@ func TestHTTPCheckoutFlow(t *testing.T) {
 	registerStoreCustomer(t, client, server.URL, email)
 	verifyStoreCustomer(t, ctx, pool, email, 100_000)
 
-	storeCookie := login(t, client, server.URL, email, "password123", "store")
+	storeToken := login(t, client, server.URL, email, "password123", "store")
 	cartBody, _ := json.Marshal(map[string]any{"sku_id": prod.SKUID.String(), "quantity": 3})
-	cartRes := doStoreJSON(t, client, http.MethodPost, server.URL+"/api/v1/me/cart/items", storeCookie, cartBody)
+	cartRes := doStoreJSON(t, client, http.MethodPost, server.URL+"/api/v1/me/cart/items", storeToken, cartBody)
 	if cartRes.StatusCode != http.StatusOK {
 		t.Fatalf("cart: %d", cartRes.StatusCode)
 	}
@@ -86,7 +86,7 @@ func TestHTTPCheckoutFlow(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/me/cart/checkout", nil)
 	req.Header.Set("Idempotency-Key", "e2e-checkout-1")
 	req.Header.Set("X-App-Audience", "store")
-	req.AddCookie(storeCookie)
+	req.Header.Set("Authorization", "Bearer "+storeToken)
 	chRes, err := client.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +108,7 @@ func TestHTTPCheckoutFlow(t *testing.T) {
 	pubRes.Body.Close()
 }
 
-func login(t *testing.T, client *http.Client, baseURL, email, password, audience string) *http.Cookie {
+func login(t *testing.T, client *http.Client, baseURL, email, password, audience string) string {
 	t.Helper()
 	body, _ := json.Marshal(map[string]string{"email": email, "password": password, "audience": audience})
 	req, _ := http.NewRequest(http.MethodPost, baseURL+"/api/v1/auth/login", bytes.NewReader(body))
@@ -123,24 +123,32 @@ func login(t *testing.T, client *http.Client, baseURL, email, password, audience
 		b, _ := io.ReadAll(res.Body)
 		t.Fatalf("login %s: %d %s", audience, res.StatusCode, b)
 	}
-	for _, c := range res.Cookies() {
-		if c.Name == "store_session" || c.Name == "admin_session" {
-			return c
-		}
+	var loginRes map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&loginRes); err != nil {
+		t.Fatal(err)
 	}
-	t.Fatal("session cookie not found")
-	return nil
+	token, _ := loginRes["access_token"].(string)
+	if token == "" {
+		t.Fatal("access_token not found in login response")
+	}
+	return token
+}
+
+func loginAdminCookie(t *testing.T, client *http.Client, baseURL, email, password string) *http.Cookie {
+	t.Helper()
+	token := login(t, client, baseURL, email, password, "admin")
+	return &http.Cookie{Name: "admin_bearer", Value: token}
 }
 
 func doAdminJSON(t *testing.T, client *http.Client, method, url string, cookie *http.Cookie, body []byte) *http.Response {
 	return doJSONWithAudience(t, client, method, url, cookie, body, "admin")
 }
 
-func doStoreJSON(t *testing.T, client *http.Client, method, url string, cookie *http.Cookie, body []byte) *http.Response {
-	return doJSONWithAudience(t, client, method, url, cookie, body, "store")
+func doStoreJSON(t *testing.T, client *http.Client, method, url string, bearerToken string, body []byte) *http.Response {
+	return doJSONWithBearer(t, client, method, url, bearerToken, body, "store")
 }
 
-func doJSONWithAudience(t *testing.T, client *http.Client, method, url string, cookie *http.Cookie, body []byte, audience string) *http.Response {
+func doJSONWithBearer(t *testing.T, client *http.Client, method, url, bearerToken string, body []byte, audience string) *http.Response {
 	t.Helper()
 	var reader io.Reader
 	if body != nil {
@@ -155,6 +163,40 @@ func doJSONWithAudience(t *testing.T, client *http.Client, method, url string, c
 	}
 	if audience != "" {
 		req.Header.Set("X-App-Audience", audience)
+	}
+	if bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+bearerToken)
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
+}
+
+func doJSONWithAudience(t *testing.T, client *http.Client, method, url string, cookie *http.Cookie, body []byte, audience string) *http.Response {
+	t.Helper()
+	var bearer string
+	if cookie != nil && cookie.Name == "admin_bearer" {
+		bearer = cookie.Value
+		cookie = nil
+	}
+	var reader io.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	}
+	req, err := http.NewRequest(method, url, reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if audience != "" {
+		req.Header.Set("X-App-Audience", audience)
+	}
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
 	}
 	if cookie != nil {
 		req.AddCookie(cookie)

@@ -64,15 +64,13 @@ func TestPatchAuthMeStoreProfile(t *testing.T) {
 	if loginRec.Code != http.StatusOK {
 		t.Fatalf("login %d %s", loginRec.Code, loginRec.Body.String())
 	}
-	var cookie string
-	for _, c := range loginRec.Result().Cookies() {
-		if c.Name == "store_session" {
-			cookie = c.Name + "=" + c.Value
-			break
-		}
+	var loginRes map[string]any
+	if err := json.Unmarshal(loginRec.Body.Bytes(), &loginRes); err != nil {
+		t.Fatal(err)
 	}
-	if cookie == "" {
-		t.Fatal("expected store_session cookie")
+	token, _ := loginRes["access_token"].(string)
+	if token == "" {
+		t.Fatal("expected access_token in login response")
 	}
 
 	patchBody, _ := json.Marshal(map[string]string{
@@ -81,7 +79,7 @@ func TestPatchAuthMeStoreProfile(t *testing.T) {
 	})
 	patchReq := httptest.NewRequest(http.MethodPatch, "/api/v1/auth/me", bytes.NewReader(patchBody))
 	patchReq.Header.Set("Content-Type", "application/json")
-	patchReq.Header.Set("Cookie", cookie)
+	patchReq.Header.Set("Authorization", "Bearer "+token)
 	patchReq.Header.Set("X-App-Audience", "store")
 	patchRec := httptest.NewRecorder()
 	handler.ServeHTTP(patchRec, patchReq)

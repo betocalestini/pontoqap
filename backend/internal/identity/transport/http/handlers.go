@@ -72,11 +72,8 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"mfa_required": true})
 		return
 	}
-	if req.Audience != "admin" {
-		setSessionCookie(w, h.cookieName(req.Audience), res.SessionToken, h.cookieTTL(req.Audience), h.secure.CookieSecure)
-	}
 	payload := mapUser(res.User)
-	if req.Audience == "admin" {
+	if req.Audience == "admin" || req.Audience == "store" {
 		payload["access_token"] = res.AccessToken
 		payload["expires_at"] = res.ExpiresAt.UTC().Format(time.RFC3339)
 	}
@@ -88,9 +85,13 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	aud := audienceFromHeader(r)
-	if aud == "admin" {
+	if aud == "admin" || aud == "store" {
 		if bearer := bearerToken(r); bearer != "" {
-			_ = h.svc.LogoutAdminBearer(r.Context(), bearer)
+			if aud == "admin" {
+				_ = h.svc.LogoutAdminBearer(r.Context(), bearer)
+			} else {
+				_ = h.svc.LogoutStoreBearer(r.Context(), bearer)
+			}
 		}
 		clearSessionCookie(w, h.cookieName(aud), h.secure.CookieSecure)
 		w.WriteHeader(http.StatusNoContent)
@@ -321,6 +322,16 @@ func AuthMiddleware(svc *identity.Service, sessionCfg config.SessionConfig) func
 				}
 				next.ServeHTTP(w, r)
 				return
+			}
+			if aud == "store" {
+				if bearer := bearerToken(r); bearer != "" {
+					user, err := svc.AuthenticateStoreBearer(r.Context(), bearer)
+					if err == nil {
+						ctx := context.WithValue(r.Context(), userCtxKey, user)
+						next.ServeHTTP(w, r.WithContext(ctx))
+						return
+					}
+				}
 			}
 			cookieName := sessionCfg.StoreCookie
 			token := readSessionCookie(r, cookieName)

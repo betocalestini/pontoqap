@@ -108,15 +108,13 @@ func TestBlockedStoreCustomerMeCartForbidden(t *testing.T) {
 	if loginRec.Code != http.StatusOK {
 		t.Fatalf("login before block: %d %s", loginRec.Code, loginRec.Body.String())
 	}
-	var sessionCookie *http.Cookie
-	for _, c := range loginRec.Result().Cookies() {
-		if c.Name == "store_session" {
-			sessionCookie = c
-			break
-		}
+	var loginRes map[string]any
+	if err := json.Unmarshal(loginRec.Body.Bytes(), &loginRes); err != nil {
+		t.Fatal(err)
 	}
-	if sessionCookie == nil {
-		t.Fatal("expected store_session cookie")
+	token, _ := loginRes["access_token"].(string)
+	if token == "" {
+		t.Fatal("expected access_token in login response")
 	}
 
 	custSvc := customers.NewService(pool, nil)
@@ -125,7 +123,8 @@ func TestBlockedStoreCustomerMeCartForbidden(t *testing.T) {
 	}
 
 	cartReq := httptest.NewRequest(http.MethodGet, "/api/v1/me/cart", nil)
-	cartReq.AddCookie(sessionCookie)
+	cartReq.Header.Set("X-App-Audience", "store")
+	cartReq.Header.Set("Authorization", "Bearer "+token)
 	cartRec := httptest.NewRecorder()
 	handler.ServeHTTP(cartRec, cartReq)
 	if cartRec.Code != http.StatusForbidden {

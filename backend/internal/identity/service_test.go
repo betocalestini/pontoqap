@@ -175,3 +175,25 @@ func TestAdminLoginReturnsAccessTokenAndBearerAuth(t *testing.T) {
 		t.Fatalf("bearer auth: %v %+v", err, auth)
 	}
 }
+
+func TestStoreLoginReturnsAccessTokenAndBearerAuth(t *testing.T) {
+	hash, _ := security.HashPassword("secret")
+	userID := uuid.New()
+	repo := &mockRepo{
+		user: &identity.User{
+			ID: userID, Email: "c@test.local", PasswordHash: hash, Status: "active",
+		},
+		roles: []string{"customer"},
+	}
+	svc := identity.NewService(repo, time.Hour, 8*time.Hour, "test-session-secret-min-16")
+	res, err := svc.Login(context.Background(), identity.LoginInput{
+		Email: "c@test.local", Password: "secret", Audience: "store",
+	})
+	if err != nil || res.AccessToken == "" {
+		t.Fatalf("login: %v token=%q", err, res.AccessToken)
+	}
+	auth, err := svc.AuthenticateStoreBearer(context.Background(), res.AccessToken)
+	if err != nil || auth.User.ID != userID {
+		t.Fatalf("bearer auth: %v %+v", err, auth)
+	}
+}
