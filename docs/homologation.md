@@ -37,6 +37,8 @@ make test-backup-restore
 
 **Critério de saída:** todos os itens 0.x marcados.
 
+O mesmo portão roda no CI em pull requests (backend + `pnpm test`). Use o checklist em [`.github/pull_request_template.md`](../.github/pull_request_template.md) antes de pedir revisão. Referência de comandos e cobertura: [`docs/development/testing.md`](development/testing.md).
+
 ---
 
 ## Fase 1 — Gerente e MFA (RF-IDN-008)
