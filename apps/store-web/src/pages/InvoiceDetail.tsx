@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { MyInvoiceDetail } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelInvoiceStatus } from '@store/shared-core';
 import { api } from '../api';
 import { InvoiceItemsList } from '../components/InvoiceItems';
 import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
@@ -11,19 +11,6 @@ type Charge = { id: string; qr_code_text: string; amount_cents: number };
 
 function formatCompetence(year: number, month: number) {
   return `${String(month).padStart(2, '0')}/${year}`;
-}
-
-function invoiceStatusLabel(status: string) {
-  switch (status) {
-    case 'open':
-      return 'Em aberto';
-    case 'paid':
-      return 'Paga';
-    case 'overdue':
-      return 'Vencida';
-    default:
-      return status;
-  }
 }
 
 function closeTypeLabel(closeType?: string) {
@@ -104,7 +91,7 @@ export function InvoiceDetailPage() {
       {!loading && !needsAuth && inv && (
         <div className="invoice-card">
           <p>
-            <span className="badge">{invoiceStatusLabel(inv.status)}</span>
+            <span className="badge">{labelInvoiceStatus(inv.status)}</span>
             {closeTypeLabel(inv.close_type) && (
               <>
                 {' · '}

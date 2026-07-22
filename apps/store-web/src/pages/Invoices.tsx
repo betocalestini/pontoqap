@@ -1,26 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MyInvoiceListItem, OpenBillingPeriod } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelInvoiceStatus } from '@store/shared-core';
 import { api } from '../api';
 import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
 import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
 function formatCompetence(year: number, month: number) {
   return `${String(month).padStart(2, '0')}/${year}`;
-}
-
-function invoiceStatusLabel(status: string) {
-  switch (status) {
-    case 'open':
-      return 'Em aberto';
-    case 'paid':
-      return 'Paga';
-    case 'overdue':
-      return 'Vencida';
-    default:
-      return status;
-  }
 }
 
 function closeTypeLabel(closeType?: string) {
@@ -112,7 +99,7 @@ export function InvoicesPage() {
                     <Link to={`/faturas/${inv.id}`} className="invoice-card invoice-card--link">
                       <p>
                         <strong>{inv.invoice_number}</strong>
-                        <span className="badge">{invoiceStatusLabel(inv.status)}</span>
+                        <span className="badge">{labelInvoiceStatus(inv.status)}</span>
                         {typeLabel && <span className="invoice-card-meta"> · {typeLabel}</span>}
                       </p>
                       <p>
