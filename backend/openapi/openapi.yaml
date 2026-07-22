@@ -43,7 +43,33 @@ paths:
                 audience: { type: string, enum: [store, admin] }
       responses:
         '200':
-          description: Sessão criada (cookie)
+          description: Autenticado (JWT access_token para store e admin)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  email: { type: string, format: email }
+                  phone: { type: string }
+                  document: { type: string }
+                  customer_id: { type: string, format: uuid }
+                  roles:
+                    type: array
+                    items: { type: string }
+                  permissions:
+                    type: array
+                    items: { type: string }
+                  mfa_enabled: { type: boolean }
+                  access_token:
+                    type: string
+                    description: JWT Bearer (store e admin)
+                  expires_at:
+                    type: string
+                    format: date-time
+                  mfa_required: { type: boolean }
+                  mfa_setup_required: { type: boolean }
   /auth/verify-email:
     get:
       tags: [auth]

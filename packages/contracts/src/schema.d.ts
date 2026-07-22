@@ -61,12 +61,33 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Sessão criada (cookie) */
+                /** @description Autenticado (JWT access_token para store e admin) */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id?: string;
+                            name?: string;
+                            /** Format: email */
+                            email?: string;
+                            phone?: string;
+                            document?: string;
+                            /** Format: uuid */
+                            customer_id?: string;
+                            roles?: string[];
+                            permissions?: string[];
+                            mfa_enabled?: boolean;
+                            /** @description JWT Bearer (store e admin) */
+                            access_token?: string;
+                            /** Format: date-time */
+                            expires_at?: string;
+                            mfa_required?: boolean;
+                            mfa_setup_required?: boolean;
+                        };
+                    };
                 };
             };
         };
@@ -289,6 +310,40 @@ export interface paths {
         };
         trace?: never;
     };
+    "/catalog/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Categorias do catálogo público */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Lista de categorias ativas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/catalog/products": {
         parameters: {
             query?: never;
@@ -299,7 +354,15 @@ export interface paths {
         /** Catálogo público */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    search?: string;
+                    /** @description Slug da categoria ou `promocoes` para itens em promoção */
+                    category?: string;
+                    /** @description default (promo primeiro se sem filtros), name, price_asc, price_desc, purchases (requer sessão loja) */
+                    sort?: "default" | "name" | "price_asc" | "price_desc" | "purchases";
+                    page?: number;
+                    page_size?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -308,6 +371,13 @@ export interface paths {
             responses: {
                 /** @description Lista de produtos */
                 200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Parâmetros inválidos (ex. purchases sem login) */
+                400: {
                     headers: {
                         [name: string]: unknown;
                     };
