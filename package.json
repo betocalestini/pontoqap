@@ -6,6 +6,7 @@
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
+    "test:e2e": "pnpm --filter @store/e2e-playwright test:run",
     "dev:store": "pnpm --filter store-web dev",
     "dev:admin": "pnpm --filter admin-web dev"
   },
