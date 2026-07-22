@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { useStoreAuth } from './auth/StoreAuthProvider';
 import { AppShell } from './layout/AppShell';
 import { PublicLayout } from './layout/PublicLayout';
@@ -16,8 +16,6 @@ import { useClearCartOnReload } from './hooks/useClearCartOnReload';
 import './App.css';
 
 function GuestRoutes() {
-  const location = useLocation();
-
   return (
     <PublicLayout>
       <Routes>
@@ -25,10 +23,7 @@ function GuestRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cadastro" element={<RegisterPage />} />
         <Route path="/verificar-email" element={<VerifyEmailPage />} />
-        <Route
-          path="*"
-          element={<Navigate to="/login" replace state={{ from: location.pathname }} />}
-        />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </PublicLayout>
   );

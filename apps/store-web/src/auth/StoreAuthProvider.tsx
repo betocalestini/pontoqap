@@ -50,7 +50,7 @@ export function StoreAuthProvider({ children }: { children: ReactNode }) {
     setStoreUnauthorizedHandler(() => {
       markUnauthenticated();
       if (!publicPaths.has(location.pathname)) {
-        navigate('/login', { replace: true, state: { from: location.pathname } });
+        navigate('/', { replace: true });
       }
     });
     return () => setStoreUnauthorizedHandler(null);
