@@ -38,8 +38,11 @@ Se você usa Docker e acabou de puxar código novo, **rebuild** do serviço `api
 
 1. Suba o ambiente (`make dev-up` ou Postgres + `make api` + `pnpm dev:store`).
 2. Entre como cliente demo (ex.: `demo-cliente-001@demo.loja.local` / `DemoStore123!`).
-3. Abra uma fatura em aberto e gere Pix (UI ou `POST /api/v1/me/invoices/{id}/pix-charge`).
-4. Confira o QR Code / copia e cola na tela.
+3. Abra uma fatura em aberto → **confirme o plano de pagamento (ex. 1×)** se a UI solicitar — faturas fechadas criam plano em `pending_selection` e o Pix da fatura inteira só é permitido após confirmação (parcela única: Pix na parcela em aberto).
+4. **Gerar Pix** (UI ou `POST /api/v1/me/invoices/{id}/pix-charge` / `…/installments/{id}/pix-charge`).
+5. Confira o QR Code / copia e cola na tela.
+
+Verificação automatizada (sandbox, liquidação): `./scripts/pix-homologation-check.sh` na raiz do repo.
 
 O backend chama `POST https://api.mercadopago.com/v1/orders` com e-mail do cliente e referência externa (`invoice_number` ou `INSTALLMENT-{uuid}` para parcelas).
 

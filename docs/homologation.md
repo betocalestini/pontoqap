@@ -123,14 +123,18 @@ Smoke manual por papel (credenciais de teste criadas via convite ou seeds de int
 
 ## Fase 6 — Pix e webhook
 
+Roteiro detalhado (MP + sandbox): plano em `.cursor/plans/` e [development/mercadopago-pix.md](development/mercadopago-pix.md). Script local: `./scripts/pix-homologation-check.sh` (health, rota webhook, testes Go sandbox).
+
+**Pré-requisito loja (MP e sandbox):** após fechar a fatura, confirmar **plano 1×** na UI antes de **Gerar Pix** (fatura fechada cria plano `pending_selection`).
+
 | Passo | Ação | Resultado esperado | OK? | Evidência |
 | ----- | ---- | ------------------ | --- | --------- |
-| 6.1 | Detalhe da fatura → **Gerar Pix** | QR/código retornado | ☐ | charge_id: |
-| 6.2 | Staging sandbox: simular pagamento (dev) ou webhook PSP | Pagamento confirmado uma vez | ☐ | |
-| 6.2b | (Opcional MP teste) `PAYMENT_PROVIDER=mercadopago` + túnel HTTPS → webhook Order | Linha em `payment_events` (`mercadopago`, `processed=false`); ver [development/mercadopago-pix.md](development/mercadopago-pix.md) | ☐ | |
-| 6.3 | Repetir mesmo webhook (teste técnico) | Sem duplicar liquidação | ☐ | log / paid_cents |
-| 6.4 | Fatura | Status pago ou `paid_cents` = total | ☐ | |
-| 6.5 | Exposição do cliente | Reduzida após pagamento | ☐ | |
+| 6.1 | Plano 1× confirmado → **Gerar Pix** (`PAYMENT_PROVIDER=mercadopago`) | QR/código retornado; log `pix charge created` / `mercado pago api call` | ☐ | charge_id: |
+| 6.2 | Sandbox: `PAYMENT_PROVIDER=sandbox` + `POST /dev/pix/simulate/{chargeId}` ou webhook | Pagamento confirmado uma vez | ☑ | `go test … -run PixWebhook` / `TestPixWebhookDuplicateIsIgnored` |
+| 6.2b | MP teste + túnel HTTPS → webhook Order | `payment_events` (`mercadopago`, `processed=false`); log `mercado pago webhook received` | ☐ | simulador painel + `pix-homologation-check.sh` |
+| 6.3 | Repetir mesmo webhook (teste técnico) | Sem duplicar liquidação (sandbox); MP: `duplicate=true` sem nova linha | ☑ | `TestPixWebhookDuplicateIsIgnored`; log MP `duplicate=true` |
+| 6.4 | Fatura | Status pago ou `paid_cents` = total (sandbox) | ☑ | integração `billing_payments_test` |
+| 6.5 | Exposição do cliente | Reduzida após pagamento (sandbox) | ☐ | conferir UI após 6.2 manual |
 
 ---
 
