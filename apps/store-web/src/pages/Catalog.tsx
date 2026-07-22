@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatMoney } from '@store/shared-core';
 import { api } from '../api';
+import { CatalogAddToast } from '../components/CatalogAddToast';
 import { CatalogFilterSelect } from '../components/CatalogFilterSelect';
 
 type Product = {
@@ -27,6 +28,7 @@ const PROMO_CATEGORY_SLUG = 'promocoes';
 
 const PLACEHOLDER_IMAGE = '/product-placeholder.svg';
 const SEARCH_DEBOUNCE_MS = 300;
+const ADD_FEEDBACK_MS = 2500;
 
 function CartAddIcon() {
   return (
@@ -77,7 +79,30 @@ export function CatalogPage() {
   const [sort, setSort] = useState<CatalogSort>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [addedProductName, setAddedProductName] = useState<string | null>(null);
+  const [addToastKey, setAddToastKey] = useState(0);
+  const [addingSkuId, setAddingSkuId] = useState<string | null>(null);
+  const addFeedbackTimerRef = useRef<number | null>(null);
+
+  const showAddedFeedback = useCallback((productName: string) => {
+    setAddedProductName(productName);
+    setAddToastKey((k) => k + 1);
+    if (addFeedbackTimerRef.current != null) {
+      window.clearTimeout(addFeedbackTimerRef.current);
+    }
+    addFeedbackTimerRef.current = window.setTimeout(() => {
+      setAddedProductName(null);
+      addFeedbackTimerRef.current = null;
+    }, ADD_FEEDBACK_MS);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (addFeedbackTimerRef.current != null) {
+        window.clearTimeout(addFeedbackTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
@@ -115,14 +140,16 @@ export function CatalogPage() {
     loadProducts(debouncedSearch, categorySlug, sort);
   }, [debouncedSearch, categorySlug, sort, loadProducts]);
 
-  async function add(skuId: string) {
-    setMsg(null);
+  async function add(skuId: string, productName: string) {
     setError(null);
+    setAddingSkuId(skuId);
     try {
       await api.addToCart(skuId, 1);
-      setMsg('Item adicionado ao carrinho.');
+      showAddedFeedback(productName);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setAddingSkuId(null);
     }
   }
 
@@ -204,7 +231,6 @@ export function CatalogPage() {
 
       {loading && <p>Carregando produtos…</p>}
       {error && <p className="error">{error}</p>}
-      {msg && <p className="ok">{msg}</p>}
       {showEmptyCatalog && (
         <p>Nenhum produto disponível. Cadastre itens no painel admin ou rode as migrations (seed de demo).</p>
       )}
@@ -245,7 +271,8 @@ export function CatalogPage() {
                     type="button"
                     className="product-card__add"
                     aria-label={`Adicionar ${p.name} ao carrinho`}
-                    onClick={() => add(sku.id)}
+                    disabled={addingSkuId === sku.id}
+                    onClick={() => void add(sku.id, p.name)}
                   >
                     <CartAddIcon />
                     Adicionar
@@ -256,6 +283,8 @@ export function CatalogPage() {
           );
         })}
       </ul>
+
+      <CatalogAddToast productName={addedProductName} animationKey={addToastKey} />
     </section>
   );
 }
