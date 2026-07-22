@@ -696,6 +696,18 @@ paths:
       responses:
         '200':
           description: KPIs
+  /admin/reports/dashboard/series:
+    get:
+      tags: [reports]
+      summary: Série mensal vendas vs recebimentos
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: months
+          in: query
+          schema: { type: integer, default: 6 }
+      responses:
+        '200':
+          description: Pontos por mês
   /admin/reports/top-products:
     get:
       tags: [reports]
@@ -728,6 +740,70 @@ paths:
       responses:
         '200':
           description: Contagem gerada
+  /admin/reports/top-customers:
+    get:
+      tags: [reports]
+      summary: Clientes com maior gasto
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Ranking
+  /admin/reports/sales/orders:
+    get:
+      tags: [reports]
+      summary: Relatório de vendas e pedidos
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Lista paginada
+  /admin/reports/inventory/position:
+    get:
+      tags: [reports]
+      summary: Posição atual do estoque
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Lista paginada
+  /admin/reports/inventory/movements:
+    get:
+      tags: [reports]
+      summary: Movimentações de estoque
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Lista paginada
+  /admin/reports/receivables/invoices:
+    get:
+      tags: [reports]
+      summary: Faturas e contas a receber
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Lista com resumo
+  /admin/reports/payments/pix-reconciliation:
+    get:
+      tags: [reports]
+      summary: Conciliação Pix
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Lista paginada
+  /admin/reports/customers/exposure:
+    get:
+      tags: [reports]
+      summary: Limites e exposição de clientes
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Lista paginada
+  /admin/reports/exceptions:
+    get:
+      tags: [reports]
+      summary: Exceções e ajustes
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200':
+          description: Lista paginada
   /dev/pix/simulate/{chargeId}:
     post:
       tags: [payments]
