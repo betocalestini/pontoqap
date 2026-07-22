@@ -15,7 +15,7 @@ alwaysApply: false
 
 | App | Mecanismo |
 | ----- | --------- |
-| Loja | Cookie de sessão após `POST /auth/login` com `audience: store` |
+| Loja | JWT em `access_token` + header `Authorization: Bearer` e `X-App-Audience: store` (`sessionStorage`) |
 | Admin | JWT em `access_token` + header `Authorization: Bearer` e `X-App-Audience: admin` |
 
 Cliente HTTP: [`packages/api-client/src/index.ts`](packages/api-client/src/index.ts) — estender métodos ao criar rotas.

@@ -42,7 +42,7 @@ Use isto junto com RF em `requirements.md`. Em conflito com código, **o código
 
 ## Autenticação (resumo)
 
-- **Loja:** sessão cookie (`store_session`).
+- **Loja:** JWT `access_token` em `sessionStorage` + `Authorization: Bearer` e `X-App-Audience: store` (cookie legado opcional no middleware).
 - **Admin:** JWT `access_token` + audience admin; MFA conforme config.
 - **Mesmo usuário** pode ter papel `customer` e um papel interno (`manager`, etc.) ao mesmo tempo.
 - Funcionários entram pela **cadastro na loja**; admin atribui papel em `POST /admin/customers/{id}/staff-role` (ou convite só para e-mail já cliente).
