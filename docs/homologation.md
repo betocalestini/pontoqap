@@ -135,11 +135,15 @@ Smoke manual por papel (credenciais de teste criadas via convite ou seeds de int
 
 | Passo | Ação | Resultado esperado | OK? | Evidência |
 | ----- | ---- | ------------------ | --- | --------- |
-| 7.1 | Painel → **Dashboard** | KPIs coerentes com a compra | ☐ | |
-| 7.2 | **Relatórios** → top produtos / estoque | Dados consistentes | ☐ | |
-| 7.3 | Gerar previsão | Snapshots criados | ☐ | |
-| 7.4 | `make backup` no servidor | Arquivo `.sql.gz` em `backups/` ou `/var/backups/store-platform` | ☐ | caminho: |
-| 7.5 | `make test-backup-restore` ou restore em DB temporário | Restore OK | ☐ | |
+| 7.1 | **Dashboard** (`/`) | Gráfico 6 meses (vendas vs recebimentos) e KPIs coerentes | ☐ | |
+| 7.2 | **Relatórios** → cada subseção | Exportar CSV, Excel e PDF com filtros aplicados | ☐ | |
+| 7.3 | **Relatórios → Estoque / Movimentações** | Posição e histórico consistentes com tela Estoque | ☐ | |
+| 7.4 | **Relatórios → Contas a receber** | Faixas de atraso e saldos batem com Faturamento | ☐ | |
+| 7.5 | **Relatórios → Pix / Limites / Exceções** | Conforme papel (financeiro vs estoque) | ☐ | |
+| 7.6 | **Relatórios → Previsão** → Gerar snapshots | Linhas com vendas 3m e estoque atual | ☐ | |
+| 7.7 | **Auditoria** (admin) | Filtros por período e listagem | ☐ | |
+| 7.8 | `make backup` no servidor | Arquivo `.sql.gz` em `backups/` ou `/var/backups/store-platform` | ☐ | caminho: |
+| 7.9 | `make test-backup-restore` ou restore em DB temporário | Restore OK | ☐ | |
 
 ---
 

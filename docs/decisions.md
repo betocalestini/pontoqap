@@ -283,6 +283,8 @@ As estimativas são expressas em pontos relativos:
 | BK-0914 | Criar filtros de período           |         P0 |      3 | BK-0912           |
 | BK-0915 | Criar testes de conciliação        |         P0 |      8 | BK-0902 a BK-0910 |
 
+**Nota (2026-07):** EP-09 entregue com dez relatórios em `/relatorios/*`, dashboard em `/` com gráfico de série (6 meses), exportação CSV/Excel/PDF nas subseções e testes `TestReportsDashboardMatchesSalesTotal` / `TestDashboardSeriesMonths`.
+
 ---
 
 ## EP-10 — Previsão de reposição

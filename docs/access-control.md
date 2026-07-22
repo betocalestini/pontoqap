@@ -62,7 +62,14 @@ Legenda: ● = concedida; — = não concedida.
 | `billing.read` | ● | ● | — | ● |
 | `billing.close` | ● | ● | — | ● |
 | `payments.read` | ● | ● | — | ● |
-| `reports.read` | ● | ● | — | ● |
+| `reports.dashboard.read` | ● | ● | ● | ● |
+| `reports.sales.read` | ● | ● | — | ● |
+| `reports.inventory.read` | ● | ● | ● | — |
+| `reports.receivables.read` | ● | ● | — | ● |
+| `reports.payments.read` | ● | ● | — | ● |
+| `reports.customers.read` | ● | ● | — | ● |
+| `reports.exceptions.read` | ● | ● | — | — |
+| `reports.forecasting.read` | ● | ● | ● | — |
 | `settings.write` | ● | — | — | — |
 | `audit.read` | ● | — | — | — |
 | `users.manage` | ● | — | — | — |
@@ -130,10 +137,12 @@ Operações sensíveis (status, papel, revogar sessões): step-up com senha ou c
 | Listar / detalhar pedidos | `orders.read` | `GET /admin/orders`, `GET /admin/orders/{id}` |
 | Cancelar pedido | `orders.cancel` | `POST /admin/orders/{id}/cancel` |
 | Consultar auditoria | `audit.read` | `GET /admin/audit/logs` |
-| Relatório de estoque | `inventory.read` | `GET /admin/reports/inventory` |
+| Relatórios gerenciais | `reports.*.read` (granular) | `GET /admin/reports/*` |
+
+Permissões de relatório (migration `000007`): `reports.dashboard.read`, `reports.sales.read`, `reports.inventory.read`, `reports.receivables.read`, `reports.payments.read`, `reports.customers.read`, `reports.exceptions.read`, `reports.forecasting.read`. A permissão legada `reports.read` foi removida dos papéis.
 
 ## Referências
 
 - Rotas e permissões: `backend/internal/app/router.go`
 - Regras de convite e papéis: `backend/internal/identity/admin_users.go`
-- Seeds: `backend/migrations/000001_initial.up.sql`, `000003_*`, `000004_*`, `000005_*`, `000006_*`
+- Seeds: `backend/migrations/000001_initial.up.sql`, `000003_*` … `000007_report_permissions`

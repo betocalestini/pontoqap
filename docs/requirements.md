@@ -484,6 +484,8 @@ Nota (implementação loja): remoção por linha na UI; `DELETE /me/cart` esvazi
 | RF-REL-009 | Os relatórios deverão permitir exportação CSV                |
 | RF-REL-010 | Os totais deverão ser conciliáveis com registros detalhados  |
 
+**Implementação (2026-07):** relatórios em `/api/v1/admin/reports/*` e UI admin `/relatorios/*`; permissões granulares `reports.*.read`; dashboard em `/` com série de 6 meses; exportação CSV, Excel (.xlsx) e PDF na UI de relatórios e auditoria.
+
 ## 9.11. Previsões
 
 | ID         | Requisito                                                    |
