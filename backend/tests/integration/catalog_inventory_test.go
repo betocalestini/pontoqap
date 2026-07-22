@@ -124,7 +124,7 @@ func TestCheckoutCreatesSaleMovement(t *testing.T) {
 	inv := inventory.NewService(pool)
 	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 0, 0)
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), catalog.NewService(pool), customers.NewService(pool, nil))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), catalog.NewService(pool), customers.NewService(pool, nil), nil)
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
 	order, err := salesSvc.Checkout(ctx, cust.ID, "sale-mov-key", cust.UserID)
 	if err != nil {

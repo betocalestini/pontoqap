@@ -40,7 +40,7 @@ func TestBlockedStoreCustomerCannotLogin(t *testing.T) {
 	}
 
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv: "test",
 		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},
@@ -83,7 +83,7 @@ func TestBlockedStoreCustomerMeCartForbidden(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100_000)
 
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv: "test",
 		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},
@@ -146,7 +146,7 @@ func TestAdminUpdateCollaboratorCategoryNotFound(t *testing.T) {
 	}
 
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv: "test",
 		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},

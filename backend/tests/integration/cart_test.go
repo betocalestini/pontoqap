@@ -26,7 +26,7 @@ func TestClearCartRemovesAllItems(t *testing.T) {
 	inv := inventory.NewService(pool)
 	_ = inv.RegisterEntry(ctx, prod.SKUID, 10, mgr.UserID, "entrada", 5000, 0)
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), catalog.NewService(pool), customers.NewService(pool, nil))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), catalog.NewService(pool), customers.NewService(pool, nil), nil)
 	cart, err := salesSvc.AddCartItem(ctx, cust.ID, prod.SKUID, 2)
 	if err != nil || len(cart.Items) != 1 {
 		t.Fatalf("add cart: %v items=%d", err, len(cart.Items))
@@ -63,7 +63,7 @@ func TestSetCartItemQuantityZeroRemovesLine(t *testing.T) {
 	inv := inventory.NewService(pool)
 	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "entrada", 1500, 0)
 
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), catalog.NewService(pool), customers.NewService(pool, nil))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), catalog.NewService(pool), customers.NewService(pool, nil), nil)
 	_, err := salesSvc.AddCartItem(ctx, cust.ID, prod.SKUID, 3)
 	if err != nil {
 		t.Fatal(err)

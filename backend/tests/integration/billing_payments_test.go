@@ -94,13 +94,20 @@ func TestPixWebhookDuplicateIsIgnored(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := testdb.ActivateSingleInstallmentPlan(ctx, billSvc, inv.ID, cust.ID, cust.UserID); err != nil {
+		t.Fatal(err)
+	}
+	instID, err := testdb.FirstOpenInstallmentID(ctx, pool, inv.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	secret := "test-webhook-secret"
 	paySvc := payments.NewService(pool, payments.NewSandboxGateway(secret), billSvc, config.PaymentsConfig{
 		Provider:      "sandbox",
 		WebhookSecret: secret,
 	}, nil)
-	charge, err := paySvc.CreateOrReusePixCharge(ctx, inv.ID)
+	charge, err := paySvc.CreateOrReusePixChargeForInstallment(ctx, instID, cust.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

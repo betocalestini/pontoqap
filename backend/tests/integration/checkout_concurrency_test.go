@@ -33,7 +33,7 @@ func TestConcurrentCheckoutSingleStock(t *testing.T) {
 	}
 
 	billSvc := billing.NewService(pool, nil, "", nil)
-	salesSvc := sales.NewService(pool, inv, billSvc, catalog.NewService(pool, nil), customers.NewService(pool, nil))
+	salesSvc := sales.NewService(pool, inv, billSvc, catalog.NewService(pool), customers.NewService(pool, nil), nil)
 
 	var buyers [2]testdb.Customer
 	for i := range buyers {

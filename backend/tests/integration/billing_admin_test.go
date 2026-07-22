@@ -197,7 +197,7 @@ func TestClosePeriodsHTTPRequiresReason(t *testing.T) {
 	}
 	mgr, _ := testdb.SeedManager(ctx, pool, testdb.UniqueEmail(t, "mgr"))
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv: "test",
 		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},
@@ -233,7 +233,7 @@ func TestClosePeriodsHTTPWritesAuditLog(t *testing.T) {
 	_ = seedOpenPeriodWithEntry(t, ctx, pool, cust.ID, 2026, 5, 1000)
 
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv: "test",
 		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},

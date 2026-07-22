@@ -51,7 +51,7 @@ func TestAdminDeleteProductCategoryUnlinksProducts(t *testing.T) {
 	_ = invSvc
 
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv:   "test",
 		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},
@@ -121,7 +121,7 @@ func TestAdminPatchProductCategory(t *testing.T) {
 	}
 
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv:   "test",
 		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},

@@ -43,7 +43,7 @@ func integrationTestConfig() config.Config {
 func newIntegrationHandler(t *testing.T, pool *pgxpool.Pool) http.Handler {
 	t.Helper()
 	cfg := integrationTestConfig()
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), cfg.Session.StoreTTL, cfg.Session.AdminTTL, cfg.Security.SessionSecret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), cfg.Session.StoreTTL, cfg.Session.AdminTTL, cfg.Security.SessionSecret, nil)
 	return app.NewRouter(cfg, pool, idSvc, nil, slog.Default())
 }
 

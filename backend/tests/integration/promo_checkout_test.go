@@ -45,7 +45,7 @@ func TestCheckoutPromoSplitPricing(t *testing.T) {
 		t.Fatalf("promo price want 1100 got %d", promoPrice)
 	}
 	regular := catalog.SalePriceFromCost(1000, 50)
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), cat, customers.NewService(pool, nil))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), cat, customers.NewService(pool, nil), nil)
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 5)
 	order, err := salesSvc.Checkout(ctx, cust.ID, "promo-split-key", cust.UserID)
 	if err != nil {

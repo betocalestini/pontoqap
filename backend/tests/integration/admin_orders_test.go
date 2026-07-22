@@ -64,7 +64,7 @@ func TestAdminListOrdersAfterCheckout(t *testing.T) {
 	}
 
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv:   "test",
 		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},
@@ -109,7 +109,7 @@ func TestFinanceCannotAccessInventoryReport(t *testing.T) {
 	}
 	_ = fin
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv:   "test",
 		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},

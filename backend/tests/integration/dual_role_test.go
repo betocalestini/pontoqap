@@ -171,7 +171,7 @@ func TestInvitationRequiresStoreCustomer(t *testing.T) {
 func dualRoleHandler(t *testing.T, pool *pgxpool.Pool) http.Handler {
 	t.Helper()
 	secret := "test-session-secret-min-16"
-	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret, nil)
 	cfg := config.Config{
 		AppEnv: "test",
 		App: config.AppConfig{
