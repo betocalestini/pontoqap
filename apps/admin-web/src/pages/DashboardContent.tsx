@@ -3,15 +3,26 @@ import { Link } from 'react-router-dom';
 import type { DashboardSeriesPoint, ReportDashboard } from '@store/api-client';
 import { formatMoney } from '@store/shared-core';
 import { api } from '../api';
+import { RankingPanel } from '../components/reports/RankingPanel';
 import { ReportPageHeader } from '../components/reports/ReportPageHeader';
 import { ReportSummaryCards } from '../components/reports/ReportSummaryCards';
 import { SalesCashSeriesChart } from '../components/reports/SalesCashSeriesChart';
 import { useReportQuery } from '../components/reports/useReportQuery';
 
+const RANKING_EMPTY = 'Nenhum registro no período selecionado.';
+
+function clampMonthForYear(year: number, month: number, now: Date): number {
+  if (year === now.getFullYear() && month > now.getMonth() + 1) {
+    return now.getMonth() + 1;
+  }
+  return month;
+}
+
 export function DashboardContent() {
+  const now = new Date();
   const { values, setField, queryParams } = useReportQuery({
-    year: String(new Date().getFullYear()),
-    month: String(new Date().getMonth() + 1),
+    year: String(now.getFullYear()),
+    month: String(now.getMonth() + 1),
   });
   const [data, setData] = useState<ReportDashboard | null>(null);
   const [series, setSeries] = useState<DashboardSeriesPoint[]>([]);
@@ -20,6 +31,7 @@ export function DashboardContent() {
   useEffect(() => {
     const y = Number(queryParams.year);
     const m = Number(queryParams.month);
+    setError(null);
     Promise.all([api.adminDashboard(y, m), api.adminDashboardSeries(6)])
       .then(([dash, ser]) => {
         setData(dash);
@@ -27,6 +39,9 @@ export function DashboardContent() {
       })
       .catch((e: Error) => setError(e.message));
   }, [queryParams.year, queryParams.month]);
+
+  const yearNum = Number(values.year) || now.getFullYear();
+  const maxMonth = yearNum === now.getFullYear() ? now.getMonth() + 1 : 12;
 
   const cards = data
     ? [
@@ -57,7 +72,7 @@ export function DashboardContent() {
   }
 
   return (
-    <section className="content-section">
+    <section className="content-section dashboard-page">
       <ReportPageHeader
         title="Dashboard"
         description="Visão geral da operação: competência (vendas) e caixa (recebimentos)."
@@ -68,7 +83,17 @@ export function DashboardContent() {
           <input
             type="number"
             value={values.year ?? ''}
-            onChange={(e) => setField('year', e.target.value)}
+            onChange={(e) => {
+              setField('year', e.target.value);
+              const y = Number(e.target.value);
+              const m = Number(values.month);
+              if (!Number.isNaN(y) && !Number.isNaN(m)) {
+                const clamped = clampMonthForYear(y, m, now);
+                if (clamped !== m) {
+                  setField('month', String(clamped));
+                }
+              }
+            }}
             min={2020}
           />
         </label>
@@ -77,9 +102,17 @@ export function DashboardContent() {
           <input
             type="number"
             value={values.month ?? ''}
-            onChange={(e) => setField('month', e.target.value)}
+            onChange={(e) => {
+              const raw = Number(e.target.value);
+              if (!e.target.value || Number.isNaN(raw)) {
+                setField('month', e.target.value);
+                return;
+              }
+              const clamped = clampMonthForYear(yearNum, raw, now);
+              setField('month', String(clamped));
+            }}
             min={1}
-            max={12}
+            max={maxMonth}
           />
         </label>
       </ReportPageHeader>
@@ -88,35 +121,33 @@ export function DashboardContent() {
       <ReportSummaryCards cards={cards} />
       {data && (
         <>
-          <p className="form-hint">
-            <Link to="/relatorios/vendas">Ver vendas</Link> ·{' '}
-            <Link to="/relatorios/recebiveis">Ver recebíveis</Link> ·{' '}
+          <nav className="dashboard-actions" aria-label="Atalhos do dashboard">
+            <Link to="/relatorios/vendas">Ver vendas</Link>
+            <Link to="/relatorios/recebiveis">Ver recebíveis</Link>
             <Link to="/relatorios/estoque?below_minimum=true">
               Estoque abaixo do mínimo ({data.low_stock_skus})
             </Link>
-          </p>
+          </nav>
           <div className="report-panels">
-            <div>
-              <h2>Top produtos</h2>
-              <ul>
-                {data.top_products.map((p) => (
-                  <li key={p.label}>
-                    {p.label} — {formatMoney(p.total_cents)} ({p.quantity} un.)
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h2>Top clientes</h2>
-              <ul>
-                {data.top_customers.map((c) => (
-                  <li key={c.id ?? c.label}>
-                    {c.id ? <Link to={`/clientes?highlight=${c.id}`}>{c.label}</Link> : c.label} —{' '}
-                    {formatMoney(c.total_cents)}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <RankingPanel
+              title="Top produtos"
+              emptyMessage={RANKING_EMPTY}
+              items={(data.top_products ?? []).map((p) => ({
+                key: p.label,
+                primary: p.label,
+                secondary: `${formatMoney(p.total_cents)} (${p.quantity} un.)`,
+              }))}
+            />
+            <RankingPanel
+              title="Top clientes"
+              emptyMessage={RANKING_EMPTY}
+              items={(data.top_customers ?? []).map((c) => ({
+                key: c.id ?? c.label,
+                primary: c.label,
+                secondary: formatMoney(c.total_cents),
+                href: c.id ? `/clientes?highlight=${c.id}` : undefined,
+              }))}
+            />
           </div>
         </>
       )}
