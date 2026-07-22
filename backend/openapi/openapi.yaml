@@ -121,13 +121,42 @@ paths:
       responses:
         '200':
           description: Perfil atualizado
+  /catalog/categories:
+    get:
+      tags: [catalog]
+      summary: Categorias do catálogo público
+      responses:
+        '200':
+          description: Lista de categorias ativas
   /catalog/products:
     get:
       tags: [catalog]
       summary: Catálogo público
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          description: Slug da categoria ou `promocoes` para itens em promoção
+          schema: { type: string }
+        - name: sort
+          in: query
+          description: default (promo primeiro se sem filtros), name, price_asc, price_desc, purchases (requer sessão loja)
+          schema:
+            type: string
+            enum: [default, name, price_asc, price_desc, purchases]
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: page_size
+          in: query
+          schema: { type: integer }
       responses:
         '200':
           description: Lista de produtos
+        '400':
+          description: Parâmetros inválidos (ex. purchases sem login)
   /customers/register:
     post:
       tags: [customers]

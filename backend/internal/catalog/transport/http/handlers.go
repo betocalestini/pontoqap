@@ -166,12 +166,27 @@ func (h *Handler) listProductsAdmin(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) writeProductList(w http.ResponseWriter, r *http.Request, admin bool) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+	sort := strings.TrimSpace(r.URL.Query().Get("sort"))
+	if admin {
+		sort = ""
+	}
+	var customerID *uuid.UUID
+	if !admin && sort == "purchases" {
+		user := identityhttp.UserFromContext(r.Context())
+		if user == nil || user.CustomerID == nil {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Ordenação por compras exige login na loja")
+			return
+		}
+		customerID = user.CustomerID
+	}
 	items, total, err := h.svc.ListProducts(r.Context(), catalog.ListProductsFilter{
-		Search:   r.URL.Query().Get("search"),
-		Category: r.URL.Query().Get("category"),
-		Page:     page,
-		PageSize: pageSize,
-		Admin:    admin,
+		Search:     r.URL.Query().Get("search"),
+		Category:   r.URL.Query().Get("category"),
+		Sort:       sort,
+		CustomerID: customerID,
+		Page:       page,
+		PageSize:   pageSize,
+		Admin:      admin,
 	})
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao listar produtos")

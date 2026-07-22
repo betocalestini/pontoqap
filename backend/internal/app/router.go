@@ -104,7 +104,10 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 				idHandler.AuthenticatedRoutes(authed)
 			})
 		})
-		api.Route("/catalog", catalogHandler.PublicRoutes)
+		api.Route("/catalog", func(cr chi.Router) {
+			cr.Use(storeAuth)
+			catalogHandler.PublicRoutes(cr)
+		})
 		api.Route("/customers", customersHandler.StoreRoutes)
 		api.Route("/webhooks", payHandler.WebhookRoutes)
 

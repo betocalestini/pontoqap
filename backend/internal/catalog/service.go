@@ -69,11 +69,13 @@ type ProductImage struct {
 }
 
 type ListProductsFilter struct {
-	Search   string
-	Category string
-	Page     int
-	PageSize int
-	Admin    bool
+	Search     string
+	Category   string
+	Sort       string
+	CustomerID *uuid.UUID
+	Page       int
+	PageSize   int
+	Admin      bool
 }
 
 func (s *Service) ListCategories(ctx context.Context, admin bool) ([]Category, error) {
@@ -126,7 +128,9 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 		args = append(args, "%"+f.Search+"%")
 		arg++
 	}
-	if f.Category != "" {
+	if f.Category == "promocoes" {
+		where = append(where, "p.promo_active = TRUE AND p.promo_quantity_remaining > 0")
+	} else if f.Category != "" {
 		where = append(where, "c.slug = $"+itoa(arg))
 		args = append(args, f.Category)
 		arg++
@@ -139,20 +143,44 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 		return nil, 0, err
 	}
 
-	args = append(args, f.PageSize, offset)
-	orderSQL := `ORDER BY p.name`
-	if !f.Admin && f.Search == "" {
-		orderSQL = `ORDER BY (p.promo_active AND p.promo_quantity_remaining > 0) DESC, p.name`
+	sort := strings.TrimSpace(f.Sort)
+	needPrice := !f.Admin && (sort == "price_asc" || sort == "price_desc")
+	needPurchases := !f.Admin && sort == "purchases" && f.CustomerID != nil
+
+	joins := ""
+	if needPrice {
+		joins += `
+		LEFT JOIN LATERAL (
+			SELECT MIN(s.sale_price_cents) AS min_price
+			FROM skus s WHERE s.product_id = p.id AND s.active = TRUE
+		) sku_price ON TRUE`
 	}
+	if needPurchases {
+		joins += `
+		LEFT JOIN LATERAL (
+			SELECT COALESCE(SUM(oi.quantity), 0)::bigint AS purchase_qty
+			FROM order_items oi
+			JOIN orders o ON o.id = oi.order_id AND o.status = 'confirmed'
+			JOIN skus s ON s.id = oi.sku_id AND s.product_id = p.id
+			WHERE o.customer_id = $` + itoa(arg) + `
+		) cust_purch ON TRUE`
+		args = append(args, *f.CustomerID)
+		arg++
+	}
+
+	orderSQL := catalogOrderClause(f)
+	limitArg := arg
+	offsetArg := arg + 1
+	args = append(args, f.PageSize, offset)
 	q := `
 		SELECT p.id, p.name, p.slug, COALESCE(p.description,''), p.category_id, p.margin_percent,
 		       p.promo_active, p.promo_margin_percent, p.promo_quantity_total, p.promo_quantity_remaining,
 		       p.active, p.visible, p.updated_at
 		FROM products p
-		LEFT JOIN categories c ON c.id = p.category_id
+		LEFT JOIN categories c ON c.id = p.category_id` + joins + `
 		WHERE ` + whereSQL + `
 		` + orderSQL + `
-		LIMIT $` + itoa(arg) + ` OFFSET $` + itoa(arg+1)
+		LIMIT $` + itoa(limitArg) + ` OFFSET $` + itoa(offsetArg)
 
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
