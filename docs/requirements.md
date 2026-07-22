@@ -422,6 +422,7 @@ Nota (implementação loja): remoção por linha na UI; `DELETE /me/cart` esvazi
 | RF-FAT-012 | O gerente deverá poder consultar todas as faturas                 |
 | RF-FAT-013 | O gerente autorizado deverá poder lançar ajuste                   |
 | RF-FAT-014 | Ajustes deverão exigir justificativa                              |
+| RF-FAT-014a | *(implementado)* Ajuste que zera saldo (`total_cents <= paid_cents`) marca fatura como paga (`paid_at`), expira Pix pendente; sem registro em `payments` |
 | RF-FAT-015 | O sistema deverá identificar faturas vencidas                     |
 | RF-FAT-016 | O sistema deverá atualizar o estado financeiro do cliente         |
 | RF-FAT-017 | O sistema deverá permitir reprocessamento de fechamento com falha |
