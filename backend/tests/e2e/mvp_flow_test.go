@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strconv"
 	"testing"
 	"time"
 
@@ -60,8 +59,12 @@ func TestMVPBillingPixAndDashboard(t *testing.T) {
 	chRes.Body.Close()
 
 	now := time.Now()
-	closeURL := server.URL + "/api/v1/admin/billing/close?year=" + strconv.Itoa(now.Year()) + "&month=" + strconv.Itoa(int(now.Month()))
-	closeRes := doAdminJSON(t, client, http.MethodPost, closeURL, adminCookie, nil)
+	closeBody, _ := json.Marshal(map[string]any{
+		"year":   now.Year(),
+		"month":  int(now.Month()),
+		"reason": "fechamento e2e fluxo MVP",
+	})
+	closeRes := doAdminJSON(t, client, http.MethodPost, server.URL+"/api/v1/admin/billing/close", adminCookie, closeBody)
 	if closeRes.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(closeRes.Body)
 		t.Fatalf("close billing: %d %s", closeRes.StatusCode, body)
