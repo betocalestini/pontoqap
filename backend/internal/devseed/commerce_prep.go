@@ -44,7 +44,6 @@ func customerAvailableCents(ctx context.Context, pool *pgxpool.Pool, customerID 
 	return limit - exposure, nil
 }
 
-// pickAffordableLine chooses a product line that fits in availableLimit (unit * qty).
 func pickAffordableLine(products []productSeed, available int64, rng *rand.Rand, maxQty int) (productSeed, int, bool) {
 	if available <= 0 || len(products) == 0 || maxQty < 1 {
 		return productSeed{}, 0, false
@@ -70,4 +69,35 @@ func pickAffordableLine(products []productSeed, available int64, rng *rand.Rand,
 		return cheapest, 1, true
 	}
 	return productSeed{}, 0, false
+}
+
+func skuAvailableQty(ctx context.Context, pool *pgxpool.Pool, skuID uuid.UUID) (int, error) {
+	var qty int
+	err := pool.QueryRow(ctx, `SELECT COALESCE(available_quantity, 0) FROM inventory_balances WHERE sku_id = $1`, skuID).Scan(&qty)
+	if err != nil {
+		return 0, err
+	}
+	return qty, nil
+}
+
+// clampOrderQty limits quantity to credit and on-hand stock.
+func clampOrderQty(ctx context.Context, pool *pgxpool.Pool, p productSeed, qty int, creditAvail int64) (int, bool) {
+	if qty < 1 || p.SalePriceCents <= 0 {
+		return 0, false
+	}
+	stock, err := skuAvailableQty(ctx, pool, p.SKUID)
+	if err != nil || stock < 1 {
+		return 0, false
+	}
+	if qty > stock {
+		qty = stock
+	}
+	maxByCredit := int(creditAvail / p.SalePriceCents)
+	if maxByCredit < 1 {
+		return 0, false
+	}
+	if qty > maxByCredit {
+		qty = maxByCredit
+	}
+	return qty, true
 }

@@ -60,6 +60,10 @@ func seedCommerce(
 				if !ok {
 					continue
 				}
+				qty, ok = clampOrderQty(ctx, pool, prod, qty, avail)
+				if !ok {
+					continue
+				}
 				pid, err := placeBackdatedOrder(ctx, pool, billSvc, invSvc, salesSvc, custID, userID, actorID, prod.SKUID, qty, prod.SalePriceCents, at, fmt.Sprintf("seed-%s-%d-%d", custID.String()[:8], monthBack, o))
 				if err != nil {
 					return stats, err
@@ -84,6 +88,10 @@ func seedCommerce(
 				return stats, err
 			}
 			prod, qty, ok := pickAffordableLine(products, avail, rng, 2)
+			if !ok {
+				continue
+			}
+			qty, ok = clampOrderQty(ctx, pool, prod, qty, avail)
 			if !ok {
 				continue
 			}
