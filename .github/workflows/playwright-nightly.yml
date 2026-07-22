@@ -1,0 +1,38 @@
+name: Playwright Smoke Nightly
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      run_browser:
+        description: Executar smoke browser (requer E2E_RUN=1 e URLs acessíveis)
+        type: boolean
+        default: false
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install
+      - name: Install Playwright browsers
+        working-directory: e2e/playwright
+        run: pnpm exec playwright install chromium
+      - name: Playwright smoke (skipped unless E2E_RUN=1)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_browser == true
+        working-directory: e2e/playwright
+        env:
+          E2E_RUN: "1"
+        run: pnpm test:run
+      - name: Validate Playwright config (default CI)
+        if: github.event_name != 'workflow_dispatch' || inputs.run_browser != true
+        working-directory: e2e/playwright
+        run: pnpm exec playwright test --list

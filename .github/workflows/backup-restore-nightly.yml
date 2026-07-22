@@ -1,11 +1,12 @@
-name: Pull Request
+name: Backup Restore Nightly
 
 on:
-  pull_request:
-    branches: [main, master]
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
 
 jobs:
-  backend:
+  backup-restore:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -26,30 +27,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
-      - name: Test backend
+      - name: Migrate and seed minimal data
         working-directory: backend
         env:
           DATABASE_URL: postgres://store:store@localhost:5432/store?sslmode=disable
-        run: |
-          go run ./cmd/migrate -direction up
-          go test -p 1 ./...
-      - name: E2E API (checkout and MVP)
-        working-directory: backend
+        run: go run ./cmd/migrate -direction up
+      - name: Verify backup restore
         env:
           DATABASE_URL: postgres://store:store@localhost:5432/store?sslmode=disable
-        run: go test -p 1 ./tests/e2e/... -run 'TestHTTP|TestMVP'
-
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install
-      - run: pnpm test
-      - run: pnpm -r run build
+        run: make test-backup-restore
