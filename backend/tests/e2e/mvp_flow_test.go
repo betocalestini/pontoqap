@@ -89,7 +89,33 @@ func TestMVPBillingPixAndDashboard(t *testing.T) {
 	}
 	invID := invList.Items[0].ID
 
-	pixRes := doStoreJSON(t, client, http.MethodPost, server.URL+"/api/v1/me/invoices/"+invID+"/pix-charge", storeToken, nil)
+	planBody, _ := json.Marshal(map[string]any{"installment_count": 1})
+	planRes := doStoreJSON(t, client, http.MethodPost, server.URL+"/api/v1/me/invoices/"+invID+"/payment-plan", storeToken, planBody)
+	if planRes.StatusCode != http.StatusCreated && planRes.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(planRes.Body)
+		t.Fatalf("payment plan: %d %s", planRes.StatusCode, body)
+	}
+	planRes.Body.Close()
+
+	var instList struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	instRes := doStoreJSON(t, client, http.MethodGet, server.URL+"/api/v1/me/invoices/"+invID+"/installments", storeToken, nil)
+	if instRes.StatusCode != http.StatusOK {
+		t.Fatalf("installments: %d", instRes.StatusCode)
+	}
+	if err := json.NewDecoder(instRes.Body).Decode(&instList); err != nil {
+		t.Fatal(err)
+	}
+	instRes.Body.Close()
+	if len(instList.Data) == 0 {
+		t.Fatal("expected installment after plan selection")
+	}
+	instID := instList.Data[0].ID
+
+	pixRes := doStoreJSON(t, client, http.MethodPost, server.URL+"/api/v1/me/installments/"+instID+"/pix-charge", storeToken, nil)
 	if pixRes.StatusCode != http.StatusOK && pixRes.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(pixRes.Body)
 		t.Fatalf("pix charge: %d %s", pixRes.StatusCode, body)

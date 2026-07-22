@@ -95,6 +95,7 @@ func Reset(ctx context.Context, pool *pgxpool.Pool) error {
 		TRUNCATE TABLE
 			audit_logs, outbox_events, jobs, forecast_snapshots,
 			payment_events, payments, payment_charges,
+			invoice_installments, invoice_payment_plans,
 			billing_adjustments, invoice_items, invoices, billing_entries, billing_periods, business_calendar,
 			order_return_items, order_returns, order_items, orders, cart_items, carts,
 			stock_movements, inventory_balances,
@@ -102,6 +103,32 @@ func Reset(ctx context.Context, pool *pgxpool.Pool) error {
 			customer_limit_history, customers,
 			email_verification_tokens, password_reset_tokens, sessions, user_roles, users
 		RESTART IDENTITY CASCADE
+	`)
+	if err != nil {
+		return err
+	}
+	return EnsureDefaultInstallmentPolicy(ctx, pool)
+}
+
+// EnsureDefaultInstallmentPolicy garante política ativa após reset de dados de teste.
+func EnsureDefaultInstallmentPolicy(ctx context.Context, pool *pgxpool.Pool) error {
+	_, err := pool.Exec(ctx, `UPDATE installment_policies SET active = false`)
+	if err != nil {
+		return err
+	}
+	_, err = pool.Exec(ctx, `
+		INSERT INTO installment_policies (
+			id, version, active, installment_enabled,
+			minimum_invoice_amount_cents, minimum_installment_amount_cents, maximum_installments,
+			installment_interval_months, allow_installment_after_due_date, allow_early_installment_payment,
+			require_sequential_payment, adjust_due_date_to_business_day, valid_from
+		) VALUES (
+			'c0000000-0000-4000-8000-000000000001', 1, true, true,
+			30000, 10000, 10,
+			1, false, false,
+			true, true, now()
+		)
+		ON CONFLICT (id) DO UPDATE SET active = true, installment_enabled = EXCLUDED.installment_enabled
 	`)
 	return err
 }
