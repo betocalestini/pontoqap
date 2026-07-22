@@ -233,6 +233,66 @@ export type OpenBillingPeriodDetail = {
 /** Detalhe de fatura na loja (mesmo formato do admin, sem campos sensíveis obrigatórios). */
 export type MyInvoiceDetail = AdminInvoiceDetail;
 
+export type PaymentOptionInstallment = {
+  number: number;
+  amount_cents: number;
+  due_date: string;
+};
+
+export type PaymentOption = {
+  installment_count: number;
+  installments: PaymentOptionInstallment[];
+};
+
+export type PaymentOptionsResult = {
+  invoice_id: string;
+  total_cents: number;
+  installment_eligible: boolean;
+  maximum_installments: number;
+  options: PaymentOption[];
+  plan_status?: string;
+};
+
+export type PaymentPlan = {
+  id: string;
+  invoice_id: string;
+  status: string;
+  selected_installment_count?: number;
+  invoice_total_cents: number;
+  paid_cents: number;
+  remaining_cents: number;
+};
+
+export type InvoiceInstallment = {
+  id: string;
+  installment_number: number;
+  amount_cents: number;
+  paid_cents: number;
+  remaining_cents: number;
+  due_date: string;
+  status: string;
+};
+
+export type InstallmentPolicy = {
+  id: string;
+  version: number;
+  active: boolean;
+  installment_enabled: boolean;
+  minimum_invoice_amount_cents: number;
+  minimum_installment_amount_cents: number;
+  maximum_installments: number;
+  installment_interval_months: number;
+  allow_installment_after_due_date: boolean;
+  allow_early_installment_payment: boolean;
+  require_sequential_payment: boolean;
+  adjust_due_date_to_business_day: boolean;
+};
+
+export type UpdateInstallmentPolicyBody = Omit<
+  InstallmentPolicy,
+  'id' | 'version' | 'active'
+>;
+
 export type InvoiceDetailAdjustment = {
   id: string;
   adjustment_type: string;
@@ -667,8 +727,25 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     getMyOpenBillingPeriod: () =>
       request<OpenBillingPeriodDetail>('/me/billing/open-period', {}, 'store'),
     getMyInvoice: (id: string) => request<MyInvoiceDetail>(`/me/invoices/${id}`, {}, 'store'),
+    getMyPaymentOptions: (invoiceId: string) =>
+      request<{ data: PaymentOptionsResult }>(`/me/invoices/${invoiceId}/payment-options`, {}, 'store'),
+    selectMyPaymentPlan: (invoiceId: string, installment_count: number) =>
+      request<{ data: PaymentPlan }>(`/me/invoices/${invoiceId}/payment-plan`, {
+        method: 'POST',
+        body: JSON.stringify({ installment_count }),
+      }, 'store'),
+    getMyPaymentPlan: (invoiceId: string) =>
+      request<{ data: PaymentPlan }>(`/me/invoices/${invoiceId}/payment-plan`, {}, 'store'),
+    listMyInstallments: (invoiceId: string) =>
+      request<{ data: InvoiceInstallment[] }>(`/me/invoices/${invoiceId}/installments`, {}, 'store'),
     createPixCharge: (invoiceId: string) =>
       request(`/me/invoices/${invoiceId}/pix-charge`, { method: 'POST' }, 'store'),
+    createInstallmentPixCharge: (installmentId: string) =>
+      request<{ id: string; qr_code_text: string; amount_cents: number; installment_id?: string }>(
+        `/me/installments/${installmentId}/pix-charge`,
+        { method: 'POST' },
+        'store',
+      ),
     simulatePixPayment: (chargeId: string) =>
       request(`/dev/pix/simulate/${chargeId}`, { method: 'POST' }),
 
@@ -846,6 +923,13 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
         'admin',
       ),
     adminBillingSummary: () => request<AdminBillingSummary>('/admin/billing/summary', {}, 'admin'),
+    adminGetInstallmentPolicy: () =>
+      request<InstallmentPolicy>('/admin/billing/installment-policy', {}, 'admin'),
+    adminUpdateInstallmentPolicy: (body: UpdateInstallmentPolicyBody) =>
+      request<InstallmentPolicy>('/admin/billing/installment-policy', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }, 'admin'),
     adminListInvoices: (params?: {
       status?: string;
       year?: number;

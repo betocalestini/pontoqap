@@ -68,6 +68,7 @@ const ORDER_STATUS: Record<string, string> = {
 
 const INVOICE_STATUS: Record<string, string> = {
   open: 'Em aberto',
+  partially_paid: 'Parcialmente paga',
   paid: 'Paga',
   overdue: 'Vencida',
 };
