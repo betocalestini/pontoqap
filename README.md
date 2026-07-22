@@ -33,9 +33,13 @@ make dev-up
 # equivalente: ./scripts/dev-up.sh
 ```
 
-Para manter os dados do Postgres: `./scripts/dev-up.sh --no-clean`
+Para manter os dados do Postgres: `./scripts/dev-up.sh --no-clean` — **não** reaplica o seed; o catálogo continua o que já estava no banco.
 
-Com `make dev-up` (sem `--no-clean`), após migrations e bootstrap da API, o comando **seed** popula o banco com produtos, clientes, pedidos e faturas de demonstração. Reexecutar manualmente (banco já no ar): `make seed-demo`. Flags: `cd backend && go run ./cmd/seed -customers=10 -products=5 -months=2`.
+Com `make dev-up` (sem `--no-clean`), após migrations e bootstrap da API, o comando **seed** popula o banco com produtos, clientes, pedidos e faturas de demonstração. Os produtos e clientes vêm de planilhas CSV em [`backend/devdata/`](backend/devdata/) (`products.csv`, `customers.csv`); edite na planilha, exporte UTF-8 e substitua os arquivos (use `{domain}` nos e-mails de cliente). No Docker, o serviço seed monta essa pasta do host (`compose.yaml`), sem precisar rebuild da imagem a cada alteração do CSV.
+
+Para **recarregar só o catálogo** (e pedidos/faturas demo) após mudar o CSV, com Postgres no ar: `make seed-demo` (zera catálogo/estoque/comércio demo e relê o CSV; clientes já cadastrados permanecem). O seed de pedidos ajusta limites de crédito automaticamente para o catálogo demo. Flags: `cd backend && go run ./cmd/seed -customers=60 -months=4 -data-dir=devdata`. Coluna `stock_qty` **0 ou vazia** usa estoque demo padrão (50 un.; `SEED_DEFAULT_STOCK_QTY`). `unit_cost_cents` é obrigatório em cada linha.
+
+Se o admin ainda listar **"Produto seed 001"** após editar o CSV, a imagem Docker do seed pode estar em cache: `docker compose --profile seed run --rm --build seed` (ou `build --no-cache seed`). O `./scripts/dev-up.sh` já reconstrói o seed em subida limpa; use o admin contra a API Docker (`http://localhost:8080`), não um `make api` local em outro banco.
 
 **Contas demo** (senha padrão `DemoStore123!`, domínio `demo.loja.local`):
 

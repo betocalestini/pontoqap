@@ -44,7 +44,10 @@ services:
       DATABASE_URL: postgres://store:store@postgres:5432/store?sslmode=disable
       APP_ENV: development
       SEED_ALLOW: "true"
+      SEED_DATA_DIR: /devdata
       STORE_WEB_URL: http://localhost:5173
+    volumes:
+      - ./backend/devdata:/devdata:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -7,7 +7,7 @@ help:
 	@echo "Targets: deps, migrate-up, seed-demo, api, worker, test, docker-up, dev-up, dev-up-local, openapi-gen, backup, restore, test-backup-restore"
 
 seed-demo:
-	cd backend && APP_ENV=development SEED_ALLOW=true $(GO) run ./cmd/seed
+	cd backend && SEED_DATA_DIR=./devdata APP_ENV=development SEED_ALLOW=true $(GO) run ./cmd/seed
 
 dev-up:
 	@chmod +x scripts/dev-up.sh

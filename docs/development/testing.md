@@ -21,12 +21,21 @@ make migrate-up
 make test-integration
 ```
 
-Smoke do seed (Postgres migrado; cria domínio único `smoke-*.demo.loja.local`):
+Smoke do seed (Postgres migrado; usa `internal/devseed/testdata/`; domínio único `smoke-*.demo.loja.local`):
 
 ```bash
 make migrate-up
 cd backend && go test -run TestRun_smoke ./internal/devseed/ -count=1
 ```
+
+### Dados CSV do seed (`backend/devdata/`)
+
+| Arquivo | Colunas |
+|---------|---------|
+| `products.csv` | `name`, `slug`, `sku_code`, `category`, `unit`, `unit_cost_cents`, `margin_percent` (opcional), `stock_qty`, `image_slug` (opcional) |
+| `customers.csv` | `name`, `email`, `credit_limit_cents`, `collaborator` (`true`/`false`) |
+
+Preço de venda **não** vai no CSV: após entrada de estoque o seed chama `RecalculateSKU` (margem + arredondamento R$ 0,50). Variável `SEED_DATA_DIR` ou flag `-data-dir` apontam para outra pasta. `stock_qty` 0 ou vazio → estoque demo padrão (50). `./scripts/dev-up.sh --no-clean` não roda o seed; use `make seed-demo` para reler o CSV.
 
 ### Cobertura atual
 

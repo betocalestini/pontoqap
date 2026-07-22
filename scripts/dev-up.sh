@@ -22,6 +22,20 @@ log() { printf '==> %s\n' "$*"; }
 
 die() { printf 'erro: %s\n' "$*" >&2; exit 1; }
 
+# Confere se o seed populou o catálogo a partir do CSV (não binário antigo).
+verify_seed_catalog() {
+  local legacy_count total_count
+  legacy_count="$(docker compose exec -T postgres psql -U store -d store -tAc "SELECT COUNT(*) FROM products WHERE name LIKE 'Produto seed%';" | tr -d '[:space:]')"
+  total_count="$(docker compose exec -T postgres psql -U store -d store -tAc "SELECT COUNT(*) FROM products;" | tr -d '[:space:]')"
+  if [[ "${legacy_count:-0}" -gt 0 ]]; then
+    die "seed parece desatualizado (Produto seed); rode: docker compose --profile seed build --no-cache seed && docker compose --profile seed run --rm seed"
+  fi
+  if [[ "${total_count:-0}" -eq 0 ]]; then
+    die "seed não criou produtos; veja logs do seed e backend/devdata/products.csv (unit_cost_cents obrigatório)"
+  fi
+  log "Seed OK: ${total_count} produto(s) no catálogo"
+}
+
 run_make() {
   if command -v mise >/dev/null 2>&1 && [[ -f .mise.toml ]]; then
     mise exec -- make "$@"
@@ -100,7 +114,9 @@ if [[ "$MODE" == docker ]]; then
   wait_api
   if [[ "$CLEAN" == true ]]; then
     log "Populando dados de demonstração (seed)"
-    docker compose --profile seed run --rm seed
+    docker compose --profile seed build seed
+    docker compose --profile seed run --rm --build seed
+    verify_seed_catalog
   fi
   log "Ambiente Docker pronto"
   echo ""
@@ -131,7 +147,7 @@ run_make migrate-up
 
 if [[ "$CLEAN" == true ]]; then
   log "Populando dados de demonstração (seed)"
-  (cd backend && APP_ENV=development SEED_ALLOW=true go run ./cmd/seed)
+  (cd backend && SEED_DATA_DIR=./devdata APP_ENV=development SEED_ALLOW=true go run ./cmd/seed)
 fi
 
 log "Postgres e schema prontos; suba API/worker/front no host"

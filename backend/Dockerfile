@@ -33,4 +33,6 @@ ENTRYPOINT ["/worker"]
 FROM alpine:3.21 AS seed
 RUN apk add --no-cache ca-certificates
 COPY --from=build /bin/seed /seed
+COPY devdata /devdata
+ENV SEED_DATA_DIR=/devdata
 ENTRYPOINT ["/seed"]
