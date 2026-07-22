@@ -113,8 +113,14 @@ func (s *Service) Dashboard(ctx context.Context, year, month int) (Dashboard, er
 	`, rng.From, rng.To).Scan(&d.StockLossesMonth)
 
 	topP, _ := s.TopProducts(ctx, year, month, 5)
+	if topP == nil {
+		topP = []RankRow{}
+	}
 	d.TopProducts = topP
 	topC, _ := s.TopCustomers(ctx, year, month, 5)
+	if topC == nil {
+		topC = []RankRow{}
+	}
 	d.TopCustomers = topC
 
 	return d, nil

@@ -102,6 +102,70 @@ func TestReportsDashboardMatchesSalesTotal(t *testing.T) {
 	}
 }
 
+func TestReportsDashboardEmptyMonthReturnsArraysNotNull(t *testing.T) {
+	testdb.MigrateUp(t)
+	pool := testdb.Pool(t)
+	ctx := context.Background()
+	if err := testdb.Reset(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	mgr, err := testdb.SeedManager(ctx, pool, testdb.UniqueEmail(t, "mgr-rpt-empty"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secret := "test-session-secret-min-16"
+	idSvc := identity.NewService(identitypostgres.NewRepository(pool), time.Hour, 8*time.Hour, secret)
+	cfg := config.Config{
+		AppEnv:   "test",
+		Security: config.SecurityConfig{SessionSecret: secret, AdminMFARequired: false},
+		Session:  config.SessionConfig{StoreTTL: time.Hour, AdminTTL: 8 * time.Hour},
+		HTTP:     config.HTTPConfig{CORSOrigins: []string{"*"}},
+	}
+	handler := app.NewRouter(cfg, pool, idSvc, nil, slog.Default())
+	token := adminLoginToken(t, handler, mgr.Email, "password123")
+
+	now := time.Now()
+	futureMonth := int(now.Month()) + 1
+	year := now.Year()
+	if futureMonth > 12 {
+		futureMonth = 1
+		year++
+	}
+
+	url := "/api/v1/admin/reports/dashboard?year=" + itoa(year) + "&month=" + itoa(futureMonth)
+	req := httptest.NewRequest(http.MethodGet, url, nil)
+	req.Header.Set("X-App-Audience", "admin")
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("dashboard: %d %s", rec.Code, rec.Body.String())
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.NewDecoder(rec.Body).Decode(&raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"top_products", "top_customers"} {
+		v, ok := raw[key]
+		if !ok {
+			t.Fatalf("missing %s", key)
+		}
+		if string(v) == "null" {
+			t.Fatalf("%s must not be null", key)
+		}
+		var arr []json.RawMessage
+		if err := json.Unmarshal(v, &arr); err != nil {
+			t.Fatalf("%s: %v", key, err)
+		}
+		if len(arr) != 0 {
+			t.Fatalf("%s: expected empty array, got %d items", key, len(arr))
+		}
+	}
+}
+
 func itoa(n int) string {
 	if n == 0 {
 		return "0"
