@@ -34,9 +34,9 @@ Boné Força Tática,bone-forca-tatica,FAR-002,Fardamento e Vestuário,UN,5500,3
 Boné ROCAM,bone-rocam,FAR-003,Fardamento e Vestuário,UN,5500,30,0,bone-rocam
 Bordado para Camiseta Gola V,bordado-para-camiseta-gola-v,INS-002,Insígnias e Identificação,SERV,800,30,0,bordado-para-camiseta-gola-v
 Brasão CPI / 2º BPM/I,brasao-cpi-2o-bpm-i,EMB-001,Emborrachados e Brasões,UN,1500,30,0,brasao-cpi-2o-bpm-i
-Brasão de Bolso para Farda CFO,brasao-de-bolso-para-farda-cfo,EMB-002,Emborrachados e Brasões,UN,12,30,0,brasao-de-bolso-para-farda-cfo
-Brasão de Bolso para Farda SD,brasao-de-bolso-para-farda-sd,EMB-003,Emborrachados e Brasões,UN,12,30,0,brasao-de-bolso-para-farda-sd
-Brasão de Bolso para Farda CAS,brasao-de-bolso-para-farda-cas,EMB-004,Emborrachados e Brasões,UN,12,30,0,brasao-de-bolso-para-farda-cas
+Brasão de Bolso para Farda CFO,brasao-de-bolso-para-farda-cfo,EMB-002,Emborrachados e Brasões,UN,1200,30,0,brasao-de-bolso-para-farda-cfo
+Brasão de Bolso para Farda SD,brasao-de-bolso-para-farda-sd,EMB-003,Emborrachados e Brasões,UN,1200,30,0,brasao-de-bolso-para-farda-sd
+Brasão de Bolso para Farda CAS,brasao-de-bolso-para-farda-cas,EMB-004,Emborrachados e Brasões,UN,1200,30,0,brasao-de-bolso-para-farda-cas
 Camiseta Manga Longa Força Tática,camiseta-manga-longa-forca-tatica,FAR-004,Fardamento e Vestuário,UN,4800,30,0,camiseta-manga-longa-forca-tatica
 Camiseta de Atividade Física PM Dry Fit Spartan,camiseta-de-atividade-fisica-pm-dry-fit-spartan,FAR-005,Fardamento e Vestuário,UN,5000,30,0,camiseta-de-atividade-fisica-pm-dry-fit-spartan
 Camiseta de Atividade Física Branca Bordada,camiseta-de-atividade-fisica-branca-bordada,FAR-006,Fardamento e Vestuário,UN,4500,30,0,camiseta-de-atividade-fisica-branca-bordada
@@ -117,7 +117,7 @@ Short de Atividade Física PM com Térmico Spartan,short-de-atividade-fisica-pm-
 Short Térmico Spartan,short-termico-spartan,FAR-010,Fardamento e Vestuário,UN,4000,30,0,short-termico-spartan
 Torniquete Desmodus,torniquete-desmodus,PRI-003,Primeiros Socorros,UN,27600,30,0,torniquete-desmodus
 Torniquete CAT Gen 7,torniquete-cat-gen-7,PRI-004,Primeiros Socorros,UN,19500,30,0,torniquete-cat-gen-7
-Kit Torniquete Desmodus com Porta-Torniquete,kit-torniquete-desmodus-com-porta-torniquete,PRI-005,Primeiros Socorros,KIT,350,30,0,kit-torniquete-desmodus-com-porta-torniquete
+Kit Torniquete Desmodus com Porta-Torniquete,kit-torniquete-desmodus-com-porta-torniquete,PRI-005,Primeiros Socorros,KIT,300000,30,0,kit-torniquete-desmodus-com-porta-torniquete
 Porta-Torniquete,porta-torniquete,PRI-006,Primeiros Socorros,UN,4500,30,0,porta-torniquete
 Adesivo Força Tática,adesivo-forca-tatica,SOU-008,Souvenires,UN,500,30,0,adesivo-forca-tatica
 Amendoim,amendoim,LAN-003,Lanches e Snacks,UN,200,30,0,amendoim
