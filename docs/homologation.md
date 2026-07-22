@@ -178,6 +178,20 @@ Itens fora do MVP atual (documentar como pendência, não reprovar se já conhec
 
 ---
 
+---
+
+## Fase — Parcelamento de faturas
+
+| # | Passo | OK? |
+| - | ----- | --- |
+| P.1 | Admin: **Faturamento → Configuração de parcelamento** — conferir defaults (mín. R$ 300, parcela R$ 100, máx. 10×) | ☐ |
+| P.2 | Fechar ciclo na competência: modal **só “Fechar fatura”** (sem Pix); na fatura, ver opções 1×…N× em cards | ☐ |
+| P.3 | **Confirmar forma de pagamento** → modal **“Fechar fatura e pagar”** com resumo das parcelas; após OK, tabela/cards de parcelas; **Gerar Pix** só na parcela aberta (sem reabrir esse modal) | ☐ |
+| P.4 | Simular pagamento (dev); fatura `partially_paid`; segunda parcela liberada | ☐ |
+| P.5 | Desabilitar parcelamento no admin; nova fatura só oferece 1×; plano 3× em andamento continua | ☐ |
+
+---
+
 ## Referência rápida — comandos
 
 ```bash

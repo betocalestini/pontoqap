@@ -2165,3 +2165,7 @@ Preferência `light` | `dark` em `localStorage` (`store-platform-color-theme`), 
 ## Nota — painel Faturamento (admin)
 
 Implementado: listagem/detalhe de faturas (`GET /admin/billing/invoices*`), resumo, fechamento manual com motivo e auditoria (`billing.close_manual`), ajustes em fatura (`billing_adjustments`), UI de calendário e detalhe formatado na loja. **Ciclos de faturamento (2026):** fechamento automático no dia 1, vencimento dia 10, fechamento parcial pelo cliente (`POST /me/billing/close-cycle`), `cycle_number` / `close_type`, lembretes D+2/D+3 via outbox. Calendário admin não governa mais o fechamento automático. Lacunas: créditos pós-fechamento (RF-VEN-017) sem fluxo dedicado; bloqueio automático por inadimplência no D+3 permanece evolução (RF-CLI-014).
+
+## Nota — parcelamento e kill-switch
+
+Política versionada em `installment_policies`; snapshot no `invoice_payment_plans` ao fechar a fatura. Elegibilidade multi-parcela na **seleção** usa `installment_enabled` da política **ativa** (admin pode desligar novos parcelamentos sem afetar planos `active`). Pix principal: `POST /me/installments/{id}/pix-charge`. Detalhe: [`docs/parcelas.md`](parcelas.md).

@@ -431,6 +431,32 @@ Nota (implementação loja): remoção por linha na UI; `DELETE /me/cart` esvazi
 | RF-FAT-019 | O sistema deverá permitir fechamento manual autorizado            |
 | RF-FAT-020 | O fechamento manual deverá utilizar a mesma regra de geração de fatura do worker (exceto `close_type` administrativo) |
 
+## 9.7.1. Parcelamento de faturas
+
+| ID | Requisito |
+| --- | --- |
+| RF-PAR-001 | O sistema deverá permitir configurar os parâmetros do parcelamento |
+| RF-PAR-002 | O sistema deverá preservar a política utilizada em cada fatura (snapshot no plano) |
+| RF-PAR-003 | Faturas abaixo do mínimo deverão permitir somente pagamento à vista (1×) |
+| RF-PAR-004 | O sistema deverá calcular o máximo de parcelas |
+| RF-PAR-005 | O máximo deverá respeitar o limite administrativo |
+| RF-PAR-006 | Nenhuma parcela poderá ser inferior ao mínimo configurado |
+| RF-PAR-007 | A soma das parcelas deverá ser exatamente igual à fatura |
+| RF-PAR-008 | O cliente deverá poder consultar as opções antes da escolha |
+| RF-PAR-009 | O cliente deverá selecionar uma única opção |
+| RF-PAR-010 | O plano deverá tornar-se imutável após a ativação |
+| RF-PAR-011 | Cada parcela deverá possuir valor e vencimento próprios |
+| RF-PAR-012 | Cada parcela deverá ser registrada como conta a receber (relatório por parcela) |
+| RF-PAR-013 | A fatura deverá permanecer aberta enquanto houver saldo |
+| RF-PAR-014 | O pagamento de uma parcela deverá reduzir o saldo da fatura |
+| RF-PAR-015 | A fatura somente deverá ser paga após todas as parcelas |
+| RF-PAR-016 | A exposição deverá considerar todo o saldo não pago (liberação por parcela paga) |
+| RF-PAR-017 | Uma parcela vencida deverá tornar a fatura vencida |
+| RF-PAR-018 | O sistema deverá permitir geração Pix por parcela |
+| RF-PAR-019 | O pagamento Pix deverá ser vinculado à parcela correta |
+| RF-PAR-020 | A mesma transação não poderá pagar duas parcelas |
+| RF-PAR-021 | O administrador deverá poder desabilitar novos parcelamentos (`installment_enabled`); planos ativos seguem até quitação |
+
 ## 9.8. Pagamento Pix
 
 | ID         | Requisito                                                    |
