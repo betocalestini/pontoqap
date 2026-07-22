@@ -29,6 +29,7 @@ func TestOpenAPIDocumentsCoreMVPPaths(t *testing.T) {
 		"/admin/reports/dashboard",
 		"/admin/billing/invoices",
 		"/webhooks/pix",
+		"/webhooks/mercado-pago/orders",
 	}
 	pathRe := func(p string) *regexp.Regexp {
 		return regexp.MustCompile(`(?m)^\s*` + regexp.QuoteMeta(p) + `\s*:`)

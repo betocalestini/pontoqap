@@ -7,6 +7,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type PixChargeInput struct {
+	InvoiceID         uuid.UUID
+	AmountCents       int64
+	ExternalReference string
+	PayerEmail        string
+	IdempotencyKey    string
+	ExpirationISO     string
+}
+
 type ChargeResult struct {
 	ChargeID    uuid.UUID `json:"charge_id"`
 	Provider    string    `json:"provider"`
@@ -18,7 +27,7 @@ type ChargeResult struct {
 }
 
 type Gateway interface {
-	CreatePixCharge(ctx context.Context, invoiceID uuid.UUID, amountCents int64, description string) (ChargeResult, error)
+	CreatePixCharge(ctx context.Context, in PixChargeInput) (ChargeResult, error)
 	VerifyWebhookSignature(payload []byte, signature string) bool
 	ParseWebhookEvent(payload []byte) (externalEventID, eventType string, externalPaymentID string, amountCents int64, err error)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/store-platform/store/internal/billing"
 	"github.com/store-platform/store/internal/payments"
+	"github.com/store-platform/store/internal/platform/config"
 	"github.com/store-platform/store/tests/testdb"
 )
 
@@ -24,7 +25,7 @@ func TestPixWebhookAmountMismatchRejected(t *testing.T) {
 	cust, _ := testdb.SeedCustomer(ctx, pool, testdb.UniqueEmail(t, "c-wh"), "Cliente")
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 50_000)
 
-	billSvc := billing.NewService(pool, nil, "")
+	billSvc := billing.NewService(pool, nil, "", nil)
 	tx, _ := pool.Begin(ctx)
 	at := time.Date(2026, 3, 10, 10, 0, 0, 0, time.UTC)
 	periodID, _ := billSvc.EnsureOpenPeriodTx(ctx, tx, cust.ID, at)
@@ -41,7 +42,10 @@ func TestPixWebhookAmountMismatchRejected(t *testing.T) {
 	}
 
 	secret := "test-webhook-secret"
-	paySvc := payments.NewService(pool, payments.NewSandboxGateway(secret), billSvc, secret)
+	paySvc := payments.NewService(pool, payments.NewSandboxGateway(secret), billSvc, config.PaymentsConfig{
+		Provider:      "sandbox",
+		WebhookSecret: secret,
+	}, nil)
 	charge, err := paySvc.CreateOrReusePixCharge(ctx, inv.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +57,7 @@ func TestPixWebhookAmountMismatchRejected(t *testing.T) {
 	}
 	body := []byte(`{"event_id":"evt-mismatch-1","event_type":"payment.confirmed","payment_id":"` + extID + `","amount_cents":1}`)
 	sig := payments.SignPayloadForTest(body, secret)
-	if err := paySvc.ProcessWebhook(ctx, body, sig); err == nil {
+	if _, err := paySvc.ProcessWebhook(ctx, body, sig); err == nil {
 		t.Fatal("expected amount mismatch error")
 	}
 

@@ -350,7 +350,7 @@ paths:
   /webhooks/pix:
     post:
       tags: [payments]
-      summary: Webhook Pix (HMAC)
+      summary: Webhook Pix sandbox (HMAC)
       parameters:
         - name: X-Webhook-Signature
           in: header
@@ -363,8 +363,34 @@ paths:
             schema:
               type: object
       responses:
-        '200':
+        '204':
           description: Processado
+  /webhooks/mercado-pago/orders:
+    post:
+      tags: [payments]
+      summary: Webhook Mercado Pago (Order)
+      parameters:
+        - name: x-signature
+          in: header
+          required: true
+          schema: { type: string }
+        - name: x-request-id
+          in: header
+          schema: { type: string }
+        - name: data.id
+          in: query
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Evento aceito
+        '401':
+          description: Assinatura inválida
   /admin/users:
     get:
       tags: [admin]

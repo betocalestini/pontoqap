@@ -69,9 +69,20 @@ type WorkerConfig struct {
 	WorkerID     string
 }
 
+type MercadoPagoConfig struct {
+	Environment    string
+	BaseURL        string
+	AccessToken    string
+	WebhookSecret  string
+	ApplicationID  string
+	PixExpiration  string
+	RequestTimeout time.Duration
+}
+
 type PaymentsConfig struct {
 	Provider      string
 	WebhookSecret string
+	MercadoPago   MercadoPagoConfig
 }
 
 func Load() (Config, error) {
@@ -109,6 +120,15 @@ func Load() (Config, error) {
 		Payments: PaymentsConfig{
 			Provider:      env("PAYMENT_PROVIDER", "sandbox"),
 			WebhookSecret: env("PAYMENT_WEBHOOK_SECRET", "sandbox-webhook-secret"),
+			MercadoPago: MercadoPagoConfig{
+				Environment:    env("MERCADO_PAGO_ENVIRONMENT", "test"),
+				BaseURL:        strings.TrimRight(env("MERCADO_PAGO_BASE_URL", "https://api.mercadopago.com"), "/"),
+				AccessToken:    env("MERCADO_PAGO_ACCESS_TOKEN", ""),
+				WebhookSecret:  env("MERCADO_PAGO_WEBHOOK_SECRET", ""),
+				ApplicationID:  env("MERCADO_PAGO_APPLICATION_ID", ""),
+				PixExpiration:  env("MERCADO_PAGO_PIX_EXPIRATION", "PT24H"),
+				RequestTimeout: time.Duration(intEnv("MERCADO_PAGO_REQUEST_TIMEOUT_SECONDS", 10)) * time.Second,
+			},
 		},
 		UploadDir: env("UPLOAD_DIR", "internal/catalog/static"),
 		SMTP: SMTPConfig{
@@ -129,6 +149,9 @@ func Load() (Config, error) {
 
 	if len(cfg.Security.SessionSecret) < 16 {
 		return cfg, fmt.Errorf("SESSION_SECRET must be at least 16 characters")
+	}
+	if cfg.Payments.Provider == "mercadopago" && cfg.Payments.MercadoPago.AccessToken == "" {
+		return cfg, fmt.Errorf("MERCADO_PAGO_ACCESS_TOKEN is required when PAYMENT_PROVIDER=mercadopago")
 	}
 	return cfg, nil
 }

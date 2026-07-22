@@ -1,7 +1,9 @@
 package http
 
 import (
+	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -14,10 +16,14 @@ import (
 
 type Handler struct {
 	svc *payments.Service
+	log *slog.Logger
 }
 
-func NewHandler(svc *payments.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *payments.Service, log *slog.Logger) *Handler {
+	if log == nil {
+		log = slog.Default()
+	}
+	return &Handler{svc: svc, log: log}
 }
 
 func (h *Handler) MeRoutes(r chi.Router) {
@@ -31,6 +37,7 @@ func (h *Handler) AdminRoutes(r chi.Router) {
 
 func (h *Handler) WebhookRoutes(r chi.Router) {
 	r.Post("/pix", h.WebhookPix)
+	r.Post("/mercado-pago/orders", h.WebhookMercadoPagoOrders)
 }
 
 func (h *Handler) CreatePixCharge(w http.ResponseWriter, r *http.Request) {
@@ -73,11 +80,80 @@ func (h *Handler) WebhookPix(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sig := r.Header.Get("X-Webhook-Signature")
-	if err := h.svc.ProcessWebhook(r.Context(), body, sig); err != nil {
+	result, err := h.svc.ProcessWebhook(r.Context(), body, sig)
+	reqID := httpx.RequestIDFromContext(r.Context())
+	if err != nil {
+		if errors.Is(err, payments.ErrInvalidWebhookSignature) {
+			h.log.Warn("sandbox pix webhook rejected",
+				slog.String("request_id", reqID),
+				slog.String("reason", "invalid_signature"),
+			)
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+			return
+		}
+		h.log.Warn("sandbox pix webhook rejected",
+			slog.String("request_id", reqID),
+			slog.String("reason", err.Error()),
+		)
 		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
+	if result.Ignored {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	h.log.Info("sandbox pix webhook received",
+		slog.String("request_id", reqID),
+		slog.String("external_event_id", result.ExternalEventID),
+		slog.String("event_type", result.EventType),
+		slog.Bool("duplicate", result.Duplicate),
+		slog.Bool("settled", result.Settled),
+		slog.String("invoice_id", result.InvoiceID.String()),
+	)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) WebhookMercadoPagoOrders(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "payload inválido")
+		return
+	}
+	mpRequestID := r.Header.Get("x-request-id")
+	result, err := h.svc.ReceiveMercadoPagoOrderWebhook(r.Context(),
+		r.Header.Get("x-signature"),
+		mpRequestID,
+		r.URL.Query().Get("data.id"),
+		body,
+	)
+	reqID := httpx.RequestIDFromContext(r.Context())
+	if err != nil {
+		if errors.Is(err, payments.ErrInvalidWebhookSignature) {
+			h.log.Warn("mercado pago webhook rejected",
+				slog.String("request_id", reqID),
+				slog.String("mp_request_id", mpRequestID),
+				slog.String("reason", "invalid_signature"),
+			)
+			httpx.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "assinatura inválida")
+			return
+		}
+		h.log.Warn("mercado pago webhook rejected",
+			slog.String("request_id", reqID),
+			slog.String("mp_request_id", mpRequestID),
+			slog.String("reason", err.Error()),
+		)
+		httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+	h.log.Info("mercado pago webhook received",
+		slog.String("request_id", reqID),
+		slog.String("mp_request_id", mpRequestID),
+		slog.String("order_id", result.OrderID),
+		slog.String("external_event_id", result.EventID),
+		slog.String("event_type", result.EventType),
+		slog.Bool("duplicate", !result.Inserted),
+	)
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // DevSimulate expõe confirmação sandbox (somente desenvolvimento).

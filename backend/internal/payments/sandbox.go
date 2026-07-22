@@ -20,12 +20,12 @@ func NewSandboxGateway(secret string) *SandboxGateway {
 	return &SandboxGateway{Secret: secret}
 }
 
-func (g *SandboxGateway) CreatePixCharge(ctx context.Context, invoiceID uuid.UUID, amountCents int64, description string) (ChargeResult, error) {
+func (g *SandboxGateway) CreatePixCharge(ctx context.Context, in PixChargeInput) (ChargeResult, error) {
 	extID := uuid.NewString()
 	txid := fmt.Sprintf("SBX%s", uuid.NewString()[:8])
 	exp := time.Now().Add(24 * time.Hour)
 	qr := fmt.Sprintf("00020126580014br.gov.bcb.pix0136%s520400005303986540%d5802BR5925STORE PLATFORM6009SAO PAULO62070503***6304ABCD",
-		txid, amountCents/100)
+		txid, in.AmountCents/100)
 	return ChargeResult{
 		ChargeID:    uuid.New(),
 		Provider:    "sandbox",
@@ -33,7 +33,7 @@ func (g *SandboxGateway) CreatePixCharge(ctx context.Context, invoiceID uuid.UUI
 		TxID:        txid,
 		QRCodeText:  qr,
 		ExpiresAt:   exp,
-		AmountCents: amountCents,
+		AmountCents: in.AmountCents,
 	}, nil
 }
 
