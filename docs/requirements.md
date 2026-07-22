@@ -340,6 +340,8 @@ Sistema externo que:
 | RF-CAT-019 | O catálogo público deverá exibir apenas produtos ativos e visíveis  |
 | RF-CAT-020 | O catálogo deverá permitir filtros por categoria e disponibilidade  |
 
+Nota (2026): vitrine loja com filtro por categoria (incl. pseudo-categoria `promocoes`), ordenação (nome, preço, compras do cliente logado) e promoções no topo apenas no estado padrão (sem categoria/ busca/ ordenação explícita).
+
 ## 9.4. Estoque
 
 | ID         | Requisito                                                           |

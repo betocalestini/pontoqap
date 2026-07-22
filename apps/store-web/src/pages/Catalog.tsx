@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatMoney } from '@store/shared-core';
 import { api } from '../api';
+import { useStoreAuth } from '../auth/StoreAuthProvider';
 import { AuthGuestPrompt } from '../components/AuthGuestPrompt';
+import { CatalogFilterSelect } from '../components/CatalogFilterSelect';
 import { guestAuthMessage, isGuestAuthError } from '../utils/authGuest';
 
 type Product = {
@@ -15,6 +17,16 @@ type Product = {
   promo_quantity_remaining?: number;
   skus?: { id: string; sale_price_cents: number; available_quantity?: number }[];
 };
+
+type CatalogCategory = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+export type CatalogSort = '' | 'name' | 'price_asc' | 'price_desc' | 'purchases';
+
+const PROMO_CATEGORY_SLUG = 'promocoes';
 
 const PLACEHOLDER_IMAGE = '/product-placeholder.svg';
 const SEARCH_DEBOUNCE_MS = 300;
@@ -31,11 +43,21 @@ function productImageSrc(product: Product): string {
   return url;
 }
 
+function categoryLabel(slug: string, categories: CatalogCategory[]): string {
+  if (slug === PROMO_CATEGORY_SLUG) return 'Promoções';
+  if (!slug) return 'todas as categorias';
+  return categories.find((c) => c.slug === slug)?.name ?? slug;
+}
+
 export function CatalogPage() {
+  const { status: authStatus } = useStoreAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
+  const [categories, setCategories] = useState<CatalogCategory[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [categorySlug, setCategorySlug] = useState('');
+  const [sort, setSort] = useState<CatalogSort>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guestAuth, setGuestAuth] = useState(false);
@@ -46,22 +68,36 @@ export function CatalogPage() {
     return () => window.clearTimeout(t);
   }, [search]);
 
-  const loadProducts = useCallback((term: string) => {
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
     api
-      .listProducts(term ? { search: term, page_size: 50 } : { page_size: 50 })
-      .then((res) => {
-        setProducts((res.items ?? []) as Product[]);
-        setTotal(res.total ?? 0);
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+      .listCatalogCategories()
+      .then((res) => setCategories(res.items ?? []))
+      .catch(() => setCategories([]));
   }, []);
 
+  const loadProducts = useCallback(
+    (term: string, category: string, sortBy: CatalogSort) => {
+      setLoading(true);
+      setError(null);
+      const params: Parameters<typeof api.listProducts>[0] = { page_size: 50 };
+      if (term) params.search = term;
+      if (category) params.category = category;
+      if (sortBy) params.sort = sortBy;
+      api
+        .listProducts(params)
+        .then((res) => {
+          setProducts((res.items ?? []) as Product[]);
+          setTotal(res.total ?? 0);
+        })
+        .catch((e: Error) => setError(e.message))
+        .finally(() => setLoading(false));
+    },
+    [],
+  );
+
   useEffect(() => {
-    loadProducts(debouncedSearch);
-  }, [debouncedSearch, loadProducts]);
+    loadProducts(debouncedSearch, categorySlug, sort);
+  }, [debouncedSearch, categorySlug, sort, loadProducts]);
 
   async function add(skuId: string) {
     setMsg(null);
@@ -80,8 +116,29 @@ export function CatalogPage() {
   }
 
   const hasSearch = debouncedSearch.length > 0;
-  const showEmptyCatalog = !loading && !error && products.length === 0 && !hasSearch;
-  const showNoResults = !loading && !error && products.length === 0 && hasSearch;
+  const hasCategory = categorySlug.length > 0;
+  const hasFilters = hasSearch || hasCategory;
+  const showEmptyCatalog = !loading && !error && products.length === 0 && !hasFilters;
+  const showNoResults = !loading && !error && products.length === 0 && hasFilters;
+
+  const categoryOptions = [
+    { value: '', label: 'Todas as categorias' },
+    { value: PROMO_CATEGORY_SLUG, label: 'Promoções' },
+    ...categories.map((c) => ({ value: c.slug, label: c.name })),
+  ];
+
+  const sortOptions = [
+    { value: '', label: 'Padrão (recomendado)' },
+    { value: 'name', label: 'Nome (A–Z)' },
+    { value: 'price_asc', label: 'Preço (menor → maior)' },
+    { value: 'price_desc', label: 'Preço (maior → menor)' },
+    {
+      value: 'purchases',
+      label: 'Mais comprados por você',
+      disabled: authStatus !== 'authenticated',
+      title: authStatus !== 'authenticated' ? 'Faça login para usar esta ordenação' : undefined,
+    },
+  ];
 
   return (
     <section className="content-section catalog-page">
@@ -107,14 +164,34 @@ export function CatalogPage() {
             </button>
           )}
         </div>
-        {!loading && !error && total > 0 && (
-          <p className="catalog-search__meta">
-            {hasSearch
-              ? `${total} produto(s) encontrado(s) para “${debouncedSearch}”`
-              : `${total} produto(s) no catálogo`}
-          </p>
-        )}
       </div>
+
+      <div className="catalog-filters">
+        <CatalogFilterSelect
+          label="Categoria"
+          ariaLabel="Filtrar por categoria"
+          value={categorySlug}
+          onChange={setCategorySlug}
+          options={categoryOptions}
+        />
+        <CatalogFilterSelect
+          label="Ordenar por"
+          ariaLabel="Ordenar produtos"
+          value={sort}
+          onChange={(v) => setSort(v as CatalogSort)}
+          options={sortOptions}
+        />
+      </div>
+
+      {!loading && !error && total > 0 && (
+        <p className="catalog-search__meta">
+          {hasSearch
+            ? `${total} produto(s) encontrado(s) para “${debouncedSearch}”`
+            : hasCategory
+              ? `${total} produto(s) em ${categoryLabel(categorySlug, categories)}`
+              : `${total} produto(s) no catálogo`}
+        </p>
+      )}
 
       {loading && <p>Carregando produtos…</p>}
       {error && <p className="error">{error}</p>}
@@ -123,7 +200,7 @@ export function CatalogPage() {
       {showEmptyCatalog && (
         <p>Nenhum produto disponível. Cadastre itens no painel admin ou rode as migrations (seed de demo).</p>
       )}
-      {showNoResults && <p>Nenhum produto encontrado. Tente outro termo de busca.</p>}
+      {showNoResults && <p>Nenhum produto encontrado. Ajuste a busca ou os filtros.</p>}
 
       <ul className="product-grid">
         {products.map((p) => {
