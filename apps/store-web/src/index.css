@@ -15,6 +15,7 @@
   --radius: 10px;
   --content-max: 72rem;
   --header-height: 3.5rem;
+  --store-tab-bar-height: 3.25rem;
   --touch-min: 2.75rem;
   --nav-width: min(18rem, 88vw);
   --transition-interactive: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease,

@@ -5,6 +5,7 @@ import { UserMenu } from '@store/ui';
 import '@store/ui/user-menu.css';
 import { storeNavLinks } from './navLinks';
 import { AppBrand } from '../components/AppBrand';
+import { StoreTabBar } from '../components/StoreTabBar';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useStoreAuth } from '../auth/StoreAuthProvider';
 
@@ -70,17 +71,35 @@ export function AppShell({ children }: AppShellProps) {
 
   const closeMenu = () => setMenuOpen(false);
 
+  const accountTools = user ? (
+    <>
+      <UserMenu
+        name={user.name}
+        email={user.email}
+        onSignOut={async () => {
+          await signOut();
+          navigate('/');
+        }}
+      />
+      <ThemeToggle />
+    </>
+  ) : (
+    <ThemeToggle />
+  );
+
   const mobileMenu =
     menuOpen &&
     createPortal(
       <>
         <button type="button" className="nav-backdrop" aria-label="Fechar menu" onClick={closeMenu} />
-        <NavLinks
-          navClassName="app-nav app-nav--drawer is-open"
-          id="store-primary-nav"
-          onNavigate={closeMenu}
-          pathname={location.pathname}
-        />
+        <div className="app-nav app-nav--drawer is-open" id="store-primary-nav" aria-label="Menu da loja">
+          <NavLinks
+            navClassName="app-nav__drawer-links"
+            onNavigate={closeMenu}
+            pathname={location.pathname}
+          />
+          <div className="app-nav-drawer__tools">{accountTools}</div>
+        </div>
       </>,
       document.body,
     );
@@ -92,17 +111,7 @@ export function AppShell({ children }: AppShellProps) {
           <AppBrand to="/loja" />
           <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} />
           <div className="app-top__actions">
-            {user && (
-              <UserMenu
-                name={user.name}
-                email={user.email}
-                onSignOut={async () => {
-                  await signOut();
-                  navigate('/');
-                }}
-              />
-            )}
-            <ThemeToggle />
+            <div className="app-top__account-tools">{accountTools}</div>
             <button
             type="button"
             className="nav-toggle"
@@ -120,6 +129,7 @@ export function AppShell({ children }: AppShellProps) {
       {mobileMenu}
 
       <main className="app-main">{children}</main>
+      <StoreTabBar />
     </div>
   );
 }
