@@ -33,15 +33,16 @@ export function OpenBillingPeriodPage() {
       message: (
         <>
           <p>
-            Fechar fatura de <strong>{formatMoney(data.period.total_cents)}</strong>?
+            Fechar fatura de <strong>{formatMoney(data.period.total_cents)}</strong> e gerar o documento
+            para pagamento?
           </p>
           <p>
-            Será gerada uma fatura para pagamento (Pix). Um novo ciclo na mesma competência será aberto para
-            suas próximas compras.
+            Um novo ciclo na mesma competência será aberto para suas próximas compras. Na próxima tela você
+            escolherá a forma de pagamento (parcelas).
           </p>
         </>
       ),
-      confirmLabel: 'Fechar fatura e pagar',
+      confirmLabel: 'Fechar fatura',
     });
     if (!ok) return;
     setClosing(true);
@@ -99,7 +100,7 @@ export function OpenBillingPeriodPage() {
                 disabled={closing}
                 onClick={() => void handleCloseCycle()}
               >
-                {closing ? 'Fechando…' : 'Fechar fatura e pagar'}
+                {closing ? 'Fechando…' : 'Fechar fatura'}
               </button>
             )}
           </div>
