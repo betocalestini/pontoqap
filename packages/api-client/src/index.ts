@@ -482,6 +482,12 @@ const defaultBase = 'http://localhost:8080/api/v1';
 
 type Audience = 'store' | 'admin';
 
+/** Opções por requisição (ex.: não redirecionar em chamadas best-effort). */
+export type ApiRequestOptions = {
+  skipStoreUnauthorizedHandler?: boolean;
+  skipAdminUnauthorizedHandler?: boolean;
+};
+
 export type ApiClientOptions = {
   getAdminAccessToken?: () => string | null;
   onAdminUnauthorized?: () => void;
@@ -501,6 +507,7 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     path: string,
     init: RequestInit = {},
     audience?: Audience,
+    reqOpts?: ApiRequestOptions,
   ): Promise<T> {
     const headers: Record<string, string> = {
       ...(init.headers as Record<string, string> | undefined),
@@ -527,16 +534,17 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     }
     const credentials: RequestCredentials =
       audience === 'admin' || audience === 'store' ? 'omit' : 'include';
+    const { headers: _initHeaders, ...restInit } = init;
     const res = await fetch(`${baseUrl}${path}`, {
+      ...restInit,
       credentials,
       headers,
-      ...init,
     });
     if (!res.ok) {
-      if (res.status === 401 && audience === 'admin') {
+      if (res.status === 401 && audience === 'admin' && !reqOpts?.skipAdminUnauthorizedHandler) {
         options.onAdminUnauthorized?.();
       }
-      if (res.status === 401 && audience === 'store') {
+      if (res.status === 401 && audience === 'store' && !reqOpts?.skipStoreUnauthorizedHandler) {
         options.onStoreUnauthorized?.();
       }
       const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
@@ -629,7 +637,8 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       request('/customers/register', { method: 'POST', body: JSON.stringify(body) }),
 
     getCart: () => request('/me/cart', {}, 'store'),
-    clearCart: () => request('/me/cart', { method: 'DELETE' }, 'store'),
+    clearCart: (reqOpts?: ApiRequestOptions) =>
+      request('/me/cart', { method: 'DELETE' }, 'store', reqOpts),
     addToCart: (skuId: string, quantity: number) =>
       request('/me/cart/items', {
         method: 'POST',
@@ -640,11 +649,11 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
         method: 'PATCH',
         body: JSON.stringify({ quantity }),
       }, 'store'),
-    checkout: () =>
+    checkout: (reqOpts?: ApiRequestOptions) =>
       request('/me/cart/checkout', {
         method: 'POST',
         headers: { 'Idempotency-Key': crypto.randomUUID() },
-      }, 'store'),
+      }, 'store', reqOpts),
 
     listMyInvoices: () =>
       request<{ current_period: OpenBillingPeriod | null; items: MyInvoiceListItem[] }>(
