@@ -20,19 +20,26 @@ type LogEntry struct {
 	RequestID   *uuid.UUID      `json:"request_id,omitempty"`
 	OldValues   json.RawMessage `json:"old_values,omitempty"`
 	NewValues   json.RawMessage `json:"new_values,omitempty"`
+	IPAddress   *string         `json:"ip_address,omitempty"`
 	CreatedAt   time.Time       `json:"created_at"`
 }
 
 type ListFilter struct {
-	Action     string
-	EntityType string
-	Limit      int
-	Offset     int
+	Action       string
+	EntityType   string
+	ActorUserID  *uuid.UUID
+	DateFrom     *time.Time
+	DateTo       *time.Time
+	Limit        int
+	Offset       int
 }
 
 func (s *Service) List(ctx context.Context, f ListFilter) ([]LogEntry, int, error) {
-	if f.Limit <= 0 || f.Limit > 100 {
+	if f.Limit <= 0 {
 		f.Limit = 50
+	}
+	if f.Limit > 5000 {
+		f.Limit = 5000
 	}
 	if f.Offset < 0 {
 		f.Offset = 0
@@ -50,6 +57,21 @@ func (s *Service) List(ctx context.Context, f ListFilter) ([]LogEntry, int, erro
 		args = append(args, et)
 		n++
 	}
+	if f.ActorUserID != nil {
+		where = append(where, fmt.Sprintf("al.actor_user_id = $%d", n))
+		args = append(args, *f.ActorUserID)
+		n++
+	}
+	if f.DateFrom != nil {
+		where = append(where, fmt.Sprintf("al.created_at >= $%d", n))
+		args = append(args, *f.DateFrom)
+		n++
+	}
+	if f.DateTo != nil {
+		where = append(where, fmt.Sprintf("al.created_at < $%d", n))
+		args = append(args, *f.DateTo)
+		n++
+	}
 	whereSQL := strings.Join(where, " AND ")
 
 	var total int
@@ -59,7 +81,7 @@ func (s *Service) List(ctx context.Context, f ListFilter) ([]LogEntry, int, erro
 
 	q := fmt.Sprintf(`
 		SELECT al.id, al.actor_user_id, u.email, al.action, al.entity_type, al.entity_id, al.request_id,
-		       al.old_values, al.new_values, al.created_at
+		       al.old_values, al.new_values, al.ip_address, al.created_at
 		FROM audit_logs al
 		LEFT JOIN users u ON u.id = al.actor_user_id
 		WHERE %s
@@ -75,7 +97,7 @@ func (s *Service) List(ctx context.Context, f ListFilter) ([]LogEntry, int, erro
 	var items []LogEntry
 	for rows.Next() {
 		var e LogEntry
-		if err := rows.Scan(&e.ID, &e.ActorUserID, &e.ActorEmail, &e.Action, &e.EntityType, &e.EntityID, &e.RequestID, &e.OldValues, &e.NewValues, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.ActorUserID, &e.ActorEmail, &e.Action, &e.EntityType, &e.EntityID, &e.RequestID, &e.OldValues, &e.NewValues, &e.IPAddress, &e.CreatedAt); err != nil {
 			return nil, 0, err
 		}
 		items = append(items, e)
