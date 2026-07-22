@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { AppBrand } from '../components/AppBrand';
 import { ThemeToggle } from '../components/ThemeToggle';
 
 type PublicLayoutProps = {
@@ -11,9 +11,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
     <div className="public-shell">
       <header className="public-shell__header">
         <div className="public-shell__inner">
-          <Link to="/" className="app-brand">
-            Store
-          </Link>
+          <AppBrand to="/" />
           <ThemeToggle />
         </div>
       </header>

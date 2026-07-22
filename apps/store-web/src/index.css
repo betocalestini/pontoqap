@@ -61,6 +61,39 @@
   background-color: var(--color-bg);
 }
 
+/* Paleta tática — apenas páginas públicas (landing, login, cadastro) */
+[data-theme='dark'] .public-shell {
+  --color-text: #ffffff;
+  --color-text-muted: #b4c0eb;
+  --color-bg: #050a2e;
+  --color-surface: #0f1a52;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-accent: #ffea00;
+  --color-accent-hover: #e6d300;
+  --color-accent-contrast: #050a2e;
+  --color-header-bg: #050a2e;
+  --shadow-card: 0 10px 20px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 10px 20px rgba(0, 0, 0, 0.35);
+  --btn-primary-bg: var(--color-accent);
+  --btn-primary-fg: var(--color-accent-contrast);
+}
+
+[data-theme='light'] .public-shell {
+  --color-text: #050a2e;
+  --color-text-muted: #3d4a7a;
+  --color-bg: #eef1fb;
+  --color-surface: #ffffff;
+  --color-border: rgba(5, 10, 46, 0.12);
+  --color-accent: #ffea00;
+  --color-accent-hover: #e6d300;
+  --color-accent-contrast: #050a2e;
+  --color-header-bg: rgba(238, 241, 251, 0.94);
+  --shadow-card: 0 2px 10px rgba(5, 10, 46, 0.08);
+  --shadow-card-hover: 0 10px 20px rgba(5, 10, 46, 0.12);
+  --btn-primary-bg: var(--color-accent);
+  --btn-primary-fg: var(--color-accent-contrast);
+}
+
 *,
 *::before,
 *::after {

@@ -70,7 +70,7 @@ export function LoginPage() {
         <button type="submit" className="btn-block btn-block--sm-auto">Entrar</button>
       </form>
       <p>
-        Ainda não tem conta? <Link to="/cadastro">Criar conta</Link>
+        Ainda não tem conta? <Link to="/cadastro">Solicitar acesso</Link>
       </p>
     </section>
   );

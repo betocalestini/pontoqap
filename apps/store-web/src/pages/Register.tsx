@@ -20,7 +20,7 @@ export function RegisterPage() {
 
   return (
     <section className="content-section">
-      <h1>Cadastro</h1>
+      <h1>Solicitar acesso</h1>
       <form
         className="form"
         onSubmit={onSubmit}

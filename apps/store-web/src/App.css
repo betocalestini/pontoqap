@@ -34,6 +34,10 @@
   flex-shrink: 0;
 }
 
+.app-brand__accent {
+  color: var(--color-accent);
+}
+
 .app-top__actions {
   display: flex;
   align-items: center;
@@ -858,11 +862,19 @@ a.invoice-card--link:hover {
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 
 .public-shell__header {
   border-bottom: 1px solid var(--color-border);
   background: var(--color-header-bg);
+}
+
+.public-shell__inner .app-brand {
+  font-size: 1.25rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .public-shell__inner {
@@ -884,63 +896,147 @@ a.invoice-card--link:hover {
   padding: var(--space-xl) var(--space-md);
 }
 
-.landing {
-  max-width: 28rem;
+.public-shell__main:has(.landing-page) {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0 var(--space-md) var(--space-xl);
+}
+
+.landing-page {
+  width: 100%;
+}
+
+.landing-page__container {
+  max-width: 68.75rem;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+.landing-page__hero {
+  padding: clamp(3.75rem, 12vw, 6.25rem) 0;
   text-align: center;
 }
 
-.landing__eyebrow {
-  margin: 0 0 var(--space-sm);
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  letter-spacing: 0.02em;
-}
-
-.landing__title {
+.landing-page__title {
   margin: 0 0 var(--space-md);
-  font-size: clamp(2rem, 5vw, 2.75rem);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: clamp(2.5rem, 6vw, 3.5rem);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  line-height: 1.15;
 }
 
-.landing__lead {
-  margin: 0 0 var(--space-xl);
+.landing-page__lead {
+  margin: 0 auto var(--space-xl);
+  max-width: 37.5rem;
+  font-size: 1.2rem;
   color: var(--color-text-muted);
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
-.landing__actions {
+.landing-page__actions {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--space-sm);
 }
 
-@media (min-width: 400px) {
-  .landing__actions {
+@media (min-width: 480px) {
+  .landing-page__actions {
     flex-direction: row;
     justify-content: center;
   }
 }
 
-.landing__btn {
+.landing-page__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.65rem 1.25rem;
-  border-radius: var(--radius);
-  font-weight: 600;
+  padding: 0.9375rem 2.1875rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
   text-decoration: none;
+  letter-spacing: 0.02em;
   border: 1px solid transparent;
+  transition: background-color 0.3s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 
-.landing__btn--primary {
+.landing-page__btn--primary {
   background: var(--color-accent);
-  color: var(--color-accent-contrast, #fff);
+  color: var(--color-accent-contrast, var(--btn-primary-fg, #fff));
 }
 
-.landing__btn--secondary {
+.landing-page__btn--primary:hover {
+  background: var(--color-accent-hover);
+  color: var(--color-accent-contrast, var(--btn-primary-fg, #fff));
+  transform: scale(1.02);
+}
+
+.landing-page__btn--secondary {
   border-color: var(--color-border);
   color: inherit;
+  background: transparent;
+}
+
+.landing-page__btn--secondary:hover {
+  border-color: var(--color-accent);
+  color: inherit;
+}
+
+.landing-page__services {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17.5rem, 1fr));
+  gap: var(--space-lg);
+  padding: var(--space-xl) 0;
+}
+
+.landing-page__card {
+  background: var(--color-surface);
+  padding: 2.5rem 1.875rem;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid var(--color-border);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.landing-page__card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.landing-page__card-icon {
+  font-size: 2rem;
+  margin-bottom: var(--space-md);
+  line-height: 1;
+}
+
+.landing-page__card h3 {
+  margin: 0 0 var(--space-sm);
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.landing-page__card p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.landing-page__footer {
+  text-align: center;
+  padding: 2.5rem 0;
+  margin-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.landing-page__footer p {
+  margin: 0;
 }
 
 .public-shell__main .content-section {

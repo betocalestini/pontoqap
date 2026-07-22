@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { UserMenu } from '@store/ui';
 import '@store/ui/user-menu.css';
 import { storeNavLinks } from './navLinks';
+import { AppBrand } from '../components/AppBrand';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useStoreAuth } from '../auth/StoreAuthProvider';
 
@@ -88,9 +89,7 @@ export function AppShell({ children }: AppShellProps) {
     <div className={`app-shell${menuOpen ? ' app-shell--menu-open' : ''}`}>
       <div className="app-top">
         <div className="app-top__inner">
-          <Link to="/loja" className="app-brand">
-            Store
-          </Link>
+          <AppBrand to="/loja" />
           <NavLinks navClassName="app-nav app-nav--bar" pathname={location.pathname} />
           <div className="app-top__actions">
             {user && (
