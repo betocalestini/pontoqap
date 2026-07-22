@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReportExceptionRow } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelExceptionEventType } from '@store/shared-core';
 import { api } from '../../api';
 import { fetchAllPages } from '../../components/reports/exportReport';
 import { exportSubtitle } from '../../components/reports/exportSubtitle';
@@ -41,7 +41,7 @@ export function ExceptionsReportPage() {
       headers: ['Quando', 'Tipo', 'Referência', 'Valor (centavos)', 'Quantidade', 'Responsável'],
       rows: rows.map((r) => [
         r.occurred_at,
-        r.event_type,
+        labelExceptionEventType(r.event_type),
         r.label,
         r.amount_cents != null ? String(r.amount_cents) : '',
         r.quantity != null ? String(r.quantity) : '',
@@ -85,7 +85,7 @@ export function ExceptionsReportPage() {
             {items.map((r, i) => (
               <tr key={`${r.entity_id}-${i}`}>
                 <td>{new Date(r.occurred_at).toLocaleString('pt-BR')}</td>
-                <td>{r.event_type}</td>
+                <td>{labelExceptionEventType(r.event_type)}</td>
                 <td>{r.label}</td>
                 <td>
                   {r.amount_cents != null ? formatMoney(r.amount_cents) : r.quantity != null ? r.quantity : '—'}

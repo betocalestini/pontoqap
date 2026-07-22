@@ -1,20 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { AdminInventoryBalance, AdminInventoryMovement } from '@store/api-client';
+import { labelStockMovementType } from '@store/shared-core';
 import { api } from '../api';
 import { usePermissions } from '../auth/usePermissions';
 
 const MOVEMENT_PAGE_SIZE = 50;
-
-const movementLabels: Record<string, string> = {
-  entry: 'Entrada',
-  initial_stock: 'Estoque inicial',
-  sale: 'Venda',
-  loss: 'Perda',
-  damage: 'Avaria',
-  adjustment: 'Ajuste',
-  return: 'Devolução',
-};
 
 type MovementKind = 'entry' | 'loss' | 'damage' | 'adjustment';
 
@@ -466,7 +457,7 @@ export function InventoryPage() {
                 return (
                   <tr key={m.id}>
                     <td>{new Date(m.created_at).toLocaleString('pt-BR')}</td>
-                    <td>{movementLabels[m.movement_type] ?? m.movement_type}</td>
+                    <td>{labelStockMovementType(m.movement_type)}</td>
                     <td>
                       {m.product_name ?? '—'}
                       {m.sku_code ? ` (${m.sku_code})` : ''}

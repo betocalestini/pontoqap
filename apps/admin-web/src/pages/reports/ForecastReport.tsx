@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReportForecastRow } from '@store/api-client';
+import { labelForecastConfidence, labelForecastMethod } from '@store/shared-core';
 import { api } from '../../api';
 import { exportSubtitle } from '../../components/reports/exportSubtitle';
 import { ReportPageHeader } from '../../components/reports/ReportPageHeader';
@@ -61,8 +62,8 @@ export function ForecastReportPage() {
         String(r.current_stock),
         String(r.forecast_quantity),
         String(r.suggested_purchase_quantity),
-        r.confidence_level,
-        r.method,
+        labelForecastConfidence(r.confidence_level),
+        labelForecastMethod(r.method),
       ]),
     };
   }, []);
@@ -101,7 +102,7 @@ export function ForecastReportPage() {
                 <td>{r.current_stock}</td>
                 <td>{r.forecast_quantity}</td>
                 <td>{r.suggested_purchase_quantity}</td>
-                <td>{r.confidence_level}</td>
+                <td>{labelForecastConfidence(r.confidence_level)}</td>
               </tr>
             ))}
           </tbody>

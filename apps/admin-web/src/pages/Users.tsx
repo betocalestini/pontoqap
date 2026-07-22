@@ -1,6 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import type { AdminStaffRole, AdminStaffUser } from '@store/api-client';
 import { useDialog } from '@store/ui';
+import { labelPermission, labelUserStatus } from '@store/shared-core';
 import { api } from '../api';
 import { STAFF_ROLE_SUMMARIES } from '../content/staffRoles';
 
@@ -215,7 +216,7 @@ export function UsersPage() {
                   <tr key={u.id}>
                     <td>{u.name}</td>
                     <td>{u.email}</td>
-                    <td>{u.status}</td>
+                    <td>{labelUserStatus(u.status)}</td>
                     <td>
                       <select
                         value={currentRoleId}
@@ -233,7 +234,10 @@ export function UsersPage() {
                       ) : null}
                       {expandedPermsUserId === u.id && (
                         <p className="form-hint">
-                          Permissões: {expandedPerms.length ? expandedPerms.join(', ') : '—'}
+                          Permissões:{' '}
+                          {expandedPerms.length
+                            ? expandedPerms.map((p) => labelPermission(p)).join(', ')
+                            : '—'}
                         </p>
                       )}
                     </td>

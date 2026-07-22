@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReportInventoryMovementRow } from '@store/api-client';
+import { labelStockMovementType } from '@store/shared-core';
 import { api } from '../../api';
 import { fetchAllPages } from '../../components/reports/exportReport';
 import { exportSubtitle } from '../../components/reports/exportSubtitle';
@@ -49,7 +50,7 @@ export function InventoryMovementsReportPage() {
         r.created_at,
         r.product_name,
         r.sku_code,
-        r.movement_type,
+        labelStockMovementType(r.movement_type),
         String(r.quantity),
         String(r.previous_balance),
         String(r.new_balance),
@@ -81,7 +82,7 @@ export function InventoryMovementsReportPage() {
           <input
             value={values.movement_type ?? ''}
             onChange={(e) => setField('movement_type', e.target.value)}
-            placeholder="entry, sale, loss…"
+            placeholder="entrada, venda, perda…"
           />
         </label>
       </ReportPageHeader>
@@ -105,7 +106,7 @@ export function InventoryMovementsReportPage() {
                 <td>
                   {r.product_name} ({r.sku_code})
                 </td>
-                <td>{r.movement_type}</td>
+                <td>{labelStockMovementType(r.movement_type)}</td>
                 <td>{r.quantity}</td>
                 <td>
                   {r.previous_balance} → {r.new_balance}

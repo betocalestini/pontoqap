@@ -1,25 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { AdminInvoiceDetail } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelInvoiceStatus } from '@store/shared-core';
 import { api } from '../api';
 import { usePermissions } from '../auth/usePermissions';
 
 function formatCompetence(year: number, month: number) {
   return `${String(month).padStart(2, '0')}/${year}`;
-}
-
-function statusLabel(status: string) {
-  switch (status) {
-    case 'open':
-      return 'Em aberto';
-    case 'paid':
-      return 'Paga';
-    case 'overdue':
-      return 'Vencida';
-    default:
-      return status;
-  }
 }
 
 function parseReaisToCents(value: string): number | null {
@@ -100,7 +87,7 @@ export function BillingInvoiceDetailPage() {
               Competência {formatCompetence(inv.reference_year, inv.reference_month)}
               {' · '}
               <span className={`billing-status billing-status--${inv.status}`}>
-                {statusLabel(inv.status)}
+                {labelInvoiceStatus(inv.status)}
               </span>
             </p>
             {inv.due_at && (

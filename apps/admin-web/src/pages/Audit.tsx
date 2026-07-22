@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AuditLogEntry } from '@store/api-client';
+import { labelAuditAction, labelAuditEntityType } from '@store/shared-core';
 import { api } from '../api';
 import { fetchAllPages } from '../components/reports/exportReport';
 import { exportSubtitle } from '../components/reports/exportSubtitle';
@@ -59,8 +60,8 @@ export function AuditPage() {
         r.created_at,
         r.actor_email ?? r.actor_user_id ?? '',
         r.ip_address ?? '',
-        r.action,
-        r.entity_type,
+        labelAuditAction(r.action),
+        labelAuditEntityType(r.entity_type),
         r.entity_id ?? '',
       ]),
     };
@@ -77,11 +78,19 @@ export function AuditPage() {
       <div className="form form--wide customers-list-filters">
         <label>
           Ação
-          <input value={action} onChange={(e) => setAction(e.target.value)} placeholder="ex.: order.cancelled" />
+          <input
+            value={action}
+            onChange={(e) => setAction(e.target.value)}
+            placeholder="código da ação (ex.: order.cancelled)"
+          />
         </label>
         <label>
           Entidade
-          <input value={entityType} onChange={(e) => setEntityType(e.target.value)} placeholder="ex.: order" />
+          <input
+            value={entityType}
+            onChange={(e) => setEntityType(e.target.value)}
+            placeholder="tipo (ex.: order)"
+          />
         </label>
         <label>
           De
@@ -118,10 +127,10 @@ export function AuditPage() {
                     <td>{row.actor_email ?? row.actor_user_id ?? '—'}</td>
                     <td>{row.ip_address ?? '—'}</td>
                     <td>
-                      <code>{row.action}</code>
+                      <code title={row.action}>{labelAuditAction(row.action)}</code>
                     </td>
                     <td>
-                      {row.entity_type}
+                      {labelAuditEntityType(row.entity_type)}
                       {row.entity_id ? ` / ${row.entity_id.slice(0, 8)}…` : ''}
                     </td>
                   </tr>

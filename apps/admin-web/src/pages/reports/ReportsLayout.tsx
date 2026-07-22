@@ -14,17 +14,22 @@ export function ReportsLayout() {
 
   return (
     <div className="reports-layout">
-      <p className="reports-readonly-banner form-hint">
-        Relatórios são somente consulta e exportação. Para alterar dados, use Clientes, Pedidos, Faturamento,
-        Estoque ou Produtos.
-      </p>
-      <nav className="reports-subnav" aria-label="Relatórios">
-        {links.map((l) => (
-          <NavLink key={l.path} to={l.to} className={({ isActive }) => (isActive ? 'active' : undefined)}>
-            {l.label}
-          </NavLink>
-        ))}
-      </nav>
+      <div className="reports-subnav-wrap">
+        <nav className="reports-subnav" aria-label="Relatórios">
+          {links.map((l) => (
+            <NavLink
+              key={l.path}
+              to={l.to}
+              end={l.to.startsWith('/relatorios/')}
+              className={({ isActive }) =>
+                isActive ? 'reports-subnav__link reports-subnav__link--active' : 'reports-subnav__link'
+              }
+            >
+              {l.label}
+            </NavLink>
+          ))}
+        </nav>
+      </div>
       <div className="reports-layout__content">
         <Outlet />
       </div>

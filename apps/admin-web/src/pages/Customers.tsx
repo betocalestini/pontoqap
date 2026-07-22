@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AdminCustomer, AdminStaffRole, CollaboratorCategory } from '@store/api-client';
+import { labelCustomerStatus, labelStaffRoleCode } from '@store/shared-core';
 import { useDialog } from '@store/ui';
 import { api } from '../api';
 import { useHasPermission } from '../auth/usePermissions';
@@ -39,16 +40,10 @@ const defaultColumnFilters = (): ColumnFilters => ({
 
 const emptyCategoryForm = () => ({ name: '', margin_percent: '15', active: true });
 
-const statusLabels: Record<string, string> = {
-  pending: 'Pendente',
-  approved: 'Aprovado',
-  rejected: 'Rejeitado',
-  blocked: 'Bloqueado',
-};
 
 function CustomerStatus({ customer }: { customer: AdminCustomer }) {
   const status = customer.status ?? '';
-  const label = statusLabels[status] ?? status;
+  const label = labelCustomerStatus(status);
   return (
     <span className={`customer-status customer-status--${status}`}>
       {label}
@@ -605,7 +600,10 @@ export function CustomersPage() {
                     </p>
                     {(editingCustomer?.staff_roles?.length ?? 0) > 0 && (
                       <p>
-                        Papel atual: <strong>{(editingCustomer?.staff_roles ?? []).join(', ')}</strong>
+                        Papel atual:{' '}
+                        <strong>
+                          {(editingCustomer?.staff_roles ?? []).map((c) => labelStaffRoleCode(c)).join(', ')}
+                        </strong>
                       </p>
                     )}
                     <label>

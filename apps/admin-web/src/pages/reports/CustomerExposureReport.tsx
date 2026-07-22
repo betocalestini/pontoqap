@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ReportCustomerExposureRow } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelUtilizationBand } from '@store/shared-core';
 import { api } from '../../api';
 import { fetchAllPages } from '../../components/reports/exportReport';
 import { exportSubtitle } from '../../components/reports/exportSubtitle';
@@ -52,7 +52,7 @@ export function CustomerExposureReportPage() {
         String(r.current_exposure_cents),
         String(r.available_cents),
         String(r.utilization_percent),
-        r.utilization_band,
+        labelUtilizationBand(r.utilization_band),
       ]),
     };
   }, [queryParams]);
@@ -107,7 +107,7 @@ export function CustomerExposureReportPage() {
                 <td>{formatMoney(r.current_exposure_cents)}</td>
                 <td>{formatMoney(r.available_cents)}</td>
                 <td>{r.utilization_percent}%</td>
-                <td>{r.utilization_band}</td>
+                <td>{labelUtilizationBand(r.utilization_band)}</td>
               </tr>
             ))}
           </tbody>

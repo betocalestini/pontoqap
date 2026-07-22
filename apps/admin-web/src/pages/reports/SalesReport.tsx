@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ReportSalesOrderRow } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelOrderStatus } from '@store/shared-core';
 import { api } from '../../api';
 import { fetchAllPages } from '../../components/reports/exportReport';
 import { exportSubtitle } from '../../components/reports/exportSubtitle';
@@ -50,7 +50,7 @@ export function SalesReportPage() {
         r.customer_name,
         r.confirmed_at ?? '',
         String(r.total_cents),
-        r.status,
+        labelOrderStatus(r.status),
       ]),
     };
   }, [queryParams]);
@@ -110,7 +110,7 @@ export function SalesReportPage() {
                 <td>{row.customer_name}</td>
                 <td>{row.confirmed_at ? new Date(row.confirmed_at).toLocaleString('pt-BR') : '—'}</td>
                 <td>{formatMoney(row.total_cents)}</td>
-                <td>{row.status}</td>
+                <td>{labelOrderStatus(row.status)}</td>
               </tr>
             ))}
           </tbody>

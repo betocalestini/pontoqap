@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ReportReceivableRow } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelAgingBucket, labelInvoiceStatus } from '@store/shared-core';
 import { api } from '../../api';
 import { fetchAllPages } from '../../components/reports/exportReport';
 import { exportSubtitle } from '../../components/reports/exportSubtitle';
@@ -45,8 +45,8 @@ export function ReceivablesReportPage() {
         r.customer_name,
         `${String(r.reference_month).padStart(2, '0')}/${r.reference_year}`,
         String(r.remaining_cents),
-        r.status,
-        r.aging_bucket,
+        labelInvoiceStatus(r.status),
+        labelAgingBucket(r.aging_bucket),
       ]),
     };
   }, [queryParams]);
@@ -110,7 +110,7 @@ export function ReceivablesReportPage() {
                   {String(r.reference_month).padStart(2, '0')}/{r.reference_year}
                 </td>
                 <td>{formatMoney(r.remaining_cents)}</td>
-                <td>{r.aging_bucket}</td>
+                <td>{labelAgingBucket(r.aging_bucket)}</td>
               </tr>
             ))}
           </tbody>

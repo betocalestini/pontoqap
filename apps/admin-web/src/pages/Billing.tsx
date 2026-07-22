@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { AdminBillingSummary, AdminInvoiceListItem } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelInvoiceStatus } from '@store/shared-core';
 import { api } from '../api';
 import { usePermissions } from '../auth/usePermissions';
 
@@ -21,19 +21,6 @@ function previousMonth(): { year: number; month: number } {
 
 function formatCompetence(year: number, month: number) {
   return `${String(month).padStart(2, '0')}/${year}`;
-}
-
-function statusLabel(status: string) {
-  switch (status) {
-    case 'open':
-      return 'Em aberto';
-    case 'paid':
-      return 'Paga';
-    case 'overdue':
-      return 'Vencida';
-    default:
-      return status;
-  }
 }
 
 export function BillingPage() {
@@ -264,7 +251,7 @@ export function BillingPage() {
                   </td>
                   <td>
                     <span className={`billing-status billing-status--${inv.status}`}>
-                      {statusLabel(inv.status)}
+                      {labelInvoiceStatus(inv.status)}
                     </span>
                   </td>
                   <td>{formatMoney(inv.total_cents)}</td>

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import type { AdminOrderDetail, AdminOrderListItem } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelOrderStatus } from '@store/shared-core';
 import { useDialog } from '@store/ui';
 import { api } from '../api';
 import { useHasPermission } from '../auth/usePermissions';
@@ -145,7 +145,7 @@ export function OrdersPage() {
                           <br />
                           <span className="customer-email-hint">{o.customer_email}</span>
                         </td>
-                        <td>{o.status}</td>
+                        <td>{labelOrderStatus(o.status)}</td>
                         <td>{formatMoney(o.total_cents)}</td>
                         <td>{new Date(o.created_at).toLocaleString('pt-BR')}</td>
                         <td>
@@ -168,7 +168,7 @@ export function OrdersPage() {
                               <div className="orders-detail-panel">
                                 <h3 className="orders-detail-panel__title">Itens do pedido</h3>
                                 <p className="orders-detail-panel__meta">
-                                  Status: <strong>{selected.status}</strong> — Total:{' '}
+                                  Status: <strong>{labelOrderStatus(selected.status)}</strong> — Total:{' '}
                                   {formatMoney(selected.total_cents)}
                                 </p>
                                 <ul className="orders-detail-panel__items">

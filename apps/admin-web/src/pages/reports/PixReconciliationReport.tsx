@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReportPixRow } from '@store/api-client';
-import { formatMoney } from '@store/shared-core';
+import { formatMoney, labelPixReconciliationStatus } from '@store/shared-core';
 import { api } from '../../api';
 import { fetchAllPages } from '../../components/reports/exportReport';
 import { exportSubtitle } from '../../components/reports/exportSubtitle';
@@ -45,7 +45,7 @@ export function PixReconciliationReportPage() {
         r.txid ?? '',
         String(r.charge_amount_cents),
         String(r.received_amount_cents),
-        r.reconciliation_status,
+        labelPixReconciliationStatus(r.reconciliation_status),
       ]),
     };
   }, [queryParams]);
@@ -102,7 +102,7 @@ export function PixReconciliationReportPage() {
                 </td>
                 <td>{formatMoney(r.charge_amount_cents)}</td>
                 <td>{formatMoney(r.received_amount_cents)}</td>
-                <td>{r.reconciliation_status}</td>
+                <td>{labelPixReconciliationStatus(r.reconciliation_status)}</td>
               </tr>
             ))}
           </tbody>
