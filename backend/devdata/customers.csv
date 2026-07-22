@@ -1,0 +1,21 @@
+name,email,credit_limit_cents,collaborator
+Cliente Demo 001,demo-cliente-001@{domain},250000,false
+Cliente Demo 002,demo-cliente-002@{domain},300000,false
+Cliente Demo 003,demo-cliente-003@{domain},350000,true
+Cliente Demo 004,demo-cliente-004@{domain},400000,false
+Cliente Demo 005,demo-cliente-005@{domain},450000,false
+Cliente Demo 006,demo-cliente-006@{domain},500000,true
+Cliente Demo 007,demo-cliente-007@{domain},275000,false
+Cliente Demo 008,demo-cliente-008@{domain},325000,false
+Cliente Demo 009,demo-cliente-009@{domain},375000,false
+Cliente Demo 010,demo-cliente-010@{domain},425000,true
+Cliente Demo 011,demo-cliente-011@{domain},475000,false
+Cliente Demo 012,demo-cliente-012@{domain},525000,false
+Cliente Demo 013,demo-cliente-013@{domain},250000,false
+Cliente Demo 014,demo-cliente-014@{domain},300000,true
+Cliente Demo 015,demo-cliente-015@{domain},350000,false
+Cliente Demo 016,demo-cliente-016@{domain},400000,false
+Cliente Demo 017,demo-cliente-017@{domain},450000,false
+Cliente Demo 018,demo-cliente-018@{domain},500000,true
+Cliente Demo 019,demo-cliente-019@{domain},275000,false
+Cliente Demo 020,demo-cliente-020@{domain},325000,false

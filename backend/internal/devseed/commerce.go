@@ -30,6 +30,10 @@ func seedCommerce(
 	products []productSeed,
 	actorID uuid.UUID,
 ) (commerceStats, error) {
+	if err := prepareCustomersForDemoCommerce(ctx, pool, products, cfg.Months); err != nil {
+		return commerceStats{}, err
+	}
+
 	invSvc := inventory.NewService(pool)
 	billSvc := billing.NewService(pool, nil, "http://localhost:5173")
 	catSvc := catalog.NewService(pool)
@@ -48,8 +52,14 @@ func seedCommerce(
 			nOrders := 1 + rng.Intn(3)
 			var periodID uuid.UUID
 			for o := 0; o < nOrders; o++ {
-				prod := products[rng.Intn(len(products))]
-				qty := 1 + rng.Intn(3)
+				avail, err := customerAvailableCents(ctx, pool, custID)
+				if err != nil {
+					return stats, err
+				}
+				prod, qty, ok := pickAffordableLine(products, avail, rng, 3)
+				if !ok {
+					continue
+				}
 				pid, err := placeBackdatedOrder(ctx, pool, billSvc, invSvc, salesSvc, custID, userID, actorID, prod.SKUID, qty, prod.SalePriceCents, at, fmt.Sprintf("seed-%s-%d-%d", custID.String()[:8], monthBack, o))
 				if err != nil {
 					return stats, err
@@ -69,8 +79,14 @@ func seedCommerce(
 
 		nCurrent := 1 + rng.Intn(3)
 		for o := 0; o < nCurrent; o++ {
-			prod := products[rng.Intn(len(products))]
-			qty := 1 + rng.Intn(2)
+			avail, err := customerAvailableCents(ctx, pool, custID)
+			if err != nil {
+				return stats, err
+			}
+			prod, qty, ok := pickAffordableLine(products, avail, rng, 2)
+			if !ok {
+				continue
+			}
 			if _, err := salesSvc.UpsertCartItem(ctx, custID, prod.SKUID, qty); err != nil {
 				return stats, err
 			}

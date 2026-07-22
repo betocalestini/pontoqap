@@ -13,20 +13,20 @@ import (
 )
 
 func main() {
-	customers := flag.Int("customers", 0, "número de clientes demo (0 = padrão)")
-	products := flag.Int("products", 0, "número de produtos seed (0 = padrão)")
+	customers := flag.Int("customers", 0, "total de clientes demo incl. CSV (0 = só CSV)")
 	months := flag.Int("months", 0, "meses de histórico (0 = padrão)")
+	dataDir := flag.String("data-dir", "", "pasta com products.csv e customers.csv (default: devdata ou SEED_DATA_DIR)")
 	flag.Parse()
 
 	cfg := devseed.ConfigFromEnv()
 	if *customers > 0 {
 		cfg.Customers = *customers
 	}
-	if *products > 0 {
-		cfg.Products = *products
-	}
 	if *months > 0 {
 		cfg.Months = *months
+	}
+	if *dataDir != "" {
+		cfg.DataDir = *dataDir
 	}
 
 	appCfg, err := config.Load()
@@ -46,7 +46,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	log.Printf("Iniciando seed (clientes=%d produtos=%d meses=%d)", cfg.Customers, cfg.Products, cfg.Months)
+	log.Printf("Iniciando seed (clientes alvo=%d meses=%d data=%s)", cfg.Customers, cfg.Months, devseed.ResolveDataDir(cfg))
 	res, err := devseed.Run(ctx, pool, cfg)
 	if err != nil {
 		log.Fatal(err)

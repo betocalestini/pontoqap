@@ -6,17 +6,20 @@ import (
 )
 
 const (
-	DefaultPassword = "DemoStore123!"
-	DefaultDomain   = "demo.loja.local"
+	DefaultPassword     = "DemoStore123!"
+	DefaultDomain       = "demo.loja.local"
+	DefaultStockQty     = 50
 )
 
 type Config struct {
 	Customers int
-	Products  int
+	Products  int // legado: ignorado; produtos vêm de products.csv
 	Months    int
 	Password  string
 	Domain    string
-	AppEnv    string
+	DataDir         string
+	DefaultStockQty int
+	AppEnv          string
 	SeedAllow bool
 }
 
@@ -26,8 +29,9 @@ func DefaultConfig() Config {
 		Products:  40,
 		Months:    4,
 		Password:  DefaultPassword,
-		Domain:    DefaultDomain,
-		AppEnv:    "development",
+		Domain:          DefaultDomain,
+		DefaultStockQty: DefaultStockQty,
+		AppEnv:          "development",
 		SeedAllow: false,
 	}
 }
@@ -59,6 +63,14 @@ func ConfigFromEnv() Config {
 	}
 	if v := os.Getenv("SEED_DOMAIN"); v != "" {
 		cfg.Domain = v
+	}
+	if v := os.Getenv("SEED_DATA_DIR"); v != "" {
+		cfg.DataDir = v
+	}
+	if v := os.Getenv("SEED_DEFAULT_STOCK_QTY"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.DefaultStockQty = n
+		}
 	}
 	return cfg
 }

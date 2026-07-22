@@ -43,7 +43,27 @@ func seedPeople(ctx context.Context, pool *pgxpool.Pool, cfg Config) (*People, e
 	}
 	out.ManagerUserID = managerUserID
 
-	for i := 0; i < cfg.Customers; i++ {
+	dir := ResolveDataDir(cfg)
+	customerRows, err := loadCustomersCSV(dir, cfg.Domain)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range customerRows {
+		userID, custID, err := insertCustomer(ctx, pool, row.Name, row.Email, hash, row.CreditLimitCents, row.Collaborator, managerUserID)
+		if err != nil {
+			return nil, err
+		}
+		out.CustomerIDs = append(out.CustomerIDs, custID)
+		out.CustomerUsers = append(out.CustomerUsers, userID)
+	}
+	// Clientes extras sintéticos além do CSV (SEED_CUSTOMERS / -customers).
+	target := cfg.Customers
+	if target == 0 {
+		target = len(customerRows)
+	} else if target < len(customerRows) {
+		target = len(customerRows)
+	}
+	for i := len(customerRows); i < target; i++ {
 		email := fmt.Sprintf("demo-cliente-%03d@%s", i+1, cfg.Domain)
 		name := fmt.Sprintf("Cliente Demo %03d", i+1)
 		limit := int64(250_000 + (i%25)*50_000)

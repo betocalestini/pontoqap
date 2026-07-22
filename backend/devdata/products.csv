@@ -1,0 +1,123 @@
+name,slug,sku_code,category,unit,unit_cost_cents,margin_percent,stock_qty,image_slug
+Água com Gás,agua-com-gas,BEB-001,Bebidas,UN,175,30,0,agua-com-gas
+Barra de Proteína Top Max,barra-de-proteina-top-max,SUP-001,Suplementos,UN,582,30,0,barra-de-proteina-top-max
+Barra Protein Crisp Integralmédica,barra-protein-crisp-integralmedica,SUP-002,Suplementos,UN,683,30,0,barra-protein-crisp-integralmedica
+Bolo Gelado no Alumínio,bolo-gelado-no-aluminio,DOC-001,Doces e Sobremesas,UN,600,30,0,bolo-gelado-no-aluminio
+Bolo de Cenoura,bolo-de-cenoura,DOC-002,Doces e Sobremesas,UN,600,30,0,bolo-de-cenoura
+Brownie,brownie,DOC-003,Doces e Sobremesas,UN,500,30,0,brownie
+Brigadeiro no Pote,brigadeiro-no-pote,DOC-004,Doces e Sobremesas,UN,550,30,0,brigadeiro-no-pote
+Bombom de Leite Ninho,bombom-de-leite-ninho,DOC-005,Doces e Sobremesas,UN,200,30,0,bombom-de-leite-ninho
+Coca-Cola 200ml,coca-cola-200ml,BEB-002,Bebidas,UN,169,30,0,coca-cola-200ml
+Coca-Cola 2L Retornável,coca-cola-2l-retornavel,BEB-003,Bebidas,UN,699,30,0,coca-cola-2l-retornavel
+Coca-Cola 2L,coca-cola-2l,BEB-004,Bebidas,UN,900,30,0,coca-cola-2l
+Coca-Cola Lata Zero,coca-cola-lata-zero,BEB-005,Bebidas,UN,349,30,0,coca-cola-lata-zero
+Coca-Cola Lata,coca-cola-lata,BEB-006,Bebidas,UN,349,30,0,coca-cola-lata
+Doce Sortido A,doce-sortido-a,DOC-006,Doces e Sobremesas,UN,131,30,0,doce-sortido-a
+Doce Sortido B,doce-sortido-b,DOC-007,Doces e Sobremesas,UN,149,30,0,doce-sortido-b
+Doce Sortido C,doce-sortido-c,DOC-008,Doces e Sobremesas,UN,131,30,0,doce-sortido-c
+Doce Sortido D,doce-sortido-d,DOC-009,Doces e Sobremesas,UN,119,30,0,doce-sortido-d
+Energético Furioso,energetico-furioso,BEB-007,Bebidas,UN,450,30,0,energetico-furioso
+Energético Monster,energetico-monster,BEB-008,Bebidas,UN,759,30,0,energetico-monster
+Gatorade,gatorade,BEB-009,Bebidas,UN,499,30,0,gatorade
+Halls,halls,DOC-010,Doces e Sobremesas,UN,123,30,0,halls
+Lanche Natural,lanche-natural,LAN-001,Lanches e Snacks,UN,750,30,0,lanche-natural
+Pão de Mel,pao-de-mel,DOC-011,Doces e Sobremesas,UN,650,30,0,pao-de-mel
+Refrigerante Paulistinha 2L,refrigerante-paulistinha-2l,BEB-010,Bebidas,UN,495,30,0,refrigerante-paulistinha-2l
+Sorvete no Pote,sorvete-no-pote,DOC-012,Doces e Sobremesas,UN,650,30,0,sorvete-no-pote
+Salgadinho Torcida,salgadinho-torcida,LAN-002,Lanches e Snacks,UN,250,30,0,salgadinho-torcida
+Trident,trident,DOC-013,Doces e Sobremesas,UN,171,30,0,trident
+Trufa,trufa,DOC-014,Doces e Sobremesas,UN,600,30,0,trufa
+Tarjeta de Gandola,tarjeta-de-gandola,INS-001,Insígnias e Identificação,UN,700,30,0,tarjeta-de-gandola
+Algema,algema,EQT-001,Equipamentos Táticos,UN,13500,30,0,algema
+Boina,boina,FAR-001,Fardamento e Vestuário,UN,14500,30,0,boina
+Boné Força Tática,bone-forca-tatica,FAR-002,Fardamento e Vestuário,UN,5500,30,0,bone-forca-tatica
+Boné ROCAM,bone-rocam,FAR-003,Fardamento e Vestuário,UN,5500,30,0,bone-rocam
+Bordado para Camiseta Gola V,bordado-para-camiseta-gola-v,INS-002,Insígnias e Identificação,SERV,800,30,0,bordado-para-camiseta-gola-v
+Brasão CPI / 2º BPM/I,brasao-cpi-2o-bpm-i,EMB-001,Emborrachados e Brasões,UN,1500,30,0,brasao-cpi-2o-bpm-i
+Brasão de Bolso para Farda CFO,brasao-de-bolso-para-farda-cfo,EMB-002,Emborrachados e Brasões,UN,12,30,0,brasao-de-bolso-para-farda-cfo
+Brasão de Bolso para Farda SD,brasao-de-bolso-para-farda-sd,EMB-003,Emborrachados e Brasões,UN,12,30,0,brasao-de-bolso-para-farda-sd
+Brasão de Bolso para Farda CAS,brasao-de-bolso-para-farda-cas,EMB-004,Emborrachados e Brasões,UN,12,30,0,brasao-de-bolso-para-farda-cas
+Camiseta Manga Longa Força Tática,camiseta-manga-longa-forca-tatica,FAR-004,Fardamento e Vestuário,UN,4800,30,0,camiseta-manga-longa-forca-tatica
+Camiseta de Atividade Física PM Dry Fit Spartan,camiseta-de-atividade-fisica-pm-dry-fit-spartan,FAR-005,Fardamento e Vestuário,UN,5000,30,0,camiseta-de-atividade-fisica-pm-dry-fit-spartan
+Camiseta de Atividade Física Branca Bordada,camiseta-de-atividade-fisica-branca-bordada,FAR-006,Fardamento e Vestuário,UN,4500,30,0,camiseta-de-atividade-fisica-branca-bordada
+Camiseta Cinza PM,camiseta-cinza-pm,FAR-007,Fardamento e Vestuário,UN,3500,30,0,camiseta-cinza-pm
+Cantil,cantil,EQT-002,Equipamentos Táticos,UN,2390,30,0,cantil
+Cantil com Capa,cantil-com-capa,EQT-003,Equipamentos Táticos,UN,4700,30,0,cantil-com-capa
+Caveira de Crânio Personalizada,caveira-de-cranio-personalizada,SOU-001,Souvenires,UN,19500,30,0,caveira-de-cranio-personalizada
+Caveira Grande,caveira-grande,SOU-002,Souvenires,UN,18000,30,0,caveira-grande
+Caveira Média,caveira-media,SOU-003,Souvenires,UN,7000,30,0,caveira-media
+Caveira Pequena,caveira-pequena,SOU-004,Souvenires,UN,5000,30,0,caveira-pequena
+Chaveiro de Caveira,chaveiro-de-caveira,SOU-005,Souvenires,UN,1800,30,0,chaveiro-de-caveira
+Caveira de Resina,caveira-de-resina,SOU-006,Souvenires,UN,5000,30,0,caveira-de-resina
+Cinto de Nylon PM,cinto-de-nylon-pm,EQT-004,Equipamentos Táticos,UN,1100,30,0,cinto-de-nylon-pm
+Cinto Completo PM,cinto-completo-pm,EQT-005,Equipamentos Táticos,UN,4600,30,0,cinto-completo-pm
+Cinto Protetor Lombar Operacional 01,cinto-protetor-lombar-operacional-01,EQT-006,Equipamentos Táticos,UN,15500,30,0,cinto-protetor-lombar-operacional-01
+Cinto Tático,cinto-tatico,EQT-007,Equipamentos Táticos,UN,1726,30,0,cinto-tatico
+Coldre Hammer Pro-SP Bélica,coldre-hammer-pro-sp-belica,CPE-001,Coldres e Porta-Equipamentos,UN,24000,30,0,coldre-hammer-pro-sp-belica
+Coldre Black Light Bélica,coldre-black-light-belica,CPE-002,Coldres e Porta-Equipamentos,UN,32000,30,0,coldre-black-light-belica
+Kit Coldre Black Light Mid Ride,kit-coldre-black-light-mid-ride,CPE-003,Coldres e Porta-Equipamentos,KIT,33500,30,0,kit-coldre-black-light-mid-ride
+Coldre Premium de Neoprene,coldre-premium-de-neoprene,CPE-004,Coldres e Porta-Equipamentos,UN,2700,30,0,coldre-premium-de-neoprene
+Coldre Sabre Kydex,coldre-sabre-kydex,CPE-005,Coldres e Porta-Equipamentos,UN,29700,30,0,coldre-sabre-kydex
+Copo Térmico Personalizado Stanley,copo-termico-personalizado-stanley,SOU-007,Souvenires,UN,4800,30,0,copo-termico-personalizado-stanley
+Distintivo para Boina,distintivo-para-boina,INS-003,Insígnias e Identificação,UN,3590,30,0,distintivo-para-boina
+Divisa de Japona Cabo sem Velcro,divisa-de-japona-cabo-sem-velcro,INS-004,Insígnias e Identificação,PAR,1800,30,0,divisa-de-japona-cabo-sem-velcro
+Divisa de Japona Cabo com Velcro,divisa-de-japona-cabo-com-velcro,INS-005,Insígnias e Identificação,PAR,2200,30,0,divisa-de-japona-cabo-com-velcro
+Divisa de Japona Aluno-Sargento sem Velcro,divisa-de-japona-aluno-sargento-sem-velcro,INS-006,Insígnias e Identificação,PAR,2000,30,0,divisa-de-japona-aluno-sargento-sem-velcro
+Divisa de Japona Aluno-Sargento com Velcro,divisa-de-japona-aluno-sargento-com-velcro,INS-007,Insígnias e Identificação,PAR,2500,30,0,divisa-de-japona-aluno-sargento-com-velcro
+Divisa de Japona 3º Sargento sem Velcro,divisa-de-japona-3o-sargento-sem-velcro,INS-008,Insígnias e Identificação,PAR,2000,30,0,divisa-de-japona-3o-sargento-sem-velcro
+Divisa de Japona 3º Sargento com Velcro,divisa-de-japona-3o-sargento-com-velcro,INS-009,Insígnias e Identificação,PAR,2500,30,0,divisa-de-japona-3o-sargento-com-velcro
+Divisa de Japona 2º Sargento sem Velcro,divisa-de-japona-2o-sargento-sem-velcro,INS-010,Insígnias e Identificação,PAR,2200,30,0,divisa-de-japona-2o-sargento-sem-velcro
+Divisa de Japona 2º Sargento com Velcro,divisa-de-japona-2o-sargento-com-velcro,INS-011,Insígnias e Identificação,PAR,2700,30,0,divisa-de-japona-2o-sargento-com-velcro
+Divisa de Japona 1º Sargento sem Velcro,divisa-de-japona-1o-sargento-sem-velcro,INS-012,Insígnias e Identificação,PAR,2400,30,0,divisa-de-japona-1o-sargento-sem-velcro
+Divisa de Japona 1º Sargento com Velcro,divisa-de-japona-1o-sargento-com-velcro,INS-013,Insígnias e Identificação,PAR,2900,30,0,divisa-de-japona-1o-sargento-com-velcro
+Emborrachado de Breve de Curso,emborrachado-de-breve-de-curso,EMB-005,Emborrachados e Brasões,UN,1400,30,0,emborrachado-de-breve-de-curso
+Emborrachado de Divisa,emborrachado-de-divisa,EMB-006,Emborrachados e Brasões,UN,750,30,0,emborrachado-de-divisa
+Emborrachado Bucaneiros,emborrachado-bucaneiros,EMB-007,Emborrachados e Brasões,UN,750,30,0,emborrachado-bucaneiros
+Emborrachado de Divisa para Colete — Praça,emborrachado-de-divisa-para-colete-praca,EMB-008,Emborrachados e Brasões,UN,1800,30,0,emborrachado-de-divisa-para-colete-praca
+Emborrachado de Láureas,emborrachado-de-laureas,EMB-009,Emborrachados e Brasões,UN,1600,30,0,emborrachado-de-laureas
+Emborrachado de Listel Geral,emborrachado-de-listel-geral,EMB-010,Emborrachados e Brasões,UN,1800,30,0,emborrachado-de-listel-geral
+Emborrachado da Bandeira do Estado de São Paulo,emborrachado-da-bandeira-do-estado-de-sao-paulo,EMB-011,Emborrachados e Brasões,UN,2000,30,0,emborrachado-da-bandeira-do-estado-de-sao-paulo
+Emborrachado do Logotipo PM,emborrachado-do-logotipo-pm,EMB-012,Emborrachados e Brasões,UN,2000,30,0,emborrachado-do-logotipo-pm
+Placa Emborrachada PM para Colete,placa-emborrachada-pm-para-colete,EMB-013,Emborrachados e Brasões,UN,3400,30,0,placa-emborrachada-pm-para-colete
+Placa Emborrachada Força Tática para Colete,placa-emborrachada-forca-tatica-para-colete,EMB-014,Emborrachados e Brasões,UN,3400,30,0,placa-emborrachada-forca-tatica-para-colete
+Emborrachado de Tipo Sanguíneo,emborrachado-de-tipo-sanguineo,EMB-015,Emborrachados e Brasões,UN,900,30,0,emborrachado-de-tipo-sanguineo
+Escudo Força Tática,escudo-forca-tatica,INS-014,Insígnias e Identificação,UN,2500,30,0,escudo-forca-tatica
+Faca Artesanal Personalizada,faca-artesanal-personalizada,CUT-001,Cutelaria,UN,18000,30,0,faca-artesanal-personalizada
+Faca Artesanal Personalizada Pequena,faca-artesanal-personalizada-pequena,CUT-002,Cutelaria,UN,15000,30,0,faca-artesanal-personalizada-pequena
+Faca Força Tática Personalizada,faca-forca-tatica-personalizada,CUT-003,Cutelaria,UN,7500,30,0,faca-forca-tatica-personalizada
+Fiel Retrátil,fiel-retratil,ACE-001,Acessórios e Utilidades,UN,4550,30,0,fiel-retratil
+Fivela para Cinto PM,fivela-para-cinto-pm,EQT-008,Equipamentos Táticos,UN,3250,30,0,fivela-para-cinto-pm
+IFAK Spartan,ifak-spartan,PRI-001,Primeiros Socorros,KIT,5000,30,0,ifak-spartan
+Kit Premium de Limpeza de Armamento,kit-premium-de-limpeza-de-armamento,LIM-001,Limpeza e Manutenção,KIT,5000,30,0,kit-premium-de-limpeza-de-armamento
+Lanterna Dedicada TrustFire GM35,lanterna-dedicada-trustfire-gm35,ILU-001,Iluminação,UN,29500,30,0,lanterna-dedicada-trustfire-gm35
+Lanterna Dedicada TrustFire GM23,lanterna-dedicada-trustfire-gm23,ILU-002,Iluminação,UN,20000,30,0,lanterna-dedicada-trustfire-gm23
+Lanterna Tática Sofirn SP35T,lanterna-tatica-sofirn-sp35t,ILU-003,Iluminação,UN,18604,30,0,lanterna-tatica-sofirn-sp35t
+Lanterna Tática Sofirn SC31T,lanterna-tatica-sofirn-sc31t,ILU-004,Iluminação,UN,15500,30,0,lanterna-tatica-sofirn-sc31t
+Láurea de Couro 1º Grau,laurea-de-couro-1o-grau,INS-015,Insígnias e Identificação,PAR,3350,30,0,laurea-de-couro-1o-grau
+Láurea de Couro 2º Grau,laurea-de-couro-2o-grau,INS-016,Insígnias e Identificação,PAR,2300,30,0,laurea-de-couro-2o-grau
+Láurea de Couro 3º Grau,laurea-de-couro-3o-grau,INS-017,Insígnias e Identificação,PAR,2600,30,0,laurea-de-couro-3o-grau
+Láurea de Couro 4º Grau,laurea-de-couro-4o-grau,INS-018,Insígnias e Identificação,PAR,2600,30,0,laurea-de-couro-4o-grau
+Láurea de Couro 5º Grau,laurea-de-couro-5o-grau,INS-019,Insígnias e Identificação,PAR,2600,30,0,laurea-de-couro-5o-grau
+Porta-Algemas Spartan,porta-algemas-spartan,CPE-006,Coldres e Porta-Equipamentos,UN,3500,30,0,porta-algemas-spartan
+Porta-Carregador de Pistola Kydex Spartan,porta-carregador-de-pistola-kydex-spartan,CPE-007,Coldres e Porta-Equipamentos,UN,6000,30,0,porta-carregador-de-pistola-kydex-spartan
+Porta-Carregador de Pistola Spartan,porta-carregador-de-pistola-spartan,CPE-008,Coldres e Porta-Equipamentos,UN,4500,30,0,porta-carregador-de-pistola-spartan
+"Porta-Carregador de Fuzil 5,56 Spartan",porta-carregador-de-fuzil-556-spartan,CPE-009,Coldres e Porta-Equipamentos,UN,4500,30,0,porta-carregador-de-fuzil-556-spartan
+"Porta-Carregador de Fuzil 7,62 Spartan",porta-carregador-de-fuzil-762-spartan,CPE-010,Coldres e Porta-Equipamentos,UN,4500,30,0,porta-carregador-de-fuzil-762-spartan
+Porta-Celular Preto Spartan,porta-celular-preto-spartan,CPE-011,Coldres e Porta-Equipamentos,UN,3500,30,0,porta-celular-preto-spartan
+Porta-Celular Cinza Spartan,porta-celular-cinza-spartan,CPE-012,Coldres e Porta-Equipamentos,UN,3500,30,0,porta-celular-cinza-spartan
+Porta-Rádio HT,porta-radio-ht,CPE-013,Coldres e Porta-Equipamentos,UN,6000,30,0,porta-radio-ht
+Porta-Alicate Spartan,porta-alicate-spartan,CPE-014,Coldres e Porta-Equipamentos,UN,3500,30,0,porta-alicate-spartan
+Porta-Lanterna Spartan,porta-lanterna-spartan,CPE-015,Coldres e Porta-Equipamentos,UN,2500,30,0,porta-lanterna-spartan
+Porta-Cassetete,porta-cassetete,CPE-016,Coldres e Porta-Equipamentos,UN,1800,30,0,porta-cassetete
+Porta-Tonfa,porta-tonfa,CPE-017,Coldres e Porta-Equipamentos,UN,3200,30,0,porta-tonfa
+Porta-Torniquete de Saque Rápido Spartan,porta-torniquete-de-saque-rapido-spartan,PRI-002,Primeiros Socorros,UN,2500,30,0,porta-torniquete-de-saque-rapido-spartan
+Presilhas de Nylon para Cinto PM,presilhas-de-nylon-para-cinto-pm,EQT-009,Equipamentos Táticos,PAR,800,30,0,presilhas-de-nylon-para-cinto-pm
+Short de Atividade Física PM Spartan,short-de-atividade-fisica-pm-spartan,FAR-008,Fardamento e Vestuário,UN,3500,30,0,short-de-atividade-fisica-pm-spartan
+Short de Atividade Física PM com Térmico Spartan,short-de-atividade-fisica-pm-com-termico-spartan,FAR-009,Fardamento e Vestuário,UN,5500,30,0,short-de-atividade-fisica-pm-com-termico-spartan
+Short Térmico Spartan,short-termico-spartan,FAR-010,Fardamento e Vestuário,UN,4000,30,0,short-termico-spartan
+Torniquete Desmodus,torniquete-desmodus,PRI-003,Primeiros Socorros,UN,27600,30,0,torniquete-desmodus
+Torniquete CAT Gen 7,torniquete-cat-gen-7,PRI-004,Primeiros Socorros,UN,19500,30,0,torniquete-cat-gen-7
+Kit Torniquete Desmodus com Porta-Torniquete,kit-torniquete-desmodus-com-porta-torniquete,PRI-005,Primeiros Socorros,KIT,350,30,0,kit-torniquete-desmodus-com-porta-torniquete
+Porta-Torniquete,porta-torniquete,PRI-006,Primeiros Socorros,UN,4500,30,0,porta-torniquete
+Adesivo Força Tática,adesivo-forca-tatica,SOU-008,Souvenires,UN,500,30,0,adesivo-forca-tatica
+Amendoim,amendoim,LAN-003,Lanches e Snacks,UN,200,30,0,amendoim

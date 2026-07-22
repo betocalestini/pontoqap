@@ -31,6 +31,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool, cfg Config) (Result, error) {
 
 	catSvc := catalog.NewService(pool)
 	invSvc := inventory.NewService(pool)
+	if err := resetDemoCatalog(ctx, pool); err != nil {
+		return res, fmt.Errorf("reset catálogo: %w", err)
+	}
 	products, err := seedProducts(ctx, pool, catSvc, invSvc, actorID, cfg)
 	if err != nil {
 		return res, fmt.Errorf("produtos: %w", err)

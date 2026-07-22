@@ -1,0 +1,3 @@
+name,email,credit_limit_cents,collaborator
+Smoke Cliente 1,smoke-cli-1@{domain},100000,false
+Smoke Cliente 2,smoke-cli-2@{domain},150000,true
