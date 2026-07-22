@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ import (
 	"github.com/store-platform/store/internal/catalog"
 	"github.com/store-platform/store/internal/customers"
 	"github.com/store-platform/store/internal/inventory"
+	platformerrors "github.com/store-platform/store/internal/platform/errors"
 )
 
 type Service struct {
@@ -22,10 +24,14 @@ type Service struct {
 	billing   *billing.Service
 	catalog   *catalog.Service
 	customers *customers.Service
+	log       *slog.Logger
 }
 
-func NewService(pool *pgxpool.Pool, inv *inventory.Service, bill *billing.Service, cat *catalog.Service, cust *customers.Service) *Service {
-	return &Service{pool: pool, inventory: inv, billing: bill, catalog: cat, customers: cust}
+func NewService(pool *pgxpool.Pool, inv *inventory.Service, bill *billing.Service, cat *catalog.Service, cust *customers.Service, log *slog.Logger) *Service {
+	if log == nil {
+		log = slog.Default()
+	}
+	return &Service{pool: pool, inventory: inv, billing: bill, catalog: cat, customers: cust, log: log}
 }
 
 type CartItem struct {
@@ -206,9 +212,11 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 	}
 	cust, err := custSvc.GetByID(ctx, customerID)
 	if err != nil || cust == nil {
+		s.logCheckoutReject(customerID, "customer_not_approved")
 		return nil, customers.ErrNotApproved()
 	}
 	if err := custSvc.EnsureNotBlocked(cust); err != nil {
+		s.logCheckoutReject(customerID, "customer_blocked")
 		return nil, err
 	}
 
@@ -297,6 +305,7 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 	}
 
 	if total > custSvc.AvailableLimit(*cust) {
+		s.logCheckoutReject(customerID, "credit_limit")
 		return nil, customers.ErrInsufficientLimit()
 	}
 
@@ -320,6 +329,10 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 			return nil, err
 		}
 		if err := s.inventory.ReserveAndDecrement(ctx, tx, l.skuID, l.qty, "order", orderID, &actorUserID); err != nil {
+			var invErr *inventory.AppError
+			if errors.As(err, &invErr) && invErr.Code == platformerrors.CodeInsufficientStock {
+				s.logCheckoutReject(customerID, "stock")
+			}
 			return nil, err
 		}
 	}
@@ -362,6 +375,13 @@ func (s *Service) Checkout(ctx context.Context, customerID uuid.UUID, idempotenc
 		}
 	}
 	return &Order{ID: orderID, OrderNumber: orderNumber, TotalCents: total, Status: "confirmed"}, nil
+}
+
+func (s *Service) logCheckoutReject(customerID uuid.UUID, reason string) {
+	s.log.Warn("checkout rejected",
+		slog.String("customer_id", customerID.String()),
+		slog.String("reason", reason),
+	)
 }
 
 type AppError struct {

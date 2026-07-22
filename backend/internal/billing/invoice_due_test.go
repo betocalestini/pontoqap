@@ -22,7 +22,7 @@ func TestEffectiveDueAtAfterFirstInstallmentPaid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 
 	customerID := uuid.New()
 	userID := uuid.New()

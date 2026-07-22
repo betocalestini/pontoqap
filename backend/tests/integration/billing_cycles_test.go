@@ -38,7 +38,7 @@ func TestPartialCloseOpensNextCycle(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 100_000)
 
 	period1 := seedOpenPeriodWithEntry(t, ctx, pool, cust.ID, 2026, 7, 1500)
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 
 	inv, err := svc.CloseCustomerOpenPeriod(ctx, cust.ID)
 	if err != nil {
@@ -100,7 +100,7 @@ func TestCloseEmptyPeriodRejected(t *testing.T) {
 	cust, _ := testdb.SeedCustomer(ctx, pool, testdb.UniqueEmail(t, "empty"), "Cliente Vazio")
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 10_000)
 
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	tx, _ := pool.Begin(ctx)
 	at := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
 	periodID, err := svc.EnsureOpenPeriodTx(ctx, tx, cust.ID, at)
@@ -128,7 +128,7 @@ func TestRunScheduledClosingPreviousMonth(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 50_000)
 	_ = seedOpenPeriodWithEntry(t, ctx, pool, cust.ID, 2026, 6, 2200)
 
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	now := time.Date(2026, 7, 1, 8, 0, 0, 0, mustLoadSP(t))
 	ran, n, err := svc.RunScheduledClosingIfDue(ctx, now)
 	if err != nil {
@@ -162,7 +162,7 @@ func TestProcessClosedInvoiceReminders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	rem, esc, err := svc.ProcessClosedInvoiceReminders(ctx, time.Now())
 	if err != nil {
 		t.Fatal(err)

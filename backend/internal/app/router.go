@@ -40,7 +40,7 @@ import (
 // NewRouter monta o roteador HTTP da API (usado por cmd/api e testes E2E).
 func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, verifySvc *identity.VerificationService, logger *slog.Logger) http.Handler {
 	jobRepo := jobs.NewRepository(pool)
-	billSvc := billing.NewService(pool, jobRepo, cfg.App.StoreWebURL)
+	billSvc := billing.NewService(pool, jobRepo, cfg.App.StoreWebURL, logger)
 	invSvc := inventory.NewService(pool)
 	uploadRoot := cfg.UploadDir
 	if abs, err := filepath.Abs(uploadRoot); err == nil {
@@ -57,21 +57,27 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 	adminUsersSvc := identity.NewAdminUsersService(pool, idRepo, adminUsersRepo, jobRepo, auditSvc, cfg.App.AdminWebURL)
 	customersHandler := customershttp.NewHandler(custSvc, adminUsersSvc)
 	invHandler := inventoryhttp.NewHandler(invSvc, catalogSvc)
-	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc, catalogSvc, custSvc), auditSvc)
+	salesHandler := saleshttp.NewHandler(sales.NewService(pool, invSvc, billSvc, catalogSvc, custSvc, logger), auditSvc)
 	idSvc.SetAdminLoginAuditor(auditSvc)
 	idHandler := identityhttp.NewHandler(idSvc, verifySvc, adminUsersSvc, cfg.Session, cfg.Security)
 	adminUsersHandler := identityhttp.NewAdminUsersHandler(adminUsersSvc)
 	auditHandler := audithttp.NewHandler(auditSvc)
 
-	gateway := payments.NewSandboxGateway(cfg.Payments.WebhookSecret)
-	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments.WebhookSecret)
-	payHandler := paymentshttp.NewHandler(paySvc)
-	billHandler := billinghttp.NewHandler(billSvc, auditSvc)
+	gateway, err := payments.NewGateway(cfg.Payments, logger)
+	if err != nil {
+		logger.Error("payment gateway", "error", err)
+		panic(err)
+	}
+	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments, logger)
+	payHandler := paymentshttp.NewHandler(paySvc, logger)
+	billHandler := billinghttp.NewHandler(billSvc, auditSvc, logger)
 	reportsHandler := reportshttp.NewReportsHandler(reports.NewService(pool))
 	forecastHandler := reportshttp.NewForecastHandler(forecasting.NewService(pool))
 
 	storeAuth := identityhttp.AuthMiddleware(idSvc, cfg.Session)
 	adminAuth := AdminAudienceMiddleware(identityhttp.AuthMiddleware(idSvc, cfg.Session))
+
+	accessLog := httpx.AccessLogMiddleware(logger)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
@@ -83,7 +89,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.HTTP.CORSOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-App-Audience", "Idempotency-Key", "X-Request-ID", "X-Webhook-Signature"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-App-Audience", "Idempotency-Key", "X-Request-ID", "X-Webhook-Signature", "x-signature", "x-request-id"},
 		AllowCredentials: true,
 	}))
 
@@ -109,7 +115,10 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 			catalogHandler.PublicRoutes(cr)
 		})
 		api.Route("/customers", customersHandler.StoreRoutes)
-		api.Route("/webhooks", payHandler.WebhookRoutes)
+		api.Route("/webhooks", func(wr chi.Router) {
+			wr.Use(accessLog)
+			payHandler.WebhookRoutes(wr)
+		})
 
 		api.Group(func(me chi.Router) {
 			me.Use(storeAuth)
@@ -178,10 +187,13 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 					br.With(identityhttp.RequirePermission("billing.installments.override")).Post("/invoices/{id}/payment-plan/reset", billHandler.ResetPaymentPlan)
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/calendar", billHandler.ListCalendar)
 					br.With(identityhttp.RequirePermission("settings.write")).Put("/calendar", billHandler.UpsertCalendar)
-					br.With(identityhttp.RequirePermission("billing.close")).Post("/close", billHandler.ClosePeriods)
+					br.Group(func(critical chi.Router) {
+						critical.Use(accessLog)
+						critical.With(identityhttp.RequirePermission("billing.close")).Post("/close", billHandler.ClosePeriods)
+						critical.With(identityhttp.RequirePermission("billing.close")).Post("/invoices/{id}/adjustments", billHandler.AddInvoiceAdjustment)
+					})
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/invoices", billHandler.ListAllInvoices)
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/invoices/{id}", billHandler.GetAdminInvoice)
-					br.With(identityhttp.RequirePermission("billing.close")).Post("/invoices/{id}/adjustments", billHandler.AddInvoiceAdjustment)
 				})
 				priv.With(identityhttp.RequirePermission("payments.read")).Post("/invoices/{id}/pix-charge", payHandler.CreatePixCharge)
 				priv.Route("/reports", func(rr chi.Router) {

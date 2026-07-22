@@ -23,7 +23,7 @@ import (
 
 func seedClosedInvoice(t *testing.T, ctx context.Context, pool *pgxpool.Pool, custID uuid.UUID, year, month int, total int64) uuid.UUID {
 	t.Helper()
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func seedClosedInvoice(t *testing.T, ctx context.Context, pool *pgxpool.Pool, cu
 
 func seedOpenPeriodWithEntry(t *testing.T, ctx context.Context, pool *pgxpool.Pool, custID uuid.UUID, year, month int, total int64) uuid.UUID {
 	t.Helper()
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestListInvoicesAdminAfterClose(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 50_000)
 	invID := seedClosedInvoice(t, ctx, pool, cust.ID, 2026, 3, 3200)
 
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	items, total, err := svc.ListInvoicesAdmin(ctx, billing.AdminInvoiceFilter{Limit: 10})
 	if err != nil {
 		t.Fatal(err)
@@ -129,7 +129,7 @@ func TestAddInvoiceAdjustmentUpdatesTotal(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 50_000)
 	invID := seedClosedInvoice(t, ctx, pool, cust.ID, 2026, 4, 5000)
 
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	detail, err := svc.AddInvoiceAdjustment(ctx, invID, mgr.UserID, billing.AdjustmentTypeCredit, 500, "desconto comercial")
 	if err != nil {
 		t.Fatal(err)
@@ -151,7 +151,7 @@ func TestAddInvoiceAdjustmentFullCreditMarksInvoicePaid(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 50_000)
 	invID := seedClosedInvoice(t, ctx, pool, cust.ID, 2026, 6, 5000)
 
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	detail, err := svc.AddInvoiceAdjustment(ctx, invID, mgr.UserID, billing.AdjustmentTypeCredit, 5000, "pago em dinheiro")
 	if err != nil {
 		t.Fatal(err)

@@ -4,27 +4,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/store-platform/store/internal/platform/config"
+	"github.com/store-platform/store/internal/platform/logging"
 )
 
 const (
-	EventUserVerification        = "user.verification_requested"
-	EventInvoiceClosed           = "invoice.closed"
-	EventInvoicePaymentReminder  = "invoice.payment_reminder"
+	EventUserVerification         = "user.verification_requested"
+	EventInvoiceClosed            = "invoice.closed"
+	EventInvoicePaymentReminder   = "invoice.payment_reminder"
 	EventInvoicePaymentEscalation = "invoice.payment_escalation"
-	EventAdminInvitation         = "admin.invitation_sent"
+	EventAdminInvitation          = "admin.invitation_sent"
 )
 
 type OutboxHandler struct {
 	Mailer Mailer
-	Log    interface {
-		Error(msg string, args ...any)
-	}
+	Log    *slog.Logger
 }
 
 func (h *OutboxHandler) Handle(ctx context.Context, eventType string, payload json.RawMessage) error {
+	if h.Log == nil {
+		h.Log = slog.Default()
+	}
 	switch eventType {
 	case EventUserVerification:
 		var p struct {
@@ -36,7 +39,7 @@ func (h *OutboxHandler) Handle(ctx context.Context, eventType string, payload js
 			return err
 		}
 		subj, text, html := VerifyEmailContent(p.Name, p.VerifyURL)
-		return h.Mailer.Send(p.To, subj, text, html)
+		return h.send(ctx, eventType, p.To, subj, text, html)
 	case EventInvoiceClosed:
 		var p struct {
 			To            string `json:"to"`
@@ -56,7 +59,7 @@ func (h *OutboxHandler) Handle(ctx context.Context, eventType string, payload js
 			return fmt.Errorf("due_at: %w", err)
 		}
 		subj, text, html := InvoiceClosedContent(p.Name, p.InvoiceNumber, p.RefYear, p.RefMonth, p.TotalCents, due, p.InvoiceURL)
-		return h.Mailer.Send(p.To, subj, text, html)
+		return h.send(ctx, eventType, p.To, subj, text, html)
 	case EventInvoicePaymentReminder, EventInvoicePaymentEscalation:
 		var p struct {
 			To            string `json:"to"`
@@ -75,7 +78,7 @@ func (h *OutboxHandler) Handle(ctx context.Context, eventType string, payload js
 		}
 		escalation := eventType == EventInvoicePaymentEscalation
 		subj, text, html := InvoicePaymentFollowUpContent(p.Name, p.InvoiceNumber, p.TotalCents, due, p.InvoiceURL, escalation)
-		return h.Mailer.Send(p.To, subj, text, html)
+		return h.send(ctx, eventType, p.To, subj, text, html)
 	case EventAdminInvitation:
 		var p struct {
 			To        string `json:"to"`
@@ -86,10 +89,29 @@ func (h *OutboxHandler) Handle(ctx context.Context, eventType string, payload js
 			return err
 		}
 		subj, text, html := AdminInviteContent(p.Name, p.InviteURL)
-		return h.Mailer.Send(p.To, subj, text, html)
+		return h.send(ctx, eventType, p.To, subj, text, html)
 	default:
 		return nil
 	}
+}
+
+func (h *OutboxHandler) send(ctx context.Context, eventType, to, subj, text, html string) error {
+	err := h.Mailer.Send(to, subj, text, html)
+	masked := logging.MaskEmail(to)
+	if err != nil {
+		h.Log.Error("outbox email failed",
+			slog.String("event_type", eventType),
+			slog.String("to", masked),
+			slog.String("error", err.Error()),
+		)
+		return err
+	}
+	h.Log.Info("outbox email sent",
+		slog.String("event_type", eventType),
+		slog.String("to", masked),
+	)
+	_ = ctx
+	return nil
 }
 
 func BuildVerifyURL(storeWebURL, rawToken string) string {

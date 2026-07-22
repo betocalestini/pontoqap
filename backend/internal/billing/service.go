@@ -3,6 +3,7 @@ package billing
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,10 +17,14 @@ type Service struct {
 	pool          *pgxpool.Pool
 	jobs          *jobs.Repository
 	storeWebURL   string
+	log           *slog.Logger
 }
 
-func NewService(pool *pgxpool.Pool, jobRepo *jobs.Repository, storeWebURL string) *Service {
-	return &Service{pool: pool, jobs: jobRepo, storeWebURL: storeWebURL}
+func NewService(pool *pgxpool.Pool, jobRepo *jobs.Repository, storeWebURL string, log *slog.Logger) *Service {
+	if log == nil {
+		log = slog.Default()
+	}
+	return &Service{pool: pool, jobs: jobRepo, storeWebURL: storeWebURL, log: log}
 }
 
 func (s *Service) EnsureOpenPeriodTx(ctx context.Context, tx pgx.Tx, customerID uuid.UUID, at time.Time) (uuid.UUID, error) {

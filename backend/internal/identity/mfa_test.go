@@ -76,7 +76,8 @@ func TestAdminLoginRequiresMFACodeWhenEnabled(t *testing.T) {
 		PasswordHash: hash,
 		MFAEnabled:   true, MFASecret: secret,
 	}}
-	svc := identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16")
+	svc := 
+	identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16", nil)
 	ctx := context.Background()
 
 	res, err := svc.Login(ctx, identity.LoginInput{Email: "m@test.local", Password: "pass", Audience: "admin"})

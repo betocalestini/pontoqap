@@ -26,7 +26,7 @@ func TestCatalogListAfterCheckout(t *testing.T) {
 	inv := inventory.NewService(pool)
 	_ = inv.RegisterEntry(ctx, prod.SKUID, 20, mgr.UserID, "entrada", 0, 0)
 	cat := catalog.NewService(pool)
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), cat, customers.NewService(pool, nil))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), cat, customers.NewService(pool, nil))
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 3)
 	if _, err := salesSvc.Checkout(ctx, cust.ID, "key-1", cust.UserID); err != nil {
 		t.Fatal(err)

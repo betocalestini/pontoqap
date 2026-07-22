@@ -48,7 +48,8 @@ func newE2EServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, *http.Cli
 		Customer: config.CustomerConfig{DefaultCreditLimitCents: 100_000},
 	}
 	idRepo := identitypostgres.NewRepository(pool)
-	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL, cfg.Security.SessionSecret)
+	idSvc := 
+	identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL, cfg.Security.SessionSecret, nil)
 	jobRepo := jobs.NewRepository(pool)
 	verifySvc := identity.NewVerificationService(pool, jobRepo, cfg.App, cfg.Customer)
 	handler := app.NewRouter(cfg, pool, idSvc, verifySvc, slog.Default())

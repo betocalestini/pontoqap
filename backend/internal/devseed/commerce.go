@@ -35,10 +35,10 @@ func seedCommerce(
 	}
 
 	invSvc := inventory.NewService(pool)
-	billSvc := billing.NewService(pool, nil, "http://localhost:5173")
+	billSvc := billing.NewService(pool, nil, "http://localhost:5173", nil)
 	catSvc := catalog.NewService(pool)
 	custSvc := customers.NewService(pool, nil)
-	salesSvc := sales.NewService(pool, invSvc, billSvc, catSvc, custSvc)
+	salesSvc := sales.NewService(pool, invSvc, billSvc, catSvc, custSvc, nil)
 
 	rng := rand.New(rand.NewSource(42))
 	var stats commerceStats

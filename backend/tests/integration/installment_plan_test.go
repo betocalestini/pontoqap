@@ -16,7 +16,7 @@ func TestInstallmentPlanSelectionAndDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := billing.NewService(pool, nil, "http://localhost:5173")
+	svc := billing.NewService(pool, nil, "http://localhost:5173", nil)
 	policy, err := svc.GetActiveInstallmentPolicy(ctx)
 	if err != nil {
 		t.Fatal(err)

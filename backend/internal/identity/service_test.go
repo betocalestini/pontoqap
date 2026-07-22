@@ -103,7 +103,8 @@ func TestLoginSuccessStore(t *testing.T) {
 		},
 		roles: []string{"customer"},
 	}
-	svc := identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16")
+	svc := 
+	identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16", nil)
 	res, err := svc.Login(context.Background(), identity.LoginInput{
 		Email: "c@test.local", Password: "secret", Audience: "store",
 	})
@@ -119,7 +120,8 @@ func TestLoginInvalidPasswordIncrementsFailures(t *testing.T) {
 			ID: uuid.New(), Email: "c@test.local", PasswordHash: hash, Status: "active",
 		},
 	}
-	svc := identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16")
+	svc := 
+	identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16", nil)
 	_, err := svc.Login(context.Background(), identity.LoginInput{
 		Email: "c@test.local", Password: "wrong", Audience: "store",
 	})
@@ -143,7 +145,8 @@ func TestLoginAdminRequiresManagerRole(t *testing.T) {
 		},
 		roles: []string{"customer"},
 	}
-	svc := identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16")
+	svc := 
+	identity.NewService(repo, time.Hour, time.Hour, "test-session-secret-min-16", nil)
 	_, err := svc.Login(context.Background(), identity.LoginInput{
 		Email: "c@test.local", Password: "secret", Audience: "admin",
 	})
@@ -163,7 +166,8 @@ func TestAdminLoginReturnsAccessTokenAndBearerAuth(t *testing.T) {
 		roles: []string{"manager"},
 		perms: []string{"products.read"},
 	}
-	svc := identity.NewService(repo, time.Hour, 8*time.Hour, "test-session-secret-min-16")
+	svc := 
+	identity.NewService(repo, time.Hour, 8*time.Hour, "test-session-secret-min-16", nil)
 	res, err := svc.Login(context.Background(), identity.LoginInput{
 		Email: "m@test.local", Password: "secret", Audience: "admin",
 	})
@@ -185,7 +189,8 @@ func TestStoreLoginReturnsAccessTokenAndBearerAuth(t *testing.T) {
 		},
 		roles: []string{"customer"},
 	}
-	svc := identity.NewService(repo, time.Hour, 8*time.Hour, "test-session-secret-min-16")
+	svc := 
+	identity.NewService(repo, time.Hour, 8*time.Hour, "test-session-secret-min-16", nil)
 	res, err := svc.Login(context.Background(), identity.LoginInput{
 		Email: "c@test.local", Password: "secret", Audience: "store",
 	})

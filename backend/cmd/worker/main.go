@@ -27,7 +27,7 @@ func main() {
 	defer pool.Close()
 
 	jobRepo := jobs.NewRepository(pool)
-	billSvc := billing.NewService(pool, jobRepo, cfg.App.StoreWebURL)
+	billSvc := billing.NewService(pool, jobRepo, cfg.App.StoreWebURL, logger)
 	mailer := notification.NewSMTPMailer(cfg.SMTP)
 	outbox := &notification.OutboxHandler{Mailer: mailer, Log: logger}
 	runner := &jobs.Runner{

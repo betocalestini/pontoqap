@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/store-platform/store/internal/identity/security"
 	platformerrors "github.com/store-platform/store/internal/platform/errors"
+	"github.com/store-platform/store/internal/platform/httpx"
 )
 
 const maxFailedAttempts = 5
@@ -23,6 +25,7 @@ type Service struct {
 	adminTTL      time.Duration
 	sessionSecret string
 	audit         AdminLoginAuditor
+	log           *slog.Logger
 }
 
 // AdminLoginAuditor records successful admin logins (RF-IDN-012).
@@ -30,8 +33,11 @@ type AdminLoginAuditor interface {
 	LogAdminLogin(ctx context.Context, userID uuid.UUID) error
 }
 
-func NewService(repo Repository, storeTTL, adminTTL time.Duration, sessionSecret string) *Service {
-	return &Service{repo: repo, storeTTL: storeTTL, adminTTL: adminTTL, sessionSecret: sessionSecret}
+func NewService(repo Repository, storeTTL, adminTTL time.Duration, sessionSecret string, log *slog.Logger) *Service {
+	if log == nil {
+		log = slog.Default()
+	}
+	return &Service{repo: repo, storeTTL: storeTTL, adminTTL: adminTTL, sessionSecret: sessionSecret, log: log}
 }
 
 func (s *Service) SetAdminLoginAuditor(a AdminLoginAuditor) {
@@ -61,6 +67,9 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 		return nil, err
 	}
 	if user == nil {
+		if in.Audience == "admin" {
+			s.logAdminLoginWarn(ctx, "invalid_credentials")
+		}
 		return nil, errInvalidCredentials()
 	}
 	if user.Status == "blocked" || user.Status == "temporarily_blocked" {
@@ -70,6 +79,7 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 		return nil, errForbidden("Conta desativada")
 	}
 	if user.Status == "suspended" && in.Audience == "admin" {
+		s.logAdminLoginWarn(ctx, "account_suspended")
 		return nil, errForbidden("Acesso administrativo suspenso")
 	}
 	if user.LockedUntil != nil && user.LockedUntil.After(time.Now()) {
@@ -85,6 +95,9 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 			failed = 0
 		}
 		_ = s.repo.UpdateUserLoginState(ctx, user.ID, failed, locked, user.LastLoginAt)
+		if in.Audience == "admin" {
+			s.logAdminLoginWarn(ctx, "invalid_credentials")
+		}
 		return nil, errInvalidCredentials()
 	}
 
@@ -111,6 +124,7 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 		}
 		roles, _ := s.repo.ListUserRoles(ctx, user.ID)
 		if !HasStaffRole(roles) {
+			s.logAdminLoginWarn(ctx, "not_staff")
 			return nil, errForbidden("Acesso não permitido ao painel administrativo")
 		}
 		if user.MFAEnabled {
@@ -118,6 +132,7 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 				return &LoginResult{MFARequired: true}, nil
 			}
 			if !totp.Validate(in.MFACode, user.MFASecret) {
+				s.logAdminLoginWarn(ctx, "mfa_invalid")
 				return nil, errInvalidCredentials()
 			}
 		}
@@ -169,6 +184,13 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 		out.AccessToken = jwtRaw
 	}
 	return out, nil
+}
+
+func (s *Service) logAdminLoginWarn(ctx context.Context, reason string) {
+	s.log.Warn("admin login failed",
+		slog.String("reason", reason),
+		slog.String("request_id", httpx.RequestIDFromContext(ctx)),
+	)
 }
 
 func (s *Service) AuthenticateSession(ctx context.Context, token, expectedAudience string) (*AuthUser, error) {

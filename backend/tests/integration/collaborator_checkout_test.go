@@ -34,7 +34,7 @@ func TestCollaboratorCheckoutLowerPrice(t *testing.T) {
 	var catID uuid.UUID
 	_ = pool.QueryRow(ctx, `SELECT id FROM collaborator_categories WHERE slug = 'funcionario'`).Scan(&catID)
 	_, _ = pool.Exec(ctx, `UPDATE customers SET collaborator_category_id = $2 WHERE id = $1`, cust.ID, catID)
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), cat, custSvc)
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), cat, custSvc)
 	cart, _ := salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
 	retail := cart.Items[0].LineTotalCents
 	if retail >= 1500 {
@@ -57,7 +57,7 @@ func TestBlockedCustomerCheckout(t *testing.T) {
 	_ = inv.RegisterEntry(ctx, prod.SKUID, 5, mgr.UserID, "e", 500, 0)
 	custSvc := customers.NewService(pool, nil)
 	_ = custSvc.Block(ctx, cust.ID, "teste")
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catalog.NewService(pool), custSvc)
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), catalog.NewService(pool), custSvc)
 	_, _ = salesSvc.UpsertCartItem(ctx, cust.ID, prod.SKUID, 1)
 	_, err := salesSvc.Checkout(ctx, cust.ID, "blocked-key", cust.UserID)
 	if err == nil {

@@ -29,7 +29,7 @@ func TestNthBusinessDayWithHoliday(t *testing.T) {
 	if err := testdb.Reset(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	loc, _ := time.LoadLocation("America/Sao_Paulo")
 	mgr, err := testdb.SeedManager(ctx, pool, testdb.UniqueEmail(t, "mgr"))
 	if err != nil {

@@ -43,7 +43,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL, cfg.Security.SessionSecret)
+	idSvc := identity.NewService(idRepo, cfg.Session.StoreTTL, cfg.Session.AdminTTL, cfg.Security.SessionSecret, logger)
 	verifySvc := identity.NewVerificationService(pool, jobs.NewRepository(pool), cfg.App, cfg.Customer)
 	handler := app.NewRouter(cfg, pool, idSvc, verifySvc, logger)
 
@@ -57,6 +57,11 @@ func main() {
 
 	go func() {
 		logger.Info("api listening", slog.String("addr", cfg.HTTP.Addr))
+		logger.Info("mercado pago order webhook",
+			slog.String("method", "POST"),
+			slog.String("path", "/api/v1/webhooks/mercado-pago/orders"),
+			slog.Bool("webhook_secret_configured", cfg.Payments.MercadoPago.WebhookSecret != ""),
+		)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("server error", "error", err)
 			os.Exit(1)

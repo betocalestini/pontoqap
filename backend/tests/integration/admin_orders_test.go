@@ -44,9 +44,9 @@ func TestAdminListOrdersAfterCheckout(t *testing.T) {
 
 	invSvc := inventory.NewService(pool)
 	catSvc := catalog.NewService(pool)
-	billSvc := billing.NewService(pool, nil, "http://localhost:5173")
+	billSvc := billing.NewService(pool, nil, "http://localhost:5173", nil)
 	custSvc := customers.NewService(pool, nil)
-	salesSvc := sales.NewService(pool, invSvc, billSvc, catSvc, custSvc)
+	salesSvc := sales.NewService(pool, invSvc, billSvc, catSvc, custSvc, nil)
 
 	prod, err := testdb.SeedProduct(ctx, pool, "Prod Pedido", "SKU-ORD", 1000)
 	if err != nil {

@@ -45,9 +45,9 @@ func TestAdminCancelOrderRequiresPassword(t *testing.T) {
 
 	invSvc := inventory.NewService(pool)
 	catSvc := catalog.NewService(pool)
-	billSvc := billing.NewService(pool, nil, "http://localhost:5173")
+	billSvc := billing.NewService(pool, nil, "http://localhost:5173", nil)
 	custSvc := customers.NewService(pool, nil)
-	salesSvc := sales.NewService(pool, invSvc, billSvc, catSvc, custSvc)
+	salesSvc := sales.NewService(pool, invSvc, billSvc, catSvc, custSvc, nil)
 
 	prod, err := testdb.SeedProduct(ctx, pool, "Prod Cancel", "SKU-CAN", 2000)
 	if err != nil {

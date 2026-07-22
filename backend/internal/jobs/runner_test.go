@@ -21,7 +21,7 @@ func TestRunnerProcessesMarkOverdueJob(t *testing.T) {
 	}
 
 	jobRepo := jobs.NewRepository(pool)
-	billSvc := billing.NewService(pool, jobRepo, "")
+	billSvc := billing.NewService(pool, jobRepo, "", nil)
 	handler := &jobs.Handler{
 		Billing: billSvc,
 		Log:     slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
@@ -58,7 +58,7 @@ func TestRunnerScheduleDailyMaintenance(t *testing.T) {
 	}
 
 	jobRepo := jobs.NewRepository(pool)
-	billSvc := billing.NewService(pool, jobRepo, "")
+	billSvc := billing.NewService(pool, jobRepo, "", nil)
 	handler := &jobs.Handler{
 		Billing: billSvc,
 		Log:     slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),

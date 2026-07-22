@@ -3,6 +3,7 @@ package billing
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -232,6 +233,14 @@ func (s *Service) CloseOpenPeriodsForReference(ctx context.Context, year, month 
 			return closed, err
 		}
 		closed++
+	}
+	if closed > 0 {
+		s.log.Info("billing periods closed",
+			slog.Int("year", year),
+			slog.Int("month", month),
+			slog.String("close_type", closeType),
+			slog.Int("closed_periods", closed),
+		)
 	}
 	return closed, rows.Err()
 }

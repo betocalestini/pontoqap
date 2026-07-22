@@ -1,6 +1,7 @@
 package http
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,10 +19,14 @@ import (
 type Handler struct {
 	svc   *billing.Service
 	audit *audit.Service
+	log   *slog.Logger
 }
 
-func NewHandler(svc *billing.Service, auditSvc *audit.Service) *Handler {
-	return &Handler{svc: svc, audit: auditSvc}
+func NewHandler(svc *billing.Service, auditSvc *audit.Service, log *slog.Logger) *Handler {
+	if log == nil {
+		log = slog.Default()
+	}
+	return &Handler{svc: svc, audit: auditSvc, log: log}
 }
 
 func (h *Handler) MeRoutes(r chi.Router) {
@@ -268,12 +273,18 @@ func (h *Handler) ClosePeriods(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.audit != nil && user != nil {
 		_ = h.audit.Log(r.Context(), &user.User.ID, "billing.close_manual", "billing_period", nil, nil, map[string]any{
-			"year":            year,
-			"month":           month,
-			"closed_periods":  n,
-			"reason":          reason,
+			"year":           year,
+			"month":          month,
+			"closed_periods": n,
+			"reason":         reason,
 		})
 	}
+	h.log.Info("billing manual close",
+		slog.String("request_id", httpx.RequestIDFromContext(r.Context())),
+		slog.Int("year", year),
+		slog.Int("month", month),
+		slog.Int("closed_periods", n),
+	)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"closed_periods": n, "year": year, "month": month})
 }
 

@@ -107,7 +107,7 @@ func TestListProductsSortPurchasesByCustomer(t *testing.T) {
 	_ = testdb.ApproveCustomer(ctx, pool, cust.ID, mgr.UserID, 500_000)
 	inv := inventory.NewService(pool)
 	catSvc := catalog.NewService(pool)
-	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, ""), catSvc, customers.NewService(pool, nil))
+	salesSvc := sales.NewService(pool, inv, billing.NewService(pool, nil, "", nil), catSvc, customers.NewService(pool, nil))
 	a, _ := testdb.SeedProduct(ctx, pool, "Prod A", "PA-1", 1000)
 	b, _ := testdb.SeedProduct(ctx, pool, "Prod B", "PB-1", 1000)
 	_ = inv.RegisterEntry(ctx, a.SKUID, 20, mgr.UserID, "e", 500, 0)

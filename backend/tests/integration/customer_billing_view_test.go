@@ -14,7 +14,7 @@ import (
 func seedOpenPeriodWithOrderItems(t *testing.T, ctx context.Context, custID, skuID uuid.UUID, year, month int, productName string, qty int, unitCents int64) uuid.UUID {
 	t.Helper()
 	pool := testdb.Pool(t)
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func TestOpenPeriodAndInvoiceDetailProducts(t *testing.T) {
 
 	_ = seedOpenPeriodWithOrderItems(t, ctx, cust.ID, prod.SKUID, 2026, 7, "Arroz 5kg", 2, 1200)
 
-	svc := billing.NewService(pool, nil, "")
+	svc := billing.NewService(pool, nil, "", nil)
 	open, err := svc.GetOpenPeriodDetail(ctx, cust.ID)
 	if err != nil {
 		t.Fatal(err)
