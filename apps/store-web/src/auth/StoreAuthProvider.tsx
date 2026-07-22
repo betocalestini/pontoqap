@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { AuthMe } from '@store/api-client';
 import { api } from '../api';
 import {
@@ -15,6 +15,7 @@ import {
   hasValidStoreAccessToken,
   setStoreAccessToken,
 } from './token';
+import { setStoreUnauthorizedHandler } from './storeUnauthorized';
 
 export type StoreAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -25,6 +26,7 @@ type StoreAuthContextValue = {
   user: AuthMe | null;
   completeLogin: (accessToken: string) => void;
   refreshUser: () => Promise<void>;
+  expireSession: () => void;
   signOut: () => Promise<void>;
 };
 
@@ -32,6 +34,7 @@ const StoreAuthContext = createContext<StoreAuthContextValue | null>(null);
 
 export function StoreAuthProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [status, setStatus] = useState<StoreAuthStatus>('loading');
   const [user, setUser] = useState<AuthMe | null>(null);
 
@@ -40,6 +43,18 @@ export function StoreAuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setStatus('unauthenticated');
   }, []);
+
+  const expireSession = markUnauthenticated;
+
+  useEffect(() => {
+    setStoreUnauthorizedHandler(() => {
+      markUnauthenticated();
+      if (!publicPaths.has(location.pathname)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+      }
+    });
+    return () => setStoreUnauthorizedHandler(null);
+  }, [location.pathname, markUnauthenticated, navigate]);
 
   const refreshUser = useCallback(async () => {
     if (!hasValidStoreAccessToken()) {
@@ -87,8 +102,8 @@ export function StoreAuthProvider({ children }: { children: ReactNode }) {
   }, [markUnauthenticated]);
 
   const value = useMemo(
-    () => ({ status, user, completeLogin, refreshUser, signOut }),
-    [status, user, completeLogin, refreshUser, signOut],
+    () => ({ status, user, completeLogin, refreshUser, expireSession, signOut }),
+    [status, user, completeLogin, refreshUser, expireSession, signOut],
   );
 
   return <StoreAuthContext.Provider value={value}>{children}</StoreAuthContext.Provider>;

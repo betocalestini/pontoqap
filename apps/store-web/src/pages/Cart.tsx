@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { formatMoney } from '@store/shared-core';
+import { ApiError } from '@store/api-client';
 import { useDialog } from '@store/ui';
 import { api } from '../api';
+import { useStoreAuth } from '../auth/StoreAuthProvider';
 
 type CartItem = {
   id: string;
@@ -16,8 +19,10 @@ type Cart = { items?: CartItem[] };
 
 export function CartPage() {
   const { confirm } = useDialog();
+  const { expireSession } = useStoreAuth();
   const [cart, setCart] = useState<Cart | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -49,13 +54,23 @@ export function CartPage() {
       confirmLabel: 'Confirmar compra',
     });
     if (!ok) return;
+    setSessionExpired(false);
     setError(null);
     setBusy(true);
     try {
-      const res = (await api.checkout()) as { id?: string; order_number?: string };
+      const res = (await api.checkout({ skipStoreUnauthorizedHandler: true })) as {
+        id?: string;
+        order_number?: string;
+      };
       setOrderId(res.order_number ?? res.id ?? 'ok');
       setCart({ items: [] });
     } catch (e) {
+      if (e instanceof ApiError && e.code === 'UNAUTHORIZED') {
+        expireSession();
+        setSessionExpired(true);
+        setError('Sessão expirada. Entre novamente para finalizar a compra.');
+        return;
+      }
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
       setBusy(false);
@@ -86,6 +101,13 @@ export function CartPage() {
     <section className="content-section">
       <h1>Carrinho</h1>
       {error && <p className="error">{error}</p>}
+      {sessionExpired && (
+        <p>
+          <Link to="/login" state={{ from: '/carrinho' }}>
+            Entrar novamente
+          </Link>
+        </p>
+      )}
       {orderId && <p className="ok">Pedido confirmado: {orderId}</p>}
       {items.length === 0 && !orderId && <p>Seu carrinho está vazio.</p>}
       <ul className="cart-lines">
@@ -137,7 +159,7 @@ export function CartPage() {
           <button
             type="button"
             className="btn-primary"
-            onClick={checkout}
+            onClick={() => void checkout()}
             disabled={!items.length || busy || !!orderId}
           >
             Finalizar compra

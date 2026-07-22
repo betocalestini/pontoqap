@@ -20,7 +20,11 @@ export function isStoreAccessTokenExpired(token: string): boolean {
   try {
     const parts = token.split('.');
     if (parts.length < 2) return true;
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number };
+    let payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (payloadB64.length % 4 !== 0) {
+      payloadB64 += '=';
+    }
+    const payload = JSON.parse(atob(payloadB64)) as { exp?: number };
     if (!payload.exp) return true;
     return payload.exp * 1000 <= Date.now();
   } catch {
