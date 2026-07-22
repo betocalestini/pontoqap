@@ -672,7 +672,8 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     simulatePixPayment: (chargeId: string) =>
       request(`/dev/pix/simulate/${chargeId}`, { method: 'POST' }),
 
-    adminListCustomers: () => request<{ items: AdminCustomer[] }>('/admin/customers', {}, 'admin'),
+    adminListCustomers: (reqOpts?: ApiRequestOptions) =>
+      request<{ items: AdminCustomer[] }>('/admin/customers', {}, 'admin', reqOpts),
     adminGetCustomer: (id: string) => request<AdminCustomer>(`/admin/customers/${id}`, {}, 'admin'),
     adminUpdateCustomer: (id: string, body: AdminUpdateCustomerBody) =>
       request<AdminCustomer>(`/admin/customers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }, 'admin'),
