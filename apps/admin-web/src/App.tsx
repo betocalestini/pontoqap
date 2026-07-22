@@ -75,9 +75,10 @@ function AppRoutes() {
           <Route path="limites" element={<CustomerExposureReportPage />} />
           <Route path="excecoes" element={<ExceptionsReportPage />} />
           <Route path="previsao" element={<ForecastReportPage />} />
+          <Route path="auditoria" element={<AuditPage />} />
         </Route>
         <Route path="/pedidos" element={<OrdersPage />} />
-        <Route path="/auditoria" element={<AuditPage />} />
+        <Route path="/auditoria" element={<Navigate to="/relatorios/auditoria" replace />} />
         <Route path="/usuarios" element={<UsersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

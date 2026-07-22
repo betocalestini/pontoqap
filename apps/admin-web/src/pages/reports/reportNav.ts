@@ -9,5 +9,5 @@ export const reportNavLinks: (AdminNavLink & { path: string })[] = [
   { path: 'limites', to: '/relatorios/limites', label: 'Limites e exposição', permission: 'reports.customers.read' },
   { path: 'excecoes', to: '/relatorios/excecoes', label: 'Exceções', permission: 'reports.exceptions.read' },
   { path: 'previsao', to: '/relatorios/previsao', label: 'Previsão de reposição', permission: 'reports.forecasting.read' },
-  { path: 'auditoria', to: '/auditoria', label: 'Auditoria administrativa', permission: 'audit.read' },
+  { path: 'auditoria', to: '/relatorios/auditoria', label: 'Auditoria administrativa', permission: 'audit.read' },
 ];

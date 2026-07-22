@@ -20,7 +20,7 @@ export const adminNavLinks: AdminNavLink[] = [
     'reports.customers.read',
     'reports.exceptions.read',
     'reports.forecasting.read',
+    'audit.read',
   ] },
   { to: '/usuarios', label: 'Usuários', permission: 'users.manage' },
-  { to: '/auditoria', label: 'Auditoria', permission: 'audit.read' },
 ];
