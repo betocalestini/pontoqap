@@ -41,6 +41,7 @@ apps/mobile/dist/
 # Test
 coverage/
 *.lcov
+e2e/playwright/test-results/
 
 # Generated (regenerate with make openapi)
 packages/contracts/src/generated/
