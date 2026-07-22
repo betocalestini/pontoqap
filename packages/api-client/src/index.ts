@@ -485,6 +485,15 @@ type Audience = 'store' | 'admin';
 export type ApiClientOptions = {
   getAdminAccessToken?: () => string | null;
   onAdminUnauthorized?: () => void;
+  getStoreAccessToken?: () => string | null;
+  onStoreUnauthorized?: () => void;
+};
+
+export type LoginResponse = AuthMe & {
+  access_token?: string;
+  expires_at?: string;
+  mfa_required?: boolean;
+  mfa_setup_required?: boolean;
 };
 
 export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions = {}) {
@@ -510,14 +519,25 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
         headers.Authorization = `Bearer ${token}`;
       }
     }
+    if (audience === 'store') {
+      const token = options.getStoreAccessToken?.();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    const credentials: RequestCredentials =
+      audience === 'admin' || audience === 'store' ? 'omit' : 'include';
     const res = await fetch(`${baseUrl}${path}`, {
-      credentials: audience === 'admin' ? 'omit' : 'include',
+      credentials,
       headers,
       ...init,
     });
     if (!res.ok) {
       if (res.status === 401 && audience === 'admin') {
         options.onAdminUnauthorized?.();
+      }
+      if (res.status === 401 && audience === 'store') {
+        options.onStoreUnauthorized?.();
       }
       const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
       throw new ApiError({ code: body.code ?? 'ERROR', message: body.message ?? res.statusText });
@@ -555,7 +575,7 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
 
   return {
     login: (email: string, password: string, audience: Audience, mfaCode?: string) =>
-      request<Record<string, unknown>>('/auth/login', {
+      request<LoginResponse>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({
           email,
