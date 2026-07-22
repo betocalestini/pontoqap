@@ -73,6 +73,7 @@ export type AdminProduct = {
   slug: string;
   description?: string;
   category_id?: string;
+  category_name?: string;
   margin_percent?: number;
   promo_active?: boolean;
   promo_margin_percent?: number;
@@ -769,9 +770,19 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       request<AdminCategory>(`/admin/categories/${id}`, { method: 'PATCH', body: JSON.stringify(body) }, 'admin'),
     adminDeleteCategory: (id: string) =>
       request<{ products_unlinked: number }>(`/admin/categories/${id}`, { method: 'DELETE' }, 'admin'),
-    adminListProducts: (params?: { search?: string; page?: number; page_size?: number }) => {
+    adminListProducts: (params?: {
+      search?: string;
+      category?: string;
+      active?: boolean;
+      visible?: boolean;
+      page?: number;
+      page_size?: number;
+    }) => {
       const q = new URLSearchParams();
       if (params?.search?.trim()) q.set('search', params.search.trim());
+      if (params?.category?.trim()) q.set('category', params.category.trim());
+      if (params?.active != null) q.set('active', params.active ? 'true' : 'false');
+      if (params?.visible != null) q.set('visible', params.visible ? 'true' : 'false');
       if (params?.page != null) q.set('page', String(params.page));
       if (params?.page_size != null) q.set('page_size', String(params.page_size));
       const qs = q.toString();

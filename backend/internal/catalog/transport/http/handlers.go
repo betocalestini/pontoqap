@@ -179,6 +179,20 @@ func (h *Handler) writeProductList(w http.ResponseWriter, r *http.Request, admin
 		}
 		customerID = user.CustomerID
 	}
+	var activeFilter, visibleFilter *bool
+	if admin {
+		var ok bool
+		activeFilter, ok = parseOptionalBoolQuery(r.URL.Query().Get("active"))
+		if !ok {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Parâmetro active inválido")
+			return
+		}
+		visibleFilter, ok = parseOptionalBoolQuery(r.URL.Query().Get("visible"))
+		if !ok {
+			httpx.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Parâmetro visible inválido")
+			return
+		}
+	}
 	items, total, err := h.svc.ListProducts(r.Context(), catalog.ListProductsFilter{
 		Search:     r.URL.Query().Get("search"),
 		Category:   r.URL.Query().Get("category"),
@@ -187,6 +201,8 @@ func (h *Handler) writeProductList(w http.ResponseWriter, r *http.Request, admin
 		Page:       page,
 		PageSize:   pageSize,
 		Admin:      admin,
+		Active:     activeFilter,
+		Visible:    visibleFilter,
 	})
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Falha ao listar produtos")
@@ -306,4 +322,21 @@ func (h *Handler) changePrice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func parseOptionalBoolQuery(v string) (*bool, bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil, true
+	}
+	switch v {
+	case "true", "1":
+		b := true
+		return &b, true
+	case "false", "0":
+		b := false
+		return &b, true
+	default:
+		return nil, false
+	}
 }

@@ -47,6 +47,7 @@ type Product struct {
 	Slug          string    `json:"slug"`
 	Description   string    `json:"description,omitempty"`
 	CategoryID    *uuid.UUID `json:"category_id,omitempty"`
+	CategoryName  string     `json:"category_name,omitempty"`
 	MarginPercent          float64   `json:"margin_percent"`
 	PromoActive            bool      `json:"promo_active"`
 	PromoMarginPercent     *float64  `json:"promo_margin_percent,omitempty"`
@@ -76,7 +77,12 @@ type ListProductsFilter struct {
 	Page       int
 	PageSize   int
 	Admin      bool
+	Active     *bool
+	Visible    *bool
 }
+
+// CategorySemCategoria is the category query value for products without category_id (admin/store list).
+const CategorySemCategoria = "sem-categoria"
 
 func (s *Service) ListCategories(ctx context.Context, admin bool) ([]Category, error) {
 	q := `SELECT id, name, slug, active FROM categories`
@@ -124,15 +130,34 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 		arg++
 	}
 	if f.Search != "" {
-		where = append(where, "(p.name ILIKE $"+itoa(arg)+" OR p.slug ILIKE $"+itoa(arg)+")")
-		args = append(args, "%"+f.Search+"%")
+		pattern := "%" + f.Search + "%"
+		if f.Admin {
+			where = append(where, `(p.name ILIKE $`+itoa(arg)+` OR p.slug ILIKE $`+itoa(arg)+` OR EXISTS (
+				SELECT 1 FROM skus s WHERE s.product_id = p.id AND (s.code ILIKE $`+itoa(arg)+` OR COALESCE(s.barcode,'') ILIKE $`+itoa(arg)+`)
+			))`)
+		} else {
+			where = append(where, "(p.name ILIKE $"+itoa(arg)+" OR p.slug ILIKE $"+itoa(arg)+")")
+		}
+		args = append(args, pattern)
 		arg++
 	}
 	if f.Category == "promocoes" {
 		where = append(where, "p.promo_active = TRUE AND p.promo_quantity_remaining > 0")
+	} else if f.Category == CategorySemCategoria {
+		where = append(where, "p.category_id IS NULL")
 	} else if f.Category != "" {
 		where = append(where, "c.slug = $"+itoa(arg))
 		args = append(args, f.Category)
+		arg++
+	}
+	if f.Admin && f.Active != nil {
+		where = append(where, "p.active = $"+itoa(arg))
+		args = append(args, *f.Active)
+		arg++
+	}
+	if f.Admin && f.Visible != nil {
+		where = append(where, "p.visible = $"+itoa(arg))
+		args = append(args, *f.Visible)
 		arg++
 	}
 	whereSQL := strings.Join(where, " AND ")
@@ -173,7 +198,7 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 	offsetArg := arg + 1
 	args = append(args, f.PageSize, offset)
 	q := `
-		SELECT p.id, p.name, p.slug, COALESCE(p.description,''), p.category_id, p.margin_percent,
+		SELECT p.id, p.name, p.slug, COALESCE(p.description,''), p.category_id, COALESCE(c.name,''), p.margin_percent,
 		       p.promo_active, p.promo_margin_percent, p.promo_quantity_total, p.promo_quantity_remaining,
 		       p.active, p.visible, p.updated_at
 		FROM products p
@@ -192,7 +217,7 @@ func (s *Service) ListProducts(ctx context.Context, f ListProductsFilter) ([]Pro
 	var ids []uuid.UUID
 	for rows.Next() {
 		var p Product
-		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.MarginPercent,
+		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.CategoryID, &p.CategoryName, &p.MarginPercent,
 			&p.PromoActive, &p.PromoMarginPercent, &p.PromoQuantityTotal, &p.PromoQuantityRemaining,
 			&p.Active, &p.Visible, &p.UpdatedAt); err != nil {
 			return nil, 0, err
