@@ -31,6 +31,27 @@ const PROMO_CATEGORY_SLUG = 'promocoes';
 const PLACEHOLDER_IMAGE = '/product-placeholder.svg';
 const SEARCH_DEBOUNCE_MS = 300;
 
+function CartAddIcon() {
+  return (
+    <svg
+      className="product-card__add-icon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  );
+}
+
 function productImageSrc(product: Product): string {
   const url = product.image_url?.trim();
   if (!url) {
@@ -140,58 +161,61 @@ export function CatalogPage() {
     },
   ];
 
+  const metaText =
+    !loading && !error && total > 0
+      ? hasSearch
+        ? `${total} produto(s) encontrado(s) para “${debouncedSearch}”`
+        : hasCategory
+          ? `${total} produto(s) em ${categoryLabel(categorySlug, categories)}`
+          : `${total} produto(s) no catálogo`
+      : null;
+
   return (
     <section className="content-section catalog-page">
       <h1>Catálogo</h1>
 
-      <div className="catalog-search">
-        <label className="catalog-search__label" htmlFor="catalog-search-input">
-          Buscar produtos
-        </label>
-        <div className="catalog-search__row">
-          <input
-            id="catalog-search-input"
-            type="search"
-            className="catalog-search__input"
-            placeholder="Nome do produto…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            autoComplete="off"
+      {metaText && <p className="catalog-page__meta">{metaText}</p>}
+
+      <div className="catalog-toolbar" aria-label="Filtros do catálogo">
+        <div className="catalog-search">
+          <label className="catalog-search__label" htmlFor="catalog-search-input">
+            Buscar produtos
+          </label>
+          <div className="catalog-search__row">
+            <input
+              id="catalog-search-input"
+              type="search"
+              className="catalog-search__input"
+              placeholder="Pesquisar produtos…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoComplete="off"
+            />
+            {search.length > 0 && (
+              <button type="button" className="catalog-search__clear" onClick={() => setSearch('')}>
+                Limpar
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="catalog-filters">
+          <CatalogFilterSelect
+            label="Categoria"
+            ariaLabel="Filtrar por categoria"
+            value={categorySlug}
+            onChange={setCategorySlug}
+            options={categoryOptions}
           />
-          {search.length > 0 && (
-            <button type="button" className="catalog-search__clear" onClick={() => setSearch('')}>
-              Limpar
-            </button>
-          )}
+          <CatalogFilterSelect
+            label="Ordenar por"
+            ariaLabel="Ordenar produtos"
+            value={sort}
+            onChange={(v) => setSort(v as CatalogSort)}
+            options={sortOptions}
+          />
         </div>
       </div>
-
-      <div className="catalog-filters">
-        <CatalogFilterSelect
-          label="Categoria"
-          ariaLabel="Filtrar por categoria"
-          value={categorySlug}
-          onChange={setCategorySlug}
-          options={categoryOptions}
-        />
-        <CatalogFilterSelect
-          label="Ordenar por"
-          ariaLabel="Ordenar produtos"
-          value={sort}
-          onChange={(v) => setSort(v as CatalogSort)}
-          options={sortOptions}
-        />
-      </div>
-
-      {!loading && !error && total > 0 && (
-        <p className="catalog-search__meta">
-          {hasSearch
-            ? `${total} produto(s) encontrado(s) para “${debouncedSearch}”`
-            : hasCategory
-              ? `${total} produto(s) em ${categoryLabel(categorySlug, categories)}`
-              : `${total} produto(s) no catálogo`}
-        </p>
-      )}
 
       {loading && <p>Carregando produtos…</p>}
       {error && <p className="error">{error}</p>}
@@ -233,8 +257,14 @@ export function CatalogPage() {
                       Promoção: restam {p.promo_quantity_remaining} unidades neste preço.
                     </p>
                   )}
-                  <button type="button" onClick={() => add(sku.id)}>
-                    Adicionar ao carrinho
+                  <button
+                    type="button"
+                    className="product-card__add"
+                    aria-label={`Adicionar ${p.name} ao carrinho`}
+                    onClick={() => add(sku.id)}
+                  >
+                    <CartAddIcon />
+                    Adicionar
                   </button>
                 </>
               )}
