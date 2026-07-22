@@ -304,9 +304,153 @@ export type AuditLogEntry = {
   action: string;
   entity_type: string;
   entity_id?: string;
+  request_id?: string;
   created_at: string;
+  ip_address?: string;
   old_values?: unknown;
   new_values?: unknown;
+};
+
+export type ReportDashboard = {
+  year: number;
+  month: number;
+  sales_month_cents: number;
+  received_month_cents: number;
+  open_receivables_cents: number;
+  overdue_invoices: number;
+  overdue_amount_cents: number;
+  orders_month: number;
+  average_ticket_cents: number;
+  buyers_count: number;
+  low_stock_skus: number;
+  cancelled_orders_month: number;
+  cancelled_amount_cents: number;
+  stock_losses_month: number;
+  top_products: { label: string; total_cents: number; quantity: number }[];
+  top_customers: { label: string; total_cents: number; quantity: number; id?: string }[];
+};
+
+export type DashboardSeriesPoint = {
+  year: number;
+  month: number;
+  sales_cents: number;
+  received_cents: number;
+};
+
+export type ReportPaged<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  summary?: Record<string, unknown>;
+};
+
+export type ReportSalesOrderRow = {
+  id: string;
+  order_number: string;
+  confirmed_at?: string;
+  customer_id: string;
+  customer_name: string;
+  item_count: number;
+  subtotal_cents: number;
+  discount_cents: number;
+  total_cents: number;
+  status: string;
+};
+
+export type ReportInventoryPositionRow = {
+  product_id: string;
+  product_name: string;
+  sku_id: string;
+  sku_code: string;
+  category_name?: string;
+  available_quantity: number;
+  minimum_stock: number;
+  gap_to_minimum: number;
+  sale_price_cents: number;
+  stock_value_cents: number;
+  situation: string;
+  active: boolean;
+};
+
+export type ReportInventoryMovementRow = {
+  id: string;
+  created_at: string;
+  product_name: string;
+  sku_code: string;
+  movement_type: string;
+  quantity: number;
+  previous_balance: number;
+  new_balance: number;
+  reason?: string;
+  created_by_email?: string;
+};
+
+export type ReportReceivableRow = {
+  id: string;
+  invoice_number: string;
+  customer_id: string;
+  customer_name: string;
+  reference_year: number;
+  reference_month: number;
+  total_cents: number;
+  paid_cents: number;
+  remaining_cents: number;
+  status: string;
+  days_overdue: number;
+  aging_bucket: string;
+  has_active_pix: boolean;
+};
+
+export type ReportCustomerExposureRow = {
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  status: string;
+  credit_limit_cents: number;
+  current_exposure_cents: number;
+  open_invoices_cents: number;
+  overdue_invoices_cents: number;
+  available_cents: number;
+  utilization_percent: number;
+  utilization_band: string;
+  has_overdue_invoice: boolean;
+};
+
+export type ReportPixRow = {
+  customer_name: string;
+  invoice_number: string;
+  txid?: string;
+  charge_amount_cents: number;
+  received_amount_cents: number;
+  invoice_status: string;
+  reconciliation_status: string;
+};
+
+export type ReportExceptionRow = {
+  occurred_at: string;
+  event_type: string;
+  entity_type: string;
+  entity_id: string;
+  label: string;
+  amount_cents?: number;
+  quantity?: number;
+  reason?: string;
+  actor_email?: string;
+};
+
+export type ReportForecastRow = {
+  sku_id: string;
+  sku_code: string;
+  product_name?: string;
+  reference_month: string;
+  sales_last_3_months: number;
+  current_stock: number;
+  forecast_quantity: number;
+  safety_stock_quantity: number;
+  suggested_purchase_quantity: number;
+  confidence_level: string;
+  method: string;
 };
 
 export type AdminStaffUser = {
@@ -382,6 +526,31 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
       return undefined as T;
     }
     return res.json() as Promise<T>;
+  }
+
+  async function requestBlob(path: string, audience: Audience = 'admin'): Promise<Blob> {
+    const headers: Record<string, string> = { 'X-App-Audience': audience };
+    const token = options.getAdminAccessToken?.();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const res = await fetch(`${baseUrl}${path}`, { credentials: 'omit', headers });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
+      throw new ApiError({ code: body.code ?? 'ERROR', message: body.message ?? res.statusText });
+    }
+    return res.blob();
+  }
+
+  function reportQuery(params?: Record<string, string | number | boolean | undefined>) {
+    const q = new URLSearchParams();
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== '') q.set(k, String(v));
+      }
+    }
+    const qs = q.toString();
+    return qs ? `?${qs}` : '';
   }
 
   return {
@@ -669,21 +838,80 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     }) =>
       request('/admin/billing/calendar', { method: 'PUT', body: JSON.stringify(body) }, 'admin'),
     adminDashboard: (year?: number, month?: number) => {
-      const q = new URLSearchParams();
-      if (year) q.set('year', String(year));
-      if (month) q.set('month', String(month));
-      const suffix = q.toString() ? `?${q}` : '';
-      return request(`/admin/reports/dashboard${suffix}`, {}, 'admin');
+      const suffix = reportQuery({ year, month });
+      return request<ReportDashboard>(`/admin/reports/dashboard${suffix}`, {}, 'admin');
     },
-    adminTopProducts: (year?: number, month?: number) => {
-      const q = new URLSearchParams();
-      if (year) q.set('year', String(year));
-      if (month) q.set('month', String(month));
-      const suffix = q.toString() ? `?${q}` : '';
-      return request(`/admin/reports/top-products${suffix}`, {}, 'admin');
+    adminDashboardSeries: (months = 6) =>
+      request<{ items: DashboardSeriesPoint[] }>(
+        `/admin/reports/dashboard/series${reportQuery({ months })}`,
+        {},
+        'admin',
+      ),
+    adminTopProducts: (year?: number, month?: number, limit?: number) => {
+      const suffix = reportQuery({ year, month, limit });
+      return request<{ items: { label: string; total_cents: number; quantity: number }[] }>(
+        `/admin/reports/top-products${suffix}`,
+        {},
+        'admin',
+      );
     },
     adminInventoryReport: () => request('/admin/reports/inventory', {}, 'admin'),
-    adminForecast: () => request('/admin/reports/forecast', {}, 'admin'),
+    adminReportSalesOrders: (params?: Record<string, string | number | boolean | undefined>) =>
+      request<ReportPaged<ReportSalesOrderRow> & { summary: Record<string, number> }>(
+        `/admin/reports/sales/orders${reportQuery(params)}`,
+        {},
+        'admin',
+      ),
+    adminReportSalesOrdersCSV: (params?: Record<string, string | number | boolean | undefined>) =>
+      requestBlob(`/admin/reports/sales/orders/export.csv${reportQuery(params)}`),
+    adminReportInventoryPosition: (params?: Record<string, string | number | boolean | undefined>) =>
+      request<ReportPaged<ReportInventoryPositionRow>>(
+        `/admin/reports/inventory/position${reportQuery(params)}`,
+        {},
+        'admin',
+      ),
+    adminReportInventoryPositionCSV: (params?: Record<string, string | number | boolean | undefined>) =>
+      requestBlob(`/admin/reports/inventory/position/export.csv${reportQuery(params)}`),
+    adminReportInventoryMovements: (params?: Record<string, string | number | boolean | undefined>) =>
+      request<ReportPaged<ReportInventoryMovementRow>>(
+        `/admin/reports/inventory/movements${reportQuery(params)}`,
+        {},
+        'admin',
+      ),
+    adminReportInventoryMovementsCSV: (params?: Record<string, string | number | boolean | undefined>) =>
+      requestBlob(`/admin/reports/inventory/movements/export.csv${reportQuery(params)}`),
+    adminReportReceivables: (params?: Record<string, string | number | boolean | undefined>) =>
+      request<ReportPaged<ReportReceivableRow> & { summary: Record<string, number> }>(
+        `/admin/reports/receivables/invoices${reportQuery(params)}`,
+        {},
+        'admin',
+      ),
+    adminReportReceivablesCSV: (params?: Record<string, string | number | boolean | undefined>) =>
+      requestBlob(`/admin/reports/receivables/invoices/export.csv${reportQuery(params)}`),
+    adminReportPixReconciliation: (params?: Record<string, string | number | boolean | undefined>) =>
+      request<ReportPaged<ReportPixRow>>(
+        `/admin/reports/payments/pix-reconciliation${reportQuery(params)}`,
+        {},
+        'admin',
+      ),
+    adminReportCustomerExposure: (params?: Record<string, string | number | boolean | undefined>) =>
+      request<ReportPaged<ReportCustomerExposureRow>>(
+        `/admin/reports/customers/exposure${reportQuery(params)}`,
+        {},
+        'admin',
+      ),
+    adminReportExceptions: (params?: Record<string, string | number | boolean | undefined>) =>
+      request<ReportPaged<ReportExceptionRow> & { summary: Record<string, number> }>(
+        `/admin/reports/exceptions${reportQuery(params)}`,
+        {},
+        'admin',
+      ),
+    adminForecast: (limit?: number) =>
+      request<{ items: ReportForecastRow[] }>(
+        `/admin/reports/forecast${reportQuery({ limit })}`,
+        {},
+        'admin',
+      ),
     adminGenerateForecast: () =>
       request('/admin/reports/forecast/generate', { method: 'POST' }, 'admin'),
 
@@ -723,10 +951,21 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     adminGetOrder: (id: string) => request<AdminOrderDetail>(`/admin/orders/${id}`, {}, 'admin'),
     adminCancelOrder: (id: string, body: { password: string; mfa_code?: string }) =>
       request<AdminOrderDetail>(`/admin/orders/${id}/cancel`, { method: 'POST', body: JSON.stringify(body) }, 'admin'),
-    adminListAuditLogs: (params?: { action?: string; entity_type?: string; limit?: number; offset?: number }) => {
+    adminListAuditLogs: (params?: {
+      action?: string;
+      entity_type?: string;
+      actor_user_id?: string;
+      date_from?: string;
+      date_to?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
       const q = new URLSearchParams();
       if (params?.action) q.set('action', params.action);
       if (params?.entity_type) q.set('entity_type', params.entity_type);
+      if (params?.actor_user_id) q.set('actor_user_id', params.actor_user_id);
+      if (params?.date_from) q.set('date_from', params.date_from);
+      if (params?.date_to) q.set('date_to', params.date_to);
       if (params?.limit) q.set('limit', String(params.limit));
       if (params?.offset) q.set('offset', String(params.offset));
       const qs = q.toString();
