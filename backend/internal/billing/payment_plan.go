@@ -627,7 +627,10 @@ func (s *Service) ValidateInstallmentForPix(ctx context.Context, installmentID u
 	if err != nil {
 		return err
 	}
-	if inst.Status != InstStatusOpen {
+	if inst.Status != InstStatusOpen && inst.Status != InstStatusPixActive {
+		return ErrInstallmentNotPayable
+	}
+	if inst.RemainingCents <= 0 {
 		return ErrInstallmentNotPayable
 	}
 	if requireSeq && inst.InstallmentNumber > 1 {

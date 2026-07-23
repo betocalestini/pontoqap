@@ -17,13 +17,15 @@ type PixChargeInput struct {
 }
 
 type ChargeResult struct {
-	ChargeID    uuid.UUID `json:"charge_id"`
-	Provider    string    `json:"provider"`
-	ExternalID  string    `json:"external_id"`
-	TxID        string    `json:"txid"`
-	QRCodeText  string    `json:"qr_code_text"`
-	ExpiresAt   time.Time `json:"expires_at"`
-	AmountCents int64     `json:"amount_cents"`
+	ChargeID     uuid.UUID `json:"charge_id"`
+	Provider     string    `json:"provider"`
+	ExternalID   string    `json:"external_id"`
+	TxID         string    `json:"txid"`
+	QRCodeText   string    `json:"qr_code_text"`
+	QRCodeBase64 string    `json:"qr_code_base64,omitempty"`
+	TicketURL    string    `json:"ticket_url,omitempty"`
+	ExpiresAt    time.Time `json:"expires_at"`
+	AmountCents  int64     `json:"amount_cents"`
 }
 
 type Gateway interface {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	mpwebhook "github.com/mercadopago/sdk-go/pkg/webhook"
@@ -25,11 +26,13 @@ type PixChargeInput struct {
 }
 
 type ChargeResult struct {
-	ExternalID  string
-	TxID        string
-	QRCodeText  string
-	ExpiresAt   time.Time
-	AmountCents int64
+	ExternalID   string
+	TxID         string
+	QRCodeText   string
+	QRCodeBase64 string
+	TicketURL    string
+	ExpiresAt    time.Time
+	AmountCents  int64
 }
 
 type Gateway struct {
@@ -69,11 +72,25 @@ func (g *Gateway) ParseWebhookEvent(payload []byte) (string, string, string, int
 }
 
 // ValidateOrderWebhook checks x-signature from Mercado Pago Order notifications.
+// Tries lowercase data.id (Orders docs) then original casing (sdk-go / MP variance).
 func (g *Gateway) ValidateOrderWebhook(xSignature, xRequestID, dataID string) error {
 	if g.cfg.WebhookSecret == "" {
 		return fmt.Errorf("MERCADO_PAGO_WEBHOOK_SECRET não configurado")
 	}
-	return mpwebhook.ValidateSignature(xSignature, xRequestID, dataID, g.cfg.WebhookSecret)
+	dataID = strings.TrimSpace(dataID)
+	candidates := []string{strings.ToLower(dataID)}
+	if dataID != "" && candidates[0] != dataID {
+		candidates = append(candidates, dataID)
+	}
+	var lastErr error
+	for _, id := range candidates {
+		if err := mpwebhook.ValidateSignature(xSignature, xRequestID, id, g.cfg.WebhookSecret); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 // OrderWebhookPayload is the minimal notification body for Order topic.

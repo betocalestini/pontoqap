@@ -7,13 +7,14 @@ import (
 )
 
 type Config struct {
-	Environment    string
-	BaseURL        string
-	AccessToken    string
-	WebhookSecret  string
-	ApplicationID  string
-	PixExpiration  string
-	RequestTimeout time.Duration
+	Environment     string
+	BaseURL         string
+	AccessToken     string
+	WebhookSecret   string
+	ApplicationID   string
+	PixExpiration   string
+	RequestTimeout  time.Duration
+	TestAutoApprove bool
 }
 
 func ConfigFromPayments(cfg config.PaymentsConfig) Config {
@@ -28,12 +29,13 @@ func ConfigFromPayments(cfg config.PaymentsConfig) Config {
 		mp.BaseURL = "https://api.mercadopago.com"
 	}
 	return Config{
-		Environment:    mp.Environment,
-		BaseURL:        mp.BaseURL,
-		AccessToken:    mp.AccessToken,
-		WebhookSecret:  mp.WebhookSecret,
-		ApplicationID:  mp.ApplicationID,
-		PixExpiration:  mp.PixExpiration,
-		RequestTimeout: mp.RequestTimeout,
+		Environment:     mp.Environment,
+		BaseURL:         mp.BaseURL,
+		AccessToken:     mp.AccessToken,
+		WebhookSecret:   mp.WebhookSecret,
+		ApplicationID:   mp.ApplicationID,
+		PixExpiration:   mp.PixExpiration,
+		RequestTimeout:  mp.RequestTimeout,
+		TestAutoApprove: mp.TestAutoApprove,
 	}
 }

@@ -32,7 +32,8 @@ type paymentMethodPayload struct {
 }
 
 type payerPayload struct {
-	Email string `json:"email"`
+	Email     string `json:"email"`
+	FirstName string `json:"first_name,omitempty"`
 }
 
 type orderResponse struct {
@@ -45,6 +46,8 @@ type orderResponse struct {
 			ExpirationTime   string `json:"expiration_time"`
 			PaymentMethod    struct {
 				QRCode       string `json:"qr_code"`
+				QRCodeBase64 string `json:"qr_code_base64"`
+				TicketURL    string `json:"ticket_url"`
 				ReferenceID  string `json:"reference_id"`
 				Reference    string `json:"reference"`
 			} `json:"payment_method"`
@@ -65,11 +68,15 @@ func chargeFromOrderResponse(o orderResponse, amountCents int64, expirationISO s
 		return ChargeResult{}, fmt.Errorf("mercado pago: resposta sem order id")
 	}
 	qr := ""
+	qrB64 := ""
+	ticketURL := ""
 	txid := ""
 	exp := expirationFromISO(expirationISO)
 	if len(o.Transactions.Payments) > 0 {
 		p := o.Transactions.Payments[0]
 		qr = p.PaymentMethod.QRCode
+		qrB64 = p.PaymentMethod.QRCodeBase64
+		ticketURL = p.PaymentMethod.TicketURL
 		txid = firstNonEmpty(p.ReferenceID, p.PaymentMethod.ReferenceID, p.PaymentMethod.Reference, p.ID)
 		if p.DateOfExpiration != "" {
 			if t, err := time.Parse(time.RFC3339, p.DateOfExpiration); err == nil {
@@ -83,11 +90,13 @@ func chargeFromOrderResponse(o orderResponse, amountCents int64, expirationISO s
 		return ChargeResult{}, fmt.Errorf("mercado pago: resposta sem QR Code Pix")
 	}
 	return ChargeResult{
-		ExternalID:  o.ID,
-		TxID:        txid,
-		QRCodeText:  qr,
-		ExpiresAt:   exp,
-		AmountCents: amountCents,
+		ExternalID:   o.ID,
+		TxID:         txid,
+		QRCodeText:   qr,
+		QRCodeBase64: qrB64,
+		TicketURL:    ticketURL,
+		ExpiresAt:    exp,
+		AmountCents:  amountCents,
 	}, nil
 }
 

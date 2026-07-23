@@ -6,13 +6,16 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/store-platform/store/internal/notification"
 )
 
 type Handler struct {
-	Billing BillingWorker
-	Log     *slog.Logger
-	Outbox  *notification.OutboxHandler
+	Billing           BillingWorker
+	Payments          MercadoPagoPayments
+	Log               *slog.Logger
+	Outbox            *notification.OutboxHandler
 }
 
 func (h *Handler) Handle(ctx context.Context, job Job) error {
@@ -44,6 +47,23 @@ func (h *Handler) Handle(ctx context.Context, job Job) error {
 			)
 		}
 		return err
+	case TypeMercadoPagoOrder:
+		if h.Payments == nil {
+			h.Log.Warn("mercado pago job skipped: payments handler not configured")
+			return nil
+		}
+		var p struct {
+			PaymentEventID string `json:"payment_event_id"`
+			OrderID        string `json:"order_id"`
+		}
+		if len(job.Payload) > 0 {
+			_ = json.Unmarshal(job.Payload, &p)
+		}
+		var peID uuid.UUID
+		if p.PaymentEventID != "" {
+			peID, _ = uuid.Parse(p.PaymentEventID)
+		}
+		return h.Payments.ProcessMercadoPagoOrderJob(ctx, peID, p.OrderID)
 	case TypeMarkOverdue:
 		n, err := h.Billing.MarkOverdueInvoices(ctx, time.Now())
 		if err == nil {

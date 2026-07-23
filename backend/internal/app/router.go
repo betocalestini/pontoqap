@@ -68,8 +68,14 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 		logger.Error("payment gateway", "error", err)
 		panic(err)
 	}
-	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments, logger)
-	payHandler := paymentshttp.NewHandler(paySvc, logger)
+	mpFetcher, _ := payments.NewMercadoPagoOrderFetcher(cfg.Payments, logger)
+	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments, logger, &payments.ServiceDeps{
+		Jobs:         jobRepo,
+		OrderFetcher: mpFetcher,
+		Audit:        auditSvc,
+		AppEnv:       cfg.AppEnv,
+	})
+	payHandler := paymentshttp.NewHandler(paySvc, auditSvc, logger, cfg.AppEnv == "development", cfg.Payments.MercadoPago.WebhookDebug)
 	billHandler := billinghttp.NewHandler(billSvc, auditSvc, logger)
 	reportsHandler := reportshttp.NewReportsHandler(reports.NewService(pool))
 	forecastHandler := reportshttp.NewForecastHandler(forecasting.NewService(pool))
@@ -99,6 +105,13 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 			return
 		}
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+	r.Get("/ready", func(w http.ResponseWriter, r *http.Request) {
+		if err := database.Ping(r.Context(), pool); err != nil {
+			httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready", "db": "down"})
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ready", "db": "ok"})
 	})
 
 	r.Route("/api/v1", func(api chi.Router) {
@@ -196,6 +209,7 @@ func NewRouter(cfg config.Config, pool *pgxpool.Pool, idSvc *identity.Service, v
 					br.With(identityhttp.RequirePermission("billing.read")).Get("/invoices/{id}", billHandler.GetAdminInvoice)
 				})
 				priv.With(identityhttp.RequirePermission("payments.read")).Post("/invoices/{id}/pix-charge", payHandler.CreatePixCharge)
+				priv.With(identityhttp.RequirePermission("payments.read")).Post("/payment-charges/{id}/sync", payHandler.SyncPaymentCharge)
 				priv.Route("/reports", func(rr chi.Router) {
 					rr.With(identityhttp.RequirePermission("reports.dashboard.read")).Get("/dashboard", reportsHandler.Dashboard)
 					rr.With(identityhttp.RequirePermission("reports.dashboard.read")).Get("/dashboard/series", reportsHandler.DashboardSeries)

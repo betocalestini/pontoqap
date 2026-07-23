@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	TypeMonthlyClose = "billing.monthly_close"
-	TypeMarkOverdue  = "billing.mark_overdue"
+	TypeMonthlyClose      = "billing.monthly_close"
+	TypeMarkOverdue       = "billing.mark_overdue"
+	TypeMercadoPagoOrder  = "payments.mercadopago_order"
 )
 
 type Job struct {
@@ -30,11 +31,15 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 }
 
 func (r *Repository) Enqueue(ctx context.Context, jobType string, payload any) error {
+	return r.EnqueueAvailableAt(ctx, jobType, payload, time.Now())
+}
+
+func (r *Repository) EnqueueAvailableAt(ctx context.Context, jobType string, payload any, availableAt time.Time) error {
 	b, _ := json.Marshal(payload)
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO jobs (id, type, payload, status, available_at)
-		VALUES ($1, $2, $3, 'pending', NOW())
-	`, uuid.New(), jobType, b)
+		VALUES ($1, $2, $3, 'pending', $4)
+	`, uuid.New(), jobType, b, availableAt)
 	return err
 }
 

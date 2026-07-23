@@ -8,6 +8,7 @@ import (
 	"github.com/store-platform/store/internal/billing"
 	"github.com/store-platform/store/internal/jobs"
 	"github.com/store-platform/store/internal/notification"
+	"github.com/store-platform/store/internal/payments"
 	"github.com/store-platform/store/internal/platform/config"
 	"github.com/store-platform/store/internal/platform/database"
 	"github.com/store-platform/store/internal/platform/logging"
@@ -28,6 +29,16 @@ func main() {
 
 	jobRepo := jobs.NewRepository(pool)
 	billSvc := billing.NewService(pool, jobRepo, cfg.App.StoreWebURL, logger)
+	mpFetcher, _ := payments.NewMercadoPagoOrderFetcher(cfg.Payments, logger)
+	gateway, err := payments.NewGateway(cfg.Payments, logger)
+	if err != nil {
+		log.Fatal(err)
+	}
+	paySvc := payments.NewService(pool, gateway, billSvc, cfg.Payments, logger, &payments.ServiceDeps{
+		Jobs:         jobRepo,
+		OrderFetcher: mpFetcher,
+		AppEnv:       cfg.AppEnv,
+	})
 	mailer := notification.NewSMTPMailer(cfg.SMTP)
 	outbox := &notification.OutboxHandler{Mailer: mailer, Log: logger}
 	runner := &jobs.Runner{
@@ -35,9 +46,10 @@ func main() {
 		WorkerID: cfg.Worker.WorkerID,
 		Batch:    5,
 		Handler: &jobs.Handler{
-			Billing: billSvc,
-			Log:     logger,
-			Outbox:  outbox,
+			Billing:  billSvc,
+			Payments: paySvc,
+			Log:      logger,
+			Outbox:   outbox,
 		},
 	}
 

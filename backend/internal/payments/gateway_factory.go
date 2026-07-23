@@ -3,7 +3,6 @@ package payments
 import (
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/store-platform/store/internal/platform/config"
 )
@@ -11,7 +10,7 @@ import (
 const ProviderMercadoPago = "mercadopago"
 
 func NewGateway(cfg config.PaymentsConfig, log *slog.Logger) (Gateway, error) {
-	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
+	switch config.NormalizePaymentProvider(cfg.Provider) {
 	case "mercadopago":
 		return newMercadoPagoGateway(cfg, log)
 	case "sandbox", "":
@@ -22,7 +21,7 @@ func NewGateway(cfg config.PaymentsConfig, log *slog.Logger) (Gateway, error) {
 }
 
 func ProviderName(cfg config.PaymentsConfig) string {
-	if strings.EqualFold(cfg.Provider, "mercadopago") {
+	if config.IsMercadoPagoProvider(cfg.Provider) {
 		return ProviderMercadoPago
 	}
 	return "sandbox"

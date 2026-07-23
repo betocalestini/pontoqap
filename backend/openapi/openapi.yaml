@@ -275,6 +275,10 @@ paths:
       responses:
         '200':
           description: Cobrança Pix
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PixCharge'
   /me/invoices/{id}/payment-options:
     get:
       tags: [billing]
@@ -335,6 +339,24 @@ paths:
         '200':
           description: Parcelas
   /me/installments/{installmentId}/pix-charge:
+    get:
+      tags: [payments]
+      summary: Pix pendente da parcela (sem criar nova cobrança)
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: installmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Cobrança Pix pendente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PixCharge'
+        '404':
+          description: Nenhum Pix pendente válido
     post:
       tags: [payments]
       summary: Gerar Pix para parcela
@@ -347,6 +369,10 @@ paths:
       responses:
         '201':
           description: Cobrança Pix
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PixCharge'
   /webhooks/pix:
     post:
       tags: [payments]
@@ -748,6 +774,38 @@ paths:
       responses:
         '200':
           description: Resultado do fechamento
+  /admin/invoices/{id}/pix-charge:
+    post:
+      tags: [payments]
+      summary: Gerar cobrança Pix para fatura (admin)
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Cobrança Pix
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PixCharge'
+  /admin/payment-charges/{id}/sync:
+    post:
+      tags: [payments]
+      summary: Reconciliar cobrança Mercado Pago (GET Order no provedor)
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Sincronizado
+        '404':
+          description: Cobrança não encontrada
   /admin/billing/summary:
     get:
       tags: [billing]
@@ -971,6 +1029,20 @@ paths:
           description: Pagamento simulado
 components:
   schemas:
+    PixCharge:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        invoice_id: { type: string, format: uuid }
+        installment_id: { type: string, format: uuid }
+        provider: { type: string }
+        simulatable: { type: boolean }
+        status: { type: string }
+        amount_cents: { type: integer, format: int64 }
+        qr_code_text: { type: string }
+        qr_code_base64: { type: string }
+        ticket_url: { type: string, format: uri }
+        expires_at: { type: string, format: date-time }
     AdminCustomer:
       type: object
       properties:

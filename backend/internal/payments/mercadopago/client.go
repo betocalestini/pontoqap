@@ -49,7 +49,7 @@ func (c *apiClient) postJSON(ctx context.Context, path string, idempotencyKey st
 
 	res, err := c.http.Do(req)
 	if err != nil {
-		c.logAPICall(path, 0, "", time.Since(start), true)
+		c.logAPICall("POST", path, 0, "", time.Since(start), true)
 		return 0, fmt.Errorf("mercado pago: request failed: %w", err)
 	}
 	defer res.Body.Close()
@@ -58,29 +58,65 @@ func (c *apiClient) postJSON(ctx context.Context, path string, idempotencyKey st
 
 	raw, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if err != nil {
-		c.logAPICall(path, res.StatusCode, mpReqID, time.Since(start), true)
+		c.logAPICall("POST", path, res.StatusCode, mpReqID, time.Since(start), true)
 		return res.StatusCode, err
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		c.logAPICall(path, res.StatusCode, mpReqID, time.Since(start), true)
-		return res.StatusCode, fmt.Errorf("mercado pago: HTTP %d: %s", res.StatusCode, truncateErrBody(raw))
+		c.logAPICall("POST", path, res.StatusCode, mpReqID, time.Since(start), true)
+		return res.StatusCode, callError{status: res.StatusCode, mpRequestID: mpReqID, body: append([]byte(nil), raw...)}
 	}
 	if dest != nil && len(raw) > 0 {
 		if err := json.Unmarshal(raw, dest); err != nil {
-			c.logAPICall(path, res.StatusCode, mpReqID, time.Since(start), true)
+			c.logAPICall("POST", path, res.StatusCode, mpReqID, time.Since(start), true)
 			return res.StatusCode, fmt.Errorf("mercado pago: decode response: %w", err)
 		}
 	}
-	c.logAPICall(path, res.StatusCode, mpReqID, time.Since(start), false)
+	c.logAPICall("POST", path, res.StatusCode, mpReqID, time.Since(start), false)
 	return res.StatusCode, nil
 }
 
-func (c *apiClient) logAPICall(path string, status int, mpRequestID string, dur time.Duration, failed bool) {
+func (c *apiClient) getJSON(ctx context.Context, path string, dest any) (int, error) {
+	start := time.Now()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("Accept", "application/json")
+
+	res, err := c.http.Do(req)
+	if err != nil {
+		c.logAPICall("GET", path, 0, "", time.Since(start), true)
+		return 0, fmt.Errorf("mercado pago: request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	mpReqID := res.Header.Get("x-request-id")
+	raw, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if err != nil {
+		c.logAPICall("GET", path, res.StatusCode, mpReqID, time.Since(start), true)
+		return res.StatusCode, err
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		c.logAPICall("GET", path, res.StatusCode, mpReqID, time.Since(start), true)
+		return res.StatusCode, callError{status: res.StatusCode, mpRequestID: mpReqID, body: append([]byte(nil), raw...)}
+	}
+	if dest != nil && len(raw) > 0 {
+		if err := json.Unmarshal(raw, dest); err != nil {
+			c.logAPICall("GET", path, res.StatusCode, mpReqID, time.Since(start), true)
+			return res.StatusCode, fmt.Errorf("mercado pago: decode response: %w", err)
+		}
+	}
+	c.logAPICall("GET", path, res.StatusCode, mpReqID, time.Since(start), false)
+	return res.StatusCode, nil
+}
+
+func (c *apiClient) logAPICall(method, path string, status int, mpRequestID string, dur time.Duration, failed bool) {
 	if c.log == nil {
 		return
 	}
 	attrs := []any{
-		slog.String("method", "POST"),
+		slog.String("method", method),
 		slog.String("path", path),
 		slog.Int("status", status),
 		slog.Int64("duration_ms", dur.Milliseconds()),

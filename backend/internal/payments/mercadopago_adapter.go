@@ -25,12 +25,14 @@ func (a *mercadoPagoGateway) CreatePixCharge(ctx context.Context, in PixChargeIn
 		return ChargeResult{}, err
 	}
 	return ChargeResult{
-		Provider:    ProviderMercadoPago,
-		ExternalID:  res.ExternalID,
-		TxID:        res.TxID,
-		QRCodeText:  res.QRCodeText,
-		ExpiresAt:   res.ExpiresAt,
-		AmountCents: res.AmountCents,
+		Provider:     ProviderMercadoPago,
+		ExternalID:   res.ExternalID,
+		TxID:         res.TxID,
+		QRCodeText:   res.QRCodeText,
+		QRCodeBase64: res.QRCodeBase64,
+		TicketURL:    res.TicketURL,
+		ExpiresAt:    res.ExpiresAt,
+		AmountCents:  res.AmountCents,
 	}, nil
 }
 

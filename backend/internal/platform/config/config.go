@@ -70,13 +70,15 @@ type WorkerConfig struct {
 }
 
 type MercadoPagoConfig struct {
-	Environment    string
-	BaseURL        string
-	AccessToken    string
-	WebhookSecret  string
-	ApplicationID  string
-	PixExpiration  string
-	RequestTimeout time.Duration
+	Environment     string
+	BaseURL         string
+	AccessToken     string
+	WebhookSecret   string
+	ApplicationID   string
+	PixExpiration   string
+	RequestTimeout  time.Duration
+	TestAutoApprove bool
+	WebhookDebug    bool
 }
 
 type PaymentsConfig struct {
@@ -121,13 +123,15 @@ func Load() (Config, error) {
 			Provider:      env("PAYMENT_PROVIDER", "sandbox"),
 			WebhookSecret: env("PAYMENT_WEBHOOK_SECRET", "sandbox-webhook-secret"),
 			MercadoPago: MercadoPagoConfig{
-				Environment:    env("MERCADO_PAGO_ENVIRONMENT", "test"),
-				BaseURL:        strings.TrimRight(env("MERCADO_PAGO_BASE_URL", "https://api.mercadopago.com"), "/"),
-				AccessToken:    env("MERCADO_PAGO_ACCESS_TOKEN", ""),
-				WebhookSecret:  env("MERCADO_PAGO_WEBHOOK_SECRET", ""),
-				ApplicationID:  env("MERCADO_PAGO_APPLICATION_ID", ""),
-				PixExpiration:  env("MERCADO_PAGO_PIX_EXPIRATION", "PT24H"),
-				RequestTimeout: time.Duration(intEnv("MERCADO_PAGO_REQUEST_TIMEOUT_SECONDS", 10)) * time.Second,
+				Environment:     env("MERCADO_PAGO_ENVIRONMENT", "test"),
+				BaseURL:         strings.TrimRight(env("MERCADO_PAGO_BASE_URL", "https://api.mercadopago.com"), "/"),
+				AccessToken:     strings.TrimSpace(env("MERCADO_PAGO_ACCESS_TOKEN", "")),
+				WebhookSecret:   strings.TrimSpace(env("MERCADO_PAGO_WEBHOOK_SECRET", "")),
+				ApplicationID:   env("MERCADO_PAGO_APPLICATION_ID", ""),
+				PixExpiration:   env("MERCADO_PAGO_PIX_EXPIRATION", "PT24H"),
+				RequestTimeout:  time.Duration(intEnv("MERCADO_PAGO_REQUEST_TIMEOUT_SECONDS", 10)) * time.Second,
+				TestAutoApprove: envBool("MERCADO_PAGO_TEST_AUTO_APPROVE", false),
+				WebhookDebug:    envBool("MERCADO_PAGO_WEBHOOK_DEBUG", false),
 			},
 		},
 		UploadDir: env("UPLOAD_DIR", "internal/catalog/static"),
@@ -150,10 +154,39 @@ func Load() (Config, error) {
 	if len(cfg.Security.SessionSecret) < 16 {
 		return cfg, fmt.Errorf("SESSION_SECRET must be at least 16 characters")
 	}
-	if cfg.Payments.Provider == "mercadopago" && cfg.Payments.MercadoPago.AccessToken == "" {
+	cfg.Payments.Provider = NormalizePaymentProvider(cfg.Payments.Provider)
+	if IsMercadoPagoProvider(cfg.Payments.Provider) && cfg.Payments.MercadoPago.AccessToken == "" {
 		return cfg, fmt.Errorf("MERCADO_PAGO_ACCESS_TOKEN is required when PAYMENT_PROVIDER=mercadopago")
 	}
+	mp := cfg.Payments.MercadoPago
+	if mp.WebhookDebug && cfg.AppEnv == "production" {
+		return cfg, fmt.Errorf("MERCADO_PAGO_WEBHOOK_DEBUG must be false in production")
+	}
+	if mp.TestAutoApprove {
+		if cfg.AppEnv == "production" {
+			return cfg, fmt.Errorf("MERCADO_PAGO_TEST_AUTO_APPROVE must be false in production")
+		}
+		if !strings.EqualFold(mp.Environment, "test") {
+			return cfg, fmt.Errorf("MERCADO_PAGO_TEST_AUTO_APPROVE requires MERCADO_PAGO_ENVIRONMENT=test")
+		}
+	}
 	return cfg, nil
+}
+
+// NormalizePaymentProvider maps aliases (e.g. mercado_pago) to canonical names.
+func NormalizePaymentProvider(provider string) string {
+	p := strings.ToLower(strings.TrimSpace(provider))
+	switch p {
+	case "mercado_pago", "mercadopago":
+		return "mercadopago"
+	default:
+		return p
+	}
+}
+
+// IsMercadoPagoProvider reports whether the provider uses Mercado Pago APIs.
+func IsMercadoPagoProvider(provider string) bool {
+	return NormalizePaymentProvider(provider) == "mercadopago"
 }
 
 func env(key, fallback string) string {
