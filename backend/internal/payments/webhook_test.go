@@ -52,7 +52,7 @@ func TestPixWebhookAmountMismatchRejected(t *testing.T) {
 	paySvc := payments.NewService(pool, payments.NewSandboxGateway(secret), billSvc, config.PaymentsConfig{
 		Provider:      "sandbox",
 		WebhookSecret: secret,
-	}, nil)
+	}, nil, nil)
 	charge, err := paySvc.CreateOrReusePixChargeForInstallment(ctx, instID, cust.ID)
 	if err != nil {
 		t.Fatal(err)

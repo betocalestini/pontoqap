@@ -32,6 +32,16 @@ func TestGatewayCreatePixCharge(t *testing.T) {
 		if r.Method != http.MethodPost || r.URL.Path != "/v1/orders" {
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
+		var body struct {
+			Payer struct {
+				Email     string `json:"email"`
+				FirstName string `json:"first_name"`
+			} `json:"payer"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.Payer.Email != "cliente@exemplo.com" || body.Payer.FirstName != "" {
+			t.Fatalf("payer: %+v", body.Payer)
+		}
 		if r.Header.Get("Authorization") != "Bearer test-token" {
 			t.Fatalf("missing bearer token")
 		}
@@ -87,5 +97,50 @@ func TestParseOrderWebhookPayload(t *testing.T) {
 	}
 	if p.Data.ID != "ORD01" {
 		t.Fatalf("data.id: %q", p.Data.ID)
+	}
+}
+
+func TestGatewayCreatePixChargeWithTestAutoApprove(t *testing.T) {
+	const orderJSON = `{"id":"ORD-APRO","transactions":{"payments":[{"id":"P1","payment_method":{"qr_code":"pix-code"}}]}}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Payer struct {
+				Email     string `json:"email"`
+				FirstName string `json:"first_name"`
+			} `json:"payer"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.Payer.Email != "test_user_br@testuser.com" || body.Payer.FirstName != "APRO" {
+			t.Fatalf("APRO payer: %+v", body.Payer)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(orderJSON))
+	}))
+	defer srv.Close()
+
+	cfg := mercadopago.Config{
+		BaseURL:         srv.URL,
+		AccessToken:     "test-token",
+		Environment:     "test",
+		TestAutoApprove: true,
+		PixExpiration:   "PT24H",
+		RequestTimeout:  5 * time.Second,
+	}
+	gw, err := mercadopago.NewGateway(cfg, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = gw.CreatePixCharge(context.Background(), mercadopago.PixChargeInput{
+		InvoiceID:         uuid.New(),
+		AmountCents:       11666,
+		ExternalReference: "INSTALLMENT-x",
+		PayerEmail:        "real-cliente@loja.local",
+		IdempotencyKey:    "pix-installment-x",
+		ExpirationISO:     "PT24H",
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
