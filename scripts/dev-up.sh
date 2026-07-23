@@ -6,6 +6,8 @@
 #   ./scripts/dev-up.sh --no-clean   # mantém dados do Postgres
 #   ./scripts/dev-up.sh --local      # só Postgres + migrations + deps; API/front no host
 #   ./scripts/dev-up.sh --help
+#
+# Se a API não subir: confira docker compose logs api (.env / variáveis de ambiente).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -62,13 +64,38 @@ wait_postgres() {
   done
 }
 
+api_container_exited() {
+  [[ -n "$(docker compose ps -a api --status exited --status dead -q 2>/dev/null | head -1)" ]]
+}
+
+fail_api_boot() {
+  printf '\n--- docker compose logs api (últimas 40 linhas) ---\n' >&2
+  docker compose logs api --tail 40 >&2 || true
+  die "container api encerrou na inicialização (confira .env e docker compose logs api)"
+}
+
 wait_api() {
   log "Aguardando API em http://localhost:8080/health ..."
-  local i=0
-  until curl -sf http://localhost:8080/health >/dev/null 2>&1; do
-    i=$((i + 1))
-    [[ $i -gt 90 ]] && die "API não respondeu a tempo; veja: docker compose logs api"
-    sleep 2
+  local elapsed=0
+  local max_elapsed=90
+  local sleep_s=1
+  while ! curl -sf http://localhost:8080/health >/dev/null 2>&1; do
+    if api_container_exited; then
+      fail_api_boot
+    fi
+    if (( elapsed > 0 && elapsed % 10 == 0 )); then
+      log "API ainda indisponível (~${elapsed}s)..."
+    fi
+    if [[ $elapsed -ge $max_elapsed ]]; then
+      printf '\n--- docker compose logs api (últimas 40 linhas) ---\n' >&2
+      docker compose logs api --tail 40 >&2 || true
+      die "API não respondeu a tempo (${max_elapsed}s); veja logs acima ou: docker compose logs api"
+    fi
+    sleep "$sleep_s"
+    elapsed=$((elapsed + sleep_s))
+    if [[ $elapsed -ge 30 ]]; then
+      sleep_s=2
+    fi
   done
 }
 

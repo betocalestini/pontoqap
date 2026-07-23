@@ -73,17 +73,24 @@ services:
       UPLOAD_DIR: /data/catalog-static
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-sandbox}
       PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-sandbox-webhook-secret}
+      # Demais MERCADO_PAGO_* (token, webhook secret, etc.) vêm só de env_file: .env — evita
+      # ${VAR:-} vazio no shell sobrescrever o segredo carregado do arquivo.
       MERCADO_PAGO_ENVIRONMENT: ${MERCADO_PAGO_ENVIRONMENT:-test}
       MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
-      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
-      MERCADO_PAGO_WEBHOOK_SECRET: ${MERCADO_PAGO_WEBHOOK_SECRET:-}
       MERCADO_PAGO_APPLICATION_ID: ${MERCADO_PAGO_APPLICATION_ID:-}
       MERCADO_PAGO_PIX_EXPIRATION: ${MERCADO_PAGO_PIX_EXPIRATION:-PT24H}
       MERCADO_PAGO_REQUEST_TIMEOUT_SECONDS: ${MERCADO_PAGO_REQUEST_TIMEOUT_SECONDS:-10}
-    volumes:
-      - ./backend/internal/catalog/static:/data/catalog-static
+      MERCADO_PAGO_TEST_AUTO_APPROVE: ${MERCADO_PAGO_TEST_AUTO_APPROVE:-false}
+    # Imagens: go:embed + COPY no Dockerfile. Bind-mount de static/ vazio no host oculta os arquivos da imagem e gera 404.
+    # Para persistir uploads do admin no host: ./backend/internal/catalog/static/product-images:/data/catalog-static/product-images
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 15s
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -95,14 +102,26 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: worker
+    env_file:
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: postgres://store:store@postgres:5432/store?sslmode=disable
+      APP_ENV: development
       WORKER_POLL_INTERVAL: 5s
       WORKER_ID: worker-1
-      PAYMENT_WEBHOOK_SECRET: sandbox-webhook-secret
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       STORE_WEB_URL: http://localhost:5173
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-sandbox}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-sandbox-webhook-secret}
+      # MERCADO_PAGO_ACCESS_TOKEN e MERCADO_PAGO_WEBHOOK_SECRET: apenas env_file .env (ver serviço api).
+      MERCADO_PAGO_ENVIRONMENT: ${MERCADO_PAGO_ENVIRONMENT:-test}
+      MERCADO_PAGO_BASE_URL: ${MERCADO_PAGO_BASE_URL:-https://api.mercadopago.com}
+      MERCADO_PAGO_APPLICATION_ID: ${MERCADO_PAGO_APPLICATION_ID:-}
+      MERCADO_PAGO_PIX_EXPIRATION: ${MERCADO_PAGO_PIX_EXPIRATION:-PT24H}
+      MERCADO_PAGO_REQUEST_TIMEOUT_SECONDS: ${MERCADO_PAGO_REQUEST_TIMEOUT_SECONDS:-10}
+      MERCADO_PAGO_TEST_AUTO_APPROVE: ${MERCADO_PAGO_TEST_AUTO_APPROVE:-false}
     depends_on:
       migrate:
         condition: service_completed_successfully

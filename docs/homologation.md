@@ -127,14 +127,49 @@ Roteiro detalhado (MP + sandbox): plano em `.cursor/plans/` e [development/merca
 
 **Pré-requisito loja (MP e sandbox):** após fechar a fatura, confirmar **plano 1×** na UI antes de **Gerar Pix** (fatura fechada cria plano `pending_selection`).
 
+**Credenciais MP (API de Orders):** no `.env`, use **Testes → Credenciais de teste → Access Token** em `MERCADO_PAGO_ACCESS_TOKEN`, com `MERCADO_PAGO_ENVIRONMENT=test` e `MERCADO_PAGO_TEST_AUTO_APPROVE=true`. Produção só no go-live. Validar antes da loja:
+
+```bash
+./scripts/pix-homologation-check.sh --mp-auth-smoke    # opcional (200 não garante Orders)
+./scripts/pix-homologation-check.sh --mp-orders-smoke  # obrigatório: HTTP 201
+docker compose up -d --build api worker
+```
+
+Se o orders smoke ≠ 201, ver [mercadopago-pix.md — Troubleshooting 401](development/mercadopago-pix.md#troubleshooting-401-test-credentials).
+
 | Passo | Ação | Resultado esperado | OK? | Evidência |
 | ----- | ---- | ------------------ | --- | --------- |
 | 6.1 | Plano 1× confirmado → **Gerar Pix** (`PAYMENT_PROVIDER=mercadopago`) | QR/código retornado; log `pix charge created` / `mercado pago api call` | ☐ | charge_id: |
 | 6.2 | Sandbox: `PAYMENT_PROVIDER=sandbox` + `POST /dev/pix/simulate/{chargeId}` ou webhook | Pagamento confirmado uma vez | ☑ | `go test … -run PixWebhook` / `TestPixWebhookDuplicateIsIgnored` |
-| 6.2b | MP teste + túnel HTTPS → webhook Order | `payment_events` (`mercadopago`, `processed=false`); log `mercado pago webhook received` | ☐ | simulador painel + `pix-homologation-check.sh` |
+| 6.2b | MP teste + túnel HTTPS → webhook Order | `payment_events` + job `payments.mercadopago_order`; worker consulta Order; simulador **não** baixa sem accredited | ☐ | `./scripts/pix-homologation-check.sh --webhook-self-test` (200 local) + log `mercado pago webhook received` (POST real MP) |
+| 6.2c | MP: fatura **R$ 50** à vista → Pix + APRO + worker + túnel | Order `processed/accredited`; fatura `paid`; ver checklist em [mercadopago-pix.md](development/mercadopago-pix.md) | ☐ | cenário documentado MP |
+| 6.2d | MP parcelado (ex. R$ 350, 3×) após 6.2c | Parcelas sequenciais; opcional — doc MP não garante APRO fora do payload R$ 50 | ☐ | |
 | 6.3 | Repetir mesmo webhook (teste técnico) | Sem duplicar liquidação (sandbox); MP: `duplicate=true` sem nova linha | ☑ | `TestPixWebhookDuplicateIsIgnored`; log MP `duplicate=true` |
 | 6.4 | Fatura | Status pago ou `paid_cents` = total (sandbox) | ☑ | integração `billing_payments_test` |
 | 6.5 | Exposição do cliente | Reduzida após pagamento (sandbox) | ☐ | conferir UI após 6.2 manual |
+
+### Roteiro 6.2b–6.2c (Mercado Pago real)
+
+1. `--mp-orders-smoke` → **HTTP 201** (Access Token de **teste** no `.env`; ver pré-requisito acima).
+2. Túnel HTTPS (ex. Cloudflare) apontando para `localhost:8080`; URL no painel MP: `…/api/v1/webhooks/mercado-pago/orders` + `MERCADO_PAGO_WEBHOOK_SECRET`.
+3. `docker compose up -d api worker` com `PAYMENT_PROVIDER=mercadopago`.
+4. Loja: fechar fatura, plano **1×**, parcela em aberto → **Gerar Pix** (ideal total **R$ 50** para APRO).
+5. UI: QR/copiar/vencimento; aguardar ~1 min ou admin `POST /api/v1/admin/payment-charges/{chargeId}/sync`.
+6. Conferir: `payment_events`, job `payments.mercadopago_order`, logs worker `GET /v1/orders`, parcela/fatura **paga**.
+
+**Evidência 6.2c (R$ 50,00)** — após Pix + baixa:
+
+```sql
+SELECT pc.external_id, pc.status, pc.amount_cents, i.invoice_number, i.status AS invoice_status, i.paid_cents
+FROM payment_charges pc
+JOIN invoices i ON i.id = pc.invoice_id
+WHERE pc.provider = 'mercadopago' AND pc.amount_cents = 5000
+ORDER BY pc.created_at DESC LIMIT 1;
+```
+
+Logs esperados: API `pix charge created` + `amount` coerente; worker `mercado pago payment settled` com `amount_cents":5000` e `invoice_paid":true`.
+
+**Webhook antes do go MP:** `./scripts/pix-homologation-check.sh --webhook-self-test` (valida `.env` ↔ API). Notificações reais do painel MP exigem o **mesmo** `MERCADO_PAGO_WEBHOOK_SECRET` cadastrado na URL do túnel. Se o **simulador** do painel retorna 200 e os POSTs **automáticos** continuam em 401, ver [mercadopago-pix.md § Simulador manual vs automático](development/mercadopago-pix.md#simulador-manual-200-vs-notificações-automáticas-401) (secret pós-túnel, URLs duplicadas, `data.id` na query).
 
 ---
 
@@ -176,6 +211,21 @@ Preencha ao final:
 - **Resultado:** Aprovado ☐ / Reprovado ☐
 - **Observações:**
 
+### Política de variáveis — staging vs produção (Pix MP)
+
+| Variável | Dev local (Docker) | Staging UAT | Produção |
+| -------- | ------------------ | ----------- | -------- |
+| `PAYMENT_PROVIDER` | `mercadopago` para teste real | `mercadopago` | `mercadopago` |
+| `MERCADO_PAGO_ENVIRONMENT` | `test` | `test` até go-live | `production` |
+| `MERCADO_PAGO_TEST_AUTO_APPROVE` | `true` permitido (job ~12s sem webhook) | `true` só como **ponte** enquanto 6.2b não passa; depois `false` + webhook 200 | **`false`** (obrigatório; API recusa `true`) |
+| `MERCADO_PAGO_WEBHOOK_SECRET` | Painel MP modo teste, URL do túnel | URL HTTPS estável do staging | Painel produção |
+
+**Evidências mínimas (anexar ao registro):**
+
+- Fase 0: saída de `make test`, `go test ./tests/e2e/... -run 'TestHTTP|TestMVP'`, `./scripts/pix-homologation-check.sh --mp-orders-smoke`
+- Fase 6: log `mercado pago webhook received` (MP real) **ou** `--webhook-self-test` HTTP 200 + worker `mercado pago payment settled`
+- Commit deployado em staging = mesmo que passou Fase 0
+
 Itens fora do MVP atual (documentar como pendência, não reprovar se já conhecido):
 
 - Pix com PSP real (produção financeira).
@@ -203,9 +253,14 @@ Itens fora do MVP atual (documentar como pendência, não reprovar se já conhec
 # Stack local completa
 docker compose up -d --build
 
-# Homologação automatizada
+# Homologação automatizada (Fase 0)
 make test && make test-backup-restore
-cd backend && go test -p 1 ./tests/e2e/...
+cd backend && go test -p 1 ./tests/e2e/... -run 'TestHTTP|TestMVP'
+
+# Pix / Mercado Pago
+./scripts/pix-homologation-check.sh
+./scripts/pix-homologation-check.sh --mp-orders-smoke
+./scripts/pix-homologation-check.sh --webhook-self-test
 ```
 
 Deploy no servidor: ver `docs/deployment.md`.
