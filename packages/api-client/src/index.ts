@@ -741,11 +741,33 @@ export function createApiClient(baseUrl = defaultBase, options: ApiClientOptions
     createPixCharge: (invoiceId: string) =>
       request(`/me/invoices/${invoiceId}/pix-charge`, { method: 'POST' }, 'store'),
     createInstallmentPixCharge: (installmentId: string) =>
-      request<{ id: string; qr_code_text: string; amount_cents: number; installment_id?: string }>(
+      request<{
+        id: string;
+        qr_code_text: string;
+        amount_cents: number;
+        expires_at?: string;
+        qr_code_base64?: string;
+        ticket_url?: string;
+        installment_id?: string;
+        provider?: string;
+        simulatable?: boolean;
+      }>(
         `/me/installments/${installmentId}/pix-charge`,
         { method: 'POST' },
         'store',
       ),
+    getInstallmentPixCharge: (installmentId: string) =>
+      request<{
+        id: string;
+        qr_code_text: string;
+        amount_cents: number;
+        expires_at?: string;
+        qr_code_base64?: string;
+        ticket_url?: string;
+        installment_id?: string;
+        provider?: string;
+        simulatable?: boolean;
+      }>(`/me/installments/${installmentId}/pix-charge`, {}, 'store'),
     simulatePixPayment: (chargeId: string) =>
       request(`/dev/pix/simulate/${chargeId}`, { method: 'POST' }),
 

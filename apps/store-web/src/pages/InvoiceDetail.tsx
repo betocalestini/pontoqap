@@ -11,8 +11,7 @@ import { useDialog } from '@store/ui';
 import { api } from '../api';
 import { InvoiceItemsList } from '../components/InvoiceItems';
 import { PaymentPlanConfirmMessage } from '../components/PaymentPlanConfirmMessage';
-
-type Charge = { id: string; qr_code_text: string; amount_cents: number };
+import { PixPaymentBlock, type PixChargeView } from '../components/PixPaymentBlock';
 
 function formatCompetence(year: number, month: number) {
   return `${String(month).padStart(2, '0')}/${year}`;
@@ -56,8 +55,9 @@ export function InvoiceDetailPage() {
   const { confirm } = useDialog();
   const [inv, setInv] = useState<MyInvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [charge, setCharge] = useState<Charge | null>(null);
+  const [charge, setCharge] = useState<PixChargeView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pixLoading, setPixLoading] = useState(false);
   const [options, setOptions] = useState<PaymentOption[]>([]);
   const [plan, setPlan] = useState<PaymentPlan | null>(null);
   const [installments, setInstallments] = useState<InvoiceInstallment[]>([]);
@@ -99,6 +99,36 @@ export function InvoiceDetailPage() {
       .finally(() => setLoading(false));
   }, [id, reload]);
 
+  useEffect(() => {
+    if (!id || loading || charge) return;
+    const planOk = plan?.status === 'active' || plan?.status === 'completed';
+    if (!planOk) return;
+    const open = installments.find((i) => i.status === 'open' || i.status === 'pix_active');
+    if (!open || open.status !== 'pix_active') return;
+    api
+      .getInstallmentPixCharge(open.id)
+      .then((c) => setCharge(c))
+      .catch(() => {});
+  }, [id, loading, plan, installments, charge]);
+
+  useEffect(() => {
+    if (!id || !charge) return;
+    if (inv && inv.remaining_cents <= 0) {
+      setCharge(null);
+      return;
+    }
+    const t = window.setInterval(() => {
+      reload().catch(() => {});
+    }, 30_000);
+    return () => window.clearInterval(t);
+  }, [id, charge, inv?.remaining_cents, reload]);
+
+  useEffect(() => {
+    if (!charge || !installments.length) return;
+    const open = installments.find((i) => i.status === 'open' || i.status === 'pix_active');
+    if (!open) setCharge(null);
+  }, [installments, charge]);
+
   async function confirmPlan() {
     if (!id || !inv) return;
     const selectedOption = options.find((o) => o.installment_count === selectedCount);
@@ -126,11 +156,14 @@ export function InvoiceDetailPage() {
 
   async function payInstallmentPix(installmentId: string) {
     setError(null);
+    setPixLoading(true);
     try {
       const c = await api.createInstallmentPixCharge(installmentId);
       setCharge(c);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setPixLoading(false);
     }
   }
 
@@ -287,9 +320,10 @@ export function InvoiceDetailPage() {
                           <button
                             type="button"
                             className="invoice-action-btn invoice-action-btn--primary invoice-action-btn--compact"
+                            disabled={pixLoading}
                             onClick={() => void payInstallmentPix(inst.id)}
                           >
-                            Gerar Pix
+                            {pixLoading ? 'Gerando Pix…' : 'Gerar Pix'}
                           </button>
                         )}
                     </td>
@@ -316,9 +350,10 @@ export function InvoiceDetailPage() {
                     <button
                       type="button"
                       className="invoice-action-btn invoice-action-btn--primary invoice-action-btn--block"
+                      disabled={pixLoading}
                       onClick={() => void payInstallmentPix(inst.id)}
                     >
-                      Gerar Pix
+                      {pixLoading ? 'Gerando Pix…' : 'Gerar Pix'}
                     </button>
                   )}
               </li>
@@ -328,27 +363,11 @@ export function InvoiceDetailPage() {
       )}
 
       {showPixBlock && (
-        <div className="invoice-card pix">
-          <h2>Pagamento Pix</h2>
-          <p>Valor: {formatMoney(charge.amount_cents)}</p>
-          <code>{charge.qr_code_text}</code>
-          <div className="invoice-actions">
-            <button
-              type="button"
-              className="invoice-action-btn invoice-action-btn--secondary invoice-action-btn--block"
-              onClick={() => setCharge(null)}
-            >
-              Fechar
-            </button>
-            <button
-              type="button"
-              className="invoice-action-btn invoice-action-btn--primary invoice-action-btn--block"
-              onClick={() => void simulate()}
-            >
-              Simular pagamento (dev)
-            </button>
-          </div>
-        </div>
+        <PixPaymentBlock
+          charge={charge}
+          onClose={() => setCharge(null)}
+          onSimulate={charge.simulatable ? () => void simulate() : undefined}
+        />
       )}
     </section>
   );

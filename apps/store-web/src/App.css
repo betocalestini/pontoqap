@@ -1207,7 +1207,8 @@ a.invoice-card--link:hover {
   border-bottom: 1px solid var(--color-border);
 }
 
-.pix code {
+.pix code,
+.pix-copy-paste {
   display: block;
   word-break: break-all;
   font-size: 0.8rem;
@@ -1215,6 +1216,21 @@ a.invoice-card--link:hover {
   border-radius: var(--radius);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
+}
+
+.pix-qr-wrap {
+  text-align: center;
+  margin: var(--space-md) 0;
+}
+
+.pix-qr-image {
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+
+.pix-status-hint {
+  color: var(--color-text-muted, #666);
+  font-size: 0.9rem;
 }
 
 .invoice-pre {
